@@ -31,7 +31,7 @@ export default function PatientHistory({ patient }) {
           ['Tipo',         patient.patientType === 'flap' ? 'FLAP' : 'Externo'],
           ['Fecha de nac.',patient.birthDate ? format(parseISO(patient.birthDate), 'dd/MM/yyyy') : '-'],
           ['Edad',         age !== null ? `${age} años` : '-'],
-          ['Teléfono',     patient.phone || '-'],
+          ['Carnet de identidad', patient.idNumber || '-'],
           ['Responsable',  patient.guardian || '-'],
           ['Tel. responsable', patient.guardianPhone || '-'],
           ['Dirección',    patient.address || '-'],

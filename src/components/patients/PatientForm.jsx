@@ -121,11 +121,11 @@ export default function PatientForm({ initial, onSubmit, onCancel, busy }) {
         </div>
 
         <div className="form-group mb-0">
-          <label className="label">Teléfono del paciente</label>
+          <label className="label">Número de carnet de identidad</label>
           <input
             className="input"
-            placeholder="+56 9 1234 5678"
-            {...register('phone')}
+            placeholder="Ej: 12.345.678-9"
+            {...register('idNumber')}
           />
         </div>
       </div>

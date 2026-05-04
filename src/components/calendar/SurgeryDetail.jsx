@@ -262,7 +262,7 @@ export default function SurgeryDetail({
                 {(surgery.fastingTime || surgery.fastingHours) && (
                   <DataRow label="Hora de ayuno" value={surgery.fastingTime || `${surgery.fastingHours} horas`} />
                 )}
-                <DataRow label="Teléfono" value={patient?.phone || '—'} />
+                <DataRow label="Carnet de identidad" value={patient?.idNumber || '—'} />
                 {patient?.guardian && (
                   <DataRow
                     label="Responsable"
