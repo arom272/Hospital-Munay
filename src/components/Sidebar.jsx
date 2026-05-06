@@ -18,7 +18,7 @@ const NAV_ITEMS = [
 
 export default function Sidebar() {
   const { sidebarOpen, closeSidebar } = useStore();
-  const { logout, user, isAdmin }     = useAuth();
+  const { logout, user, isAdmin, isSecretary } = useAuth();
 
   const visibleItems = NAV_ITEMS.filter((i) => !i.adminOnly || isAdmin);
 
@@ -86,7 +86,7 @@ export default function Sidebar() {
       <div className="px-4 py-4 border-t border-white/10">
         <p className="text-xs text-white/60 truncate mb-0.5">{user?.email}</p>
         <p className="text-xs text-white/40 mb-3">
-          {isAdmin ? 'Administrador' : 'Visualizador'}
+          {isAdmin ? 'Administrador' : isSecretary ? 'Secretaria' : 'Visualizador'}
         </p>
         <button
           onClick={handleLogout}

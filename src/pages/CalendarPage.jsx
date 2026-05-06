@@ -32,7 +32,7 @@ function addMinutes(time, mins) {
 
 export default function CalendarPage() {
   const { patients, setPatients, surgeries, setSurgeries, setTherapies } = useStore();
-  const { isAdmin } = useAuth();
+  const { isAdmin, canEdit } = useAuth();
   const calRef = useRef(null);
 
   const [formOpen,     setFormOpen]     = useState(false);
@@ -78,7 +78,7 @@ export default function CalendarPage() {
   const closeDetail = () => { setDetailOpen(false); setSelected(null); };
 
   const handleEventClick = ({ event }) => { setTooltip(null); setSelected(event.extendedProps); setDetailOpen(true); };
-  const handleDateClick  = ({ dateStr }) => { if (isAdmin) openCreate(dateStr); };
+  const handleDateClick  = ({ dateStr }) => { if (canEdit) openCreate(dateStr); };
 
   const handleEventMouseEnter = ({ event, jsEvent }) => {
     const s = event.extendedProps;
@@ -88,7 +88,7 @@ export default function CalendarPage() {
   const handleEventMouseLeave = () => setTooltip(null);
 
   const handleEventDrop = async ({ event, revert }) => {
-    if (!isAdmin) { revert(); return; }
+    if (!canEdit) { revert(); return; }
     const s       = event.extendedProps;
     const newDate = format(event.start, 'yyyy-MM-dd');
     const newTime = format(event.start, 'HH:mm');
@@ -205,7 +205,7 @@ export default function CalendarPage() {
             <button onClick={() => exportSurgeriesCSV(surgeries)} className="btn-secondary btn btn-sm" title="CSV">
               <FileDown className="w-4 h-4" />
             </button>
-            {isAdmin && (
+            {canEdit && (
               <button onClick={() => openCreate()} className="btn-primary btn btn-sm">
                 <Plus className="w-4 h-4" /> Nueva cirugía
               </button>
@@ -228,8 +228,8 @@ export default function CalendarPage() {
             right:  'dayGridMonth,timeGridWeek,timeGridDay,listWeek',
           }}
           events={calEvents}
-          editable={isAdmin}
-          selectable={isAdmin}
+          editable={canEdit}
+          selectable={canEdit}
           dateClick={handleDateClick}
           eventClick={handleEventClick}
           eventDrop={handleEventDrop}
@@ -294,7 +294,7 @@ export default function CalendarPage() {
                     <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: '#72A0C1' }}>Tipo de cirugía</p>
                     <p className="text-xs font-semibold text-hm-primary mt-0.5">{tooltip.surgery.surgeryType || '—'}</p>
                   </div>
-                  {tooltip.surgery.quotation > 0 && (
+                  {isAdmin && tooltip.surgery.quotation > 0 && (
                     <div>
                       <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: '#72A0C1' }}>Cotización</p>
                       <p className="text-xs font-semibold text-hm-primary mt-0.5">
@@ -352,6 +352,7 @@ export default function CalendarPage() {
               onCancelSurgery={() => setCancelTarget(selected)}
               onSuspendSurgery={handleSuspendSurgery}
               isAdmin={isAdmin}
+              canEdit={canEdit}
             />
           </div>
         </div>

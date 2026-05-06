@@ -48,7 +48,7 @@ const FILTER_OPTIONS = [
 
 export default function PatientsPage() {
   const { patients, setPatients, setSurgeries, setTherapies } = useStore();
-  const { isAdmin } = useAuth();
+  const { isAdmin, canEdit } = useAuth();
 
   const [search,    setSearch]    = useState('');
   const [filter,    setFilter]    = useState('all');
@@ -148,7 +148,7 @@ export default function PatientsPage() {
             <button onClick={() => exportPatientsPDF(filtered)} className="btn-secondary btn btn-sm" title="Exportar PDF">
               <FileText className="w-4 h-4" />
             </button>
-            {isAdmin && (
+            {canEdit && (
               <button onClick={openCreate} className="btn-primary btn btn-sm">
                 <UserPlus className="w-4 h-4" />
                 Nuevo paciente
@@ -164,7 +164,7 @@ export default function PatientsPage() {
         <div className="card flex flex-col items-center py-12 text-gray-400">
           <UserPlus className="w-10 h-10 mb-2 opacity-40" />
           <p className="text-sm">{search ? 'Sin resultados para la búsqueda.' : 'No hay pacientes registrados.'}</p>
-          {isAdmin && !search && (
+          {canEdit && !search && (
             <button onClick={openCreate} className="btn-primary btn mt-4">
               Registrar primer paciente
             </button>
@@ -210,15 +210,15 @@ export default function PatientsPage() {
                           <button onClick={() => openHist(p)} className="btn-ghost btn btn-sm p-1.5" title="Ver historial">
                             <Eye className="w-4 h-4" />
                           </button>
+                          {canEdit && (
+                            <button onClick={() => openEdit(p)} className="btn-ghost btn btn-sm p-1.5" title="Editar">
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                          )}
                           {isAdmin && (
-                            <>
-                              <button onClick={() => openEdit(p)} className="btn-ghost btn btn-sm p-1.5" title="Editar">
-                                <Pencil className="w-4 h-4" />
-                              </button>
-                              <button onClick={() => setDelTarget(p)} className="btn-ghost btn btn-sm p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50" title="Eliminar">
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </>
+                            <button onClick={() => setDelTarget(p)} className="btn-ghost btn btn-sm p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50" title="Eliminar">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                           )}
                         </div>
                       </td>
@@ -258,15 +258,15 @@ export default function PatientsPage() {
                     <button onClick={() => openHist(p)} className="btn-secondary btn btn-sm flex-1 justify-center">
                       <Eye className="w-3.5 h-3.5" /> Historial
                     </button>
+                    {canEdit && (
+                      <button onClick={() => openEdit(p)} className="btn-secondary btn btn-sm px-2.5">
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                     {isAdmin && (
-                      <>
-                        <button onClick={() => openEdit(p)} className="btn-secondary btn btn-sm px-2.5">
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
-                        <button onClick={() => setDelTarget(p)} className="btn btn-sm px-2.5 text-red-500 border border-red-200 hover:bg-red-50">
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </>
+                      <button onClick={() => setDelTarget(p)} className="btn btn-sm px-2.5 text-red-500 border border-red-200 hover:bg-red-50">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     )}
                   </div>
                 </li>

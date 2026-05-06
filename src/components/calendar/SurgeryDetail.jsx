@@ -5,11 +5,12 @@ import { differenceInYears, differenceInMonths, differenceInDays, parseISO, isVa
 import {
   User, Users, DollarSign, History,
   Printer, PauseCircle, XCircle, X, Pencil,
-  CheckCircle, AlertCircle, CalendarClock, Loader2
+  CheckCircle, AlertCircle, CalendarClock, Loader2, FileText
 } from 'lucide-react';
 import useStore      from '../../store/useStore';
 import Badge         from '../ui/Badge';
 import logoImg       from '../../../LOGO.jpg';
+import logo2Img      from '../../../LOGO 2.jpg';
 import { getTypeInfo } from '../../utils/patientTypes';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -75,16 +76,15 @@ async function getLogoBase64(src) {
 }
 
 async function printSurgeryFicha(surgery, patient) {
-  const logo = await getLogoBase64(logoImg);
+  const logo = await getLogoBase64(logo2Img);
   const { left, right } = buildFichaFields(surgery, patient);
   const now = format(new Date(), "dd/MM/yyyy HH:mm");
-  const logoHtml = logo ? `<img src="${logo}" style="height:44px;width:auto;background:white;border-radius:6px;padding:3px 6px;object-fit:contain;" />` : '';
 
   // ─── Design 1: CLÍNICO ────────────────────────────────────────────────────
   const babySvg = `<svg style="width:68px;height:68px;flex-shrink:0;" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg"><circle cx="40" cy="32" r="18" fill="#FFFFFF" stroke="#1F3A5F" stroke-width="1.8"/><path d="M 32 18 Q 40 14 48 18 Q 46 22 40 22 Q 34 22 32 18 Z" fill="#3D7AAB" stroke="#1F3A5F" stroke-width="1.2"/><path d="M 32 32 Q 34 30 36 32" stroke="#1A2B42" stroke-width="1.5" fill="none" stroke-linecap="round"/><path d="M 44 32 Q 46 30 48 32" stroke="#1A2B42" stroke-width="1.5" fill="none" stroke-linecap="round"/><circle cx="28" cy="36" r="2" fill="#F5B5C8" opacity="0.7"/><circle cx="52" cy="36" r="2" fill="#F5B5C8" opacity="0.7"/><path d="M 36 38 Q 40 41 44 38" stroke="#1A2B42" stroke-width="1.3" fill="none" stroke-linecap="round"/><path d="M 25 50 Q 25 65 40 65 Q 55 65 55 50" fill="#FFFFFF" stroke="#1F3A5F" stroke-width="1.8"/><ellipse cx="22" cy="52" rx="4" ry="6" fill="#FFFFFF" stroke="#1F3A5F" stroke-width="1.5" transform="rotate(-20 22 52)"/><ellipse cx="58" cy="52" rx="4" ry="6" fill="#FFFFFF" stroke="#1F3A5F" stroke-width="1.5" transform="rotate(20 58 52)"/><path d="M 60 58 Q 58 56 56 58 Q 54 60 60 64 Q 66 60 64 58 Q 62 56 60 58 Z" fill="#3D7AAB"/></svg>`;
   const logoWrapperHtml = logo
-    ? `<div style="background:#FFFFFF;padding:6px 12px;border-radius:4px;display:flex;align-items:center;gap:10px;min-height:64px;flex-shrink:0;"><img src="${logo}" style="width:52px;height:52px;object-fit:contain;flex-shrink:0;"/><div style="display:flex;flex-direction:column;line-height:1.1;"><span style="font-size:17px;font-weight:800;color:#1F3A5F;letter-spacing:-0.3px;">Hospital</span><span style="font-size:17px;font-weight:800;color:#1F3A5F;letter-spacing:-0.3px;">Munay</span><span style="font-size:9px;color:#2B5C8A;font-weight:600;letter-spacing:0.3px;margin-top:1px;">Centro del Niño con Fisura</span></div></div>`
-    : `<div style="background:#FFFFFF;padding:6px 14px;border-radius:4px;min-height:64px;display:flex;align-items:center;flex-shrink:0;"><span style="font-size:17px;font-weight:800;color:#1F3A5F;">Hospital Munay</span></div>`;
+    ? `<div style="background:#FFFFFF;padding:6px 12px;border-radius:6px;display:flex;align-items:center;justify-content:center;min-height:68px;flex-shrink:0;"><img src="${logo}" style="width:62px;height:62px;object-fit:contain;"/></div>`
+    : `<div style="background:#FFFFFF;padding:6px 14px;border-radius:6px;min-height:68px;display:flex;align-items:center;flex-shrink:0;"><span style="font-size:16px;font-weight:900;color:#1F3A5F;letter-spacing:2px;">MUNAY</span></div>`;
   const clin1LeftIcons = [
     '<rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4h6v2H9z"/><path d="M9 12h6M12 9v6"/>',
     '<rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>',
@@ -103,9 +103,10 @@ async function printSurgeryFicha(surgery, patient) {
   }).join('');
 
   const card1 = `
-    <div style="background:#1F3A5F;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-shrink:0;border-bottom:4px solid #4FC3C2;">
+    <div style="background:#1F3A5F;padding:14px 24px;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:16px;flex-shrink:0;border-bottom:4px solid #4FC3C2;">
       ${logoWrapperHtml}
-      <div style="text-align:right;color:#FFFFFF;"><div style="font-size:20px;font-weight:700;letter-spacing:1px;text-transform:uppercase;">Programación Quirúrgica</div><div style="font-size:11px;color:rgba(255,255,255,0.85);margin-top:3px;">${now}</div></div>
+      <div style="text-align:center;color:#FFFFFF;"><div style="font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;opacity:0.85;">Centro Médico Quirúrgico</div><div style="font-size:22px;font-weight:900;letter-spacing:4px;color:#4FC3C2;margin-top:2px;">MUNAY</div></div>
+      <div style="text-align:right;color:#FFFFFF;"><div style="font-size:18px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;">Programación Quirúrgica</div><div style="font-size:11px;color:rgba(255,255,255,0.85);margin-top:3px;">${now}</div></div>
     </div>
     <div style="padding:14px 24px 10px;display:grid;grid-template-columns:1fr auto;align-items:center;gap:16px;flex-shrink:0;">
       <div><div style="font-size:22px;font-weight:700;color:#1F3A5F;letter-spacing:-0.3px;line-height:1.1;">${surgery.patientName ?? '—'}</div><div style="font-size:16px;font-weight:700;color:#3DA8A7;letter-spacing:0.5px;margin-top:5px;text-transform:uppercase;">${surgery.surgeryType ?? '—'}</div></div>
@@ -120,8 +121,8 @@ async function printSurgeryFicha(surgery, patient) {
   // ─── Design 2: PEDIÁTRICO ─────────────────────────────────────────────────
   const bearSvg = `<svg style="width:65px;height:65px;flex-shrink:0;" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="22" r="10" fill="#C9A57B"/><circle cx="60" cy="22" r="10" fill="#C9A57B"/><circle cx="20" cy="22" r="6" fill="#E8C9A8"/><circle cx="60" cy="22" r="6" fill="#E8C9A8"/><ellipse cx="40" cy="38" rx="22" ry="20" fill="#D4B088"/><ellipse cx="40" cy="44" rx="12" ry="10" fill="#F0DAB8"/><rect x="22" y="55" width="36" height="18" rx="3" fill="#A8C5E8"/><path d="M 32 55 L 40 60 L 48 55 L 48 58 L 40 63 L 32 58 Z" fill="#FFFFFF"/><ellipse cx="32" cy="36" rx="2.5" ry="3" fill="#2A2A3E"/><ellipse cx="48" cy="36" rx="2.5" ry="3" fill="#2A2A3E"/><circle cx="32.8" cy="35" r="0.8" fill="#FFFFFF"/><circle cx="48.8" cy="35" r="0.8" fill="#FFFFFF"/><ellipse cx="40" cy="42" rx="2.5" ry="2" fill="#2A2A3E"/><path d="M 40 44 L 40 47 M 40 47 Q 36 49 35 47 M 40 47 Q 44 49 45 47" stroke="#2A2A3E" stroke-width="1.2" fill="none" stroke-linecap="round"/><circle cx="25" cy="42" r="2.5" fill="#F5B5C8" opacity="0.6"/><circle cx="55" cy="42" r="2.5" fill="#F5B5C8" opacity="0.6"/></svg>`;
   const logoCircleHtml = logo
-    ? `<div style="width:64px;height:64px;background:linear-gradient(135deg,#E8DFFA 0%,#D4C5EC 100%);border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 2px 8px rgba(107,95,191,0.15);overflow:hidden;"><img src="${logo}" style="width:58px;height:58px;object-fit:contain;" /></div>`
-    : `<div style="width:64px;height:64px;background:linear-gradient(135deg,#E8DFFA 0%,#D4C5EC 100%);border-radius:50%;flex-shrink:0;"></div>`;
+    ? `<div style="width:74px;height:74px;background:linear-gradient(135deg,#E8DFFA 0%,#D4C5EC 100%);border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 2px 10px rgba(107,95,191,0.2);overflow:hidden;"><img src="${logo}" style="width:68px;height:68px;object-fit:contain;" /></div>`
+    : `<div style="width:74px;height:74px;background:linear-gradient(135deg,#E8DFFA 0%,#D4C5EC 100%);border-radius:50%;flex-shrink:0;"></div>`;
   const ped2LeftIcons = [
     { bg: '#C7B8E8', svg: '<rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4h6v2H9z"/><path d="M9 12h6M12 9v6"/>' },
     { bg: '#A8DDDA', svg: '<rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>' },
@@ -141,8 +142,8 @@ async function printSurgeryFicha(surgery, patient) {
 
   const card2 = `
     <div style="background:linear-gradient(180deg,#FFFFFF 0%,#FBFAFE 100%);padding:14px 24px 10px;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:16px;flex-shrink:0;border-bottom:1px solid #E8E4F2;">
-      <div style="display:flex;align-items:center;gap:10px;">${logoCircleHtml}<div><div style="font-size:17px;font-weight:700;color:#4A3F8C;line-height:1.1;">Hospital Munay</div><div style="font-size:10px;color:#5A5A6E;margin-top:1px;">Centro del Niño con Fisura</div></div></div>
-      <div style="text-align:center;"><div style="font-size:19px;font-weight:700;color:#6B5FBF;letter-spacing:1.2px;text-transform:uppercase;">Programación Quirúrgica</div><div style="font-size:10px;color:#5A5A6E;margin-top:2px;">${now}</div></div>
+      <div style="display:flex;align-items:center;gap:10px;">${logoCircleHtml}<div><div style="font-size:11px;font-weight:700;color:#6B5FBF;text-transform:uppercase;letter-spacing:1px;">Centro Médico Quirúrgico</div><div style="font-size:19px;font-weight:900;color:#4A3F8C;letter-spacing:3px;margin-top:1px;">MUNAY</div></div></div>
+      <div style="text-align:center;"><div style="font-size:19px;font-weight:700;color:#6B5FBF;letter-spacing:1.2px;text-transform:uppercase;">Orden de Internación</div><div style="font-size:10px;color:#5A5A6E;margin-top:2px;">${now}</div></div>
       ${bearSvg}
     </div>
     <div style="margin:8px 24px 10px;background:linear-gradient(90deg,#EFE9FA 0%,#F3EEFC 100%);border-radius:12px;padding:10px 18px;display:flex;align-items:center;gap:12px;flex-shrink:0;">
@@ -182,12 +183,210 @@ async function printSurgeryFicha(surgery, patient) {
   setTimeout(() => { win.print(); }, 500);
 }
 
+async function printConsentForm(surgery, patient) {
+  const logo2       = await getLogoBase64(logo2Img);
+  const surgeon     = surgery.surgeon     || '___________';
+  const patientName = surgery.patientName || '___________';
+  const guardian    = patient?.guardian   || '___________';
+  const ci          = patient?.guardianIdNumber || patient?.idNumber || '___________';
+  const address     = patient?.address    || '___________';
+  const procedure   = surgery.surgeryType || '___________';
+  const dateStr     = surgery.date
+    ? format(new Date(surgery.date + 'T12:00'), 'dd/MM/yyyy')
+    : '___________';
+
+  const logoBoxHtml = logo2
+    ? `<div style="background:#FFF;padding:6px 12px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><img src="${logo2}" style="height:60px;width:auto;object-fit:contain;"/></div>`
+    : `<div style="background:#FFF;padding:6px 12px;border-radius:6px;flex-shrink:0;"><span style="font-size:14px;font-weight:900;color:#1F3A5F;letter-spacing:2px;">MUNAY</span></div>`;
+
+  const hl = (t) => `<span style="font-weight:700;color:#1F3A5F;border-bottom:1.5px solid #4FC3C2;padding-bottom:1px;">${t}</span>`;
+
+  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/>
+<title>Consentimiento Informado — ${patientName}</title>
+<style>
+  @page{size:8.5in 11in portrait;margin:0}*{box-sizing:border-box;margin:0;padding:0}
+  body{width:8.5in;height:11in;font-family:Arial,Helvetica,sans-serif;font-size:10pt;color:#1a1a1a;line-height:1.5;display:flex;flex-direction:column}
+  .hdr{background:#1F3A5F;padding:12px 24px;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:16px;border-bottom:4px solid #4FC3C2;flex-shrink:0}
+  .pstrip{background:linear-gradient(90deg,#EBF4FF,#F4F7FA);padding:7px 24px;border-bottom:1px solid #D5DEE8;flex-shrink:0;display:flex;align-items:center}
+  .pi{font-size:9pt;padding:0 12px;border-right:1px solid #C5D8EE}.pi:first-child{padding-left:0}.pi:last-child{border-right:none}
+  .pi .lbl{color:#5A6B82}.pi strong{color:#1F3A5F}
+  .content{flex:1;padding:14px 26px 10px;display:flex;flex-direction:column;justify-content:space-between}
+  .top{display:flex;flex-direction:column;gap:8px}
+  .doc-title{text-align:center;font-size:12pt;font-weight:bold;color:#1F3A5F;text-transform:uppercase;border-bottom:2px solid #4FC3C2;padding-bottom:6px;margin-bottom:4px}
+  .s{text-align:justify;font-size:10pt;line-height:1.5}.s strong{color:#1F3A5F}
+  .rl{margin:4px 0 0 20px}.rl li{font-size:9.5pt;line-height:1.45;margin-bottom:3px}
+  .banner{text-align:center;font-weight:bold;font-size:10pt;color:#1F3A5F;background:#EBF4FF;border:1px solid #C5D8EE;border-radius:4px;padding:7px 14px}
+  .bottom{display:flex;flex-direction:column;gap:10px}
+  .sigs{display:flex;gap:28px}.sig{flex:1;text-align:center}
+  .stamp-box{border:1px dashed #8AAFC8;border-radius:6px;height:72px;display:flex;align-items:center;justify-content:center;color:#A0B8CC;font-size:9pt;letter-spacing:1px;margin-bottom:8px}
+  .sig-line{border-top:1px solid #555;margin-bottom:5px}
+  .sig-txt{font-size:9pt;line-height:1.6}
+  .date-row{text-align:right;font-size:10pt;color:#1F3A5F;padding-right:2px}
+  .bot{height:5px;background:#4FC3C2;flex-shrink:0}
+</style></head><body>
+<div class="hdr">
+  ${logoBoxHtml}
+  <div style="text-align:center;color:#FFF">
+    <div style="font-size:13px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;opacity:.85">Centro Médico Quirúrgico</div>
+    <div style="font-size:24px;font-weight:900;letter-spacing:5px;color:#4FC3C2;margin-top:3px">MUNAY</div>
+  </div>
+  <div style="text-align:right;color:#FFF">
+    <div style="font-size:14px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase">Consentimiento Informado</div>
+    <div style="font-size:10px;opacity:.9;margin-top:3px">CIRUGÍA LABIO PALADAR HENDIDO</div>
+  </div>
+</div>
+<div class="pstrip">
+  <div class="pi"><span class="lbl">Paciente: </span><strong>${patientName}</strong></div>
+  <div class="pi"><span class="lbl">Representante: </span><strong>${guardian}</strong></div>
+  <div class="pi"><span class="lbl">CI: </span><strong>${ci}</strong></div>
+  <div class="pi"><span class="lbl">Procedimiento: </span><strong style="color:#3DA8A7">${procedure}</strong></div>
+</div>
+<div class="content">
+  <div class="top">
+    <div class="doc-title">CONSENTIMIENTO INFORMADO PARA CIRUGÍA LABIO PALADAR HENDIDO</div>
+    <div class="s">Yo, ${hl(guardian)}, PACIENTE O REPRESENTANTE LEGAL DE ${hl(patientName)}, CON CI ${hl(ci)} Y DOMICILIO EN: ${hl(address)}.</div>
+    <div class="s"><strong>1.</strong> Por la presente <strong>AUTORIZO</strong> al ${hl(surgeon)} y a los asistentes que sean seleccionados y personal de salud, para que realice en mi persona (o en la de mi representante), el siguiente procedimiento o tratamiento: ${hl(procedure)}</div>
+    <div class="s"><strong>2.</strong> Confirmo que el ${hl(surgeon)} me ha explicado detalladamente, en palabras comprensibles para mí, el efecto y la naturaleza de las operaciones a efectuar, incluyendo posibles riesgos, soluciones alternativas y molestias que se puedan sentir aun teniendo un postoperatorio normal.</div>
+    <div class="s"><strong>3.</strong> Los <strong>RIESGOS</strong> de posibles complicaciones incluyen entre otras:<ul class="rl"><li>Estados temporales de inflamación y cambio de color natural de la piel.</li><li>Posibilidad de sangrado durante y después de la cirugía, seromas, infección o necrosis.</li><li>Trastornos temporales o permanentes de la sensibilidad y motilidad. Reacción alérgica a alguno de los medicamentos utilizados.</li><li>Intolerancia a materiales de sutura, implantes o apósitos. Imperfecciones e insatisfacción en los resultados.</li><li>Mala cicatrización: quedará una cicatriz permanente. El proceso de maduración puede tardar más de un año.</li></ul></div>
+    <div class="s"><strong>4.</strong> Doy el <strong>CONSENTIMIENTO</strong> para la administración de los anestésicos necesarios o aconsejables. Comprendo que cualquier forma de anestesia entraña riesgos de complicaciones, lesiones y a veces muerte.</div>
+    <div class="s"><strong>5.</strong> <strong>RECONOZCO</strong> que pueden darse condiciones imprevistas que necesiten procedimientos diferentes. <strong>AUTORIZO</strong> al cirujano y a sus asistentes a realizarlos en el ejercicio de su juicio profesional. En caso de complicaciones, <strong>AUTORIZO</strong> al ${hl(surgeon)} a solicitar la ayuda de otros especialistas.</div>
+    <div class="s"><strong>6.</strong> <strong>COMPRENDO</strong> que el fin de la intervención es <strong>MEJORAR LA APARIENCIA</strong>, pudiendo persistir alguna imperfección. La Medicina y la Cirugía no son ciencias exactas. <strong>RECONOZCO QUE NO SE ME HA DADO GARANTÍA ABSOLUTA.</strong></div>
+    <div class="s"><strong>7.</strong> He sido informado(a) que podrá ser necesario el uso de injertos, trasplantes o <strong>IMPLANTES DE MATERIAS ESPECIALES MÉDICAS</strong> y material de sutura permanente.</div>
+    <div class="s"><strong>8.</strong> <strong>CONSIENTO</strong> el ser fotografiado o filmado antes, durante y después del tratamiento para uso médico y educativo. <strong>NUNCA EN PRENSA DIARIA O REVISTAS COMUNES</strong>, salvo con mi <strong>EXPRESO PERMISO</strong>.</div>
+    <div class="banner">DOY CONSENTIMIENTO PARA EL TRATAMIENTO O PROCEDIMIENTO DE PUNTOS CITADOS PREVIAMENTE.<br/>ESTOY SATISFECHO/A CON LA EXPLICACIÓN Y NO NECESITO MÁS INFORMACIÓN.</div>
+  </div>
+  <div class="bottom">
+    <div class="sigs">
+      <div class="sig"><div class="stamp-box">SELLO</div><div class="sig-line"></div><div class="sig-txt"><strong>${guardian}</strong><br/>C.I.: ${ci}<br/>(Tutor / Representante legal)</div></div>
+      <div class="sig"><div class="stamp-box">SELLO</div><div class="sig-line"></div><div class="sig-txt"><strong>${surgeon}</strong><br/>(Firma del Cirujano)</div></div>
+    </div>
+    <div class="date-row">Fecha: <strong>${dateStr}</strong></div>
+  </div>
+</div>
+<div class="bot"></div>
+</body></html>`;
+
+  const win = window.open('', '_blank', 'width=816,height=1056');
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(() => { win.print(); }, 500);
+}
+
+async function printAnesthesiaConsentForm(surgery, patient) {
+  const logo2          = await getLogoBase64(logo2Img);
+  const anesthesiologist = surgery.anesthesiologist || '___________';
+  const patientName    = surgery.patientName        || '___________';
+  const guardian       = patient?.guardian          || '___________';
+  const ci             = patient?.guardianIdNumber  || patient?.idNumber || '___________';
+  const dateStr        = surgery.date
+    ? format(new Date(surgery.date + 'T12:00'), 'dd/MM/yyyy')
+    : '___________';
+
+  const logoBoxHtml = logo2
+    ? `<div style="background:#FFF;padding:6px 12px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><img src="${logo2}" style="height:60px;width:auto;object-fit:contain;"/></div>`
+    : `<div style="background:#FFF;padding:6px 12px;border-radius:6px;flex-shrink:0;"><span style="font-size:14px;font-weight:900;color:#1F3A5F;letter-spacing:2px;">MUNAY</span></div>`;
+
+  const hl = (t) => `<span style="font-weight:700;color:#1F3A5F;border-bottom:1.5px solid #4FC3C2;padding-bottom:1px;">${t}</span>`;
+
+  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/>
+<title>Consentimiento Anestesia — ${patientName}</title>
+<style>
+  @page{size:8.5in 11in portrait;margin:0}*{box-sizing:border-box;margin:0;padding:0}
+  body{width:8.5in;height:11in;font-family:Arial,Helvetica,sans-serif;font-size:9pt;color:#1a1a1a;line-height:1.46;display:flex;flex-direction:column}
+  .hdr{background:#1F3A5F;padding:12px 24px;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:16px;border-bottom:4px solid #4FC3C2;flex-shrink:0}
+  .pstrip{background:linear-gradient(90deg,#EBF4FF,#F4F7FA);padding:7px 24px;border-bottom:1px solid #D5DEE8;flex-shrink:0;display:flex;align-items:center}
+  .pi{font-size:8.5pt;padding:0 12px;border-right:1px solid #C5D8EE}.pi:first-child{padding-left:0}.pi:last-child{border-right:none}
+  .pi .lbl{color:#5A6B82}.pi strong{color:#1F3A5F}
+  .content{flex:1;padding:12px 26px 8px;display:flex;flex-direction:column;justify-content:space-between}
+  .top{display:flex;flex-direction:column;gap:7px}
+  .doc-title{text-align:center;font-size:11.5pt;font-weight:bold;color:#1F3A5F;text-transform:uppercase;border-bottom:2px solid #4FC3C2;padding-bottom:6px;margin-bottom:3px}
+  .qa-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 20px}
+  .qa{margin-bottom:6px}.qa-q{font-weight:700;color:#1F3A5F;font-size:9pt;margin-bottom:2px}
+  .qa-a{font-size:8.5pt;line-height:1.42;color:#1a1a1a;text-align:justify}
+  .qa-a ul{margin:3px 0 0 16px}.qa-a li{margin-bottom:2px}
+  .sec-hdr{font-size:9.5pt;font-weight:700;color:#1F3A5F;background:linear-gradient(90deg,#EBF4FF,#F4F7FA);padding:4px 12px;border-left:3px solid #4FC3C2;margin-bottom:4px}
+  .s{text-align:justify;font-size:9pt;line-height:1.46}.s strong{color:#1F3A5F}
+  .rl{margin:3px 0 0 16px}.rl li{font-size:8.5pt;line-height:1.42;margin-bottom:2px}
+  .indiv{font-size:9pt;line-height:1.48;text-align:justify;background:#F4F7FA;border:1px solid #D5DEE8;border-left:3px solid #4FC3C2;border-radius:0 4px 4px 0;padding:8px 12px}
+  .bottom{display:flex;flex-direction:column;gap:10px}
+  .sigs{display:flex;gap:28px}.sig{flex:1;text-align:center}
+  .stamp-box{border:1px dashed #8AAFC8;border-radius:6px;height:72px;display:flex;align-items:center;justify-content:center;color:#A0B8CC;font-size:9pt;letter-spacing:1px;margin-bottom:8px}
+  .sig-line{border-top:1px solid #555;margin-bottom:5px}
+  .sig-txt{font-size:9pt;line-height:1.6}
+  .date-row{text-align:right;font-size:10pt;color:#1F3A5F;padding-right:2px}
+  .bot{height:5px;background:#4FC3C2;flex-shrink:0}
+</style></head><body>
+<div class="hdr">
+  ${logoBoxHtml}
+  <div style="text-align:center;color:#FFF">
+    <div style="font-size:13px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;opacity:.85">Centro Médico Quirúrgico</div>
+    <div style="font-size:24px;font-weight:900;letter-spacing:5px;color:#4FC3C2;margin-top:3px">MUNAY</div>
+  </div>
+  <div style="text-align:right;color:#FFF">
+    <div style="font-size:14px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase">Consentimiento Informado</div>
+    <div style="font-size:10px;opacity:.9;margin-top:3px">ANESTESIA GENERAL</div>
+  </div>
+</div>
+<div class="pstrip">
+  <div class="pi"><span class="lbl">Paciente: </span><strong>${patientName}</strong></div>
+  <div class="pi"><span class="lbl">Representante: </span><strong>${guardian}</strong></div>
+  <div class="pi"><span class="lbl">CI: </span><strong>${ci}</strong></div>
+  <div class="pi"><span class="lbl">Anestesiólogo: </span><strong style="color:#3DA8A7">${anesthesiologist}</strong></div>
+</div>
+<div class="content">
+  <div class="top">
+    <div class="doc-title">CONSENTIMIENTO INFORMADO DE ANESTESIA GENERAL</div>
+    <div class="qa-grid">
+      <div>
+        <div class="qa"><div class="qa-q">¿Es importante leer este documento?</div><div class="qa-a">Sí. Informa de los procedimientos médico-anestésicos necesarios para la cirugía. Puede rechazar esta información o solicitarla las veces necesarias hasta su completa comprensión.</div></div>
+        <div class="qa"><div class="qa-q">¿Estoy obligado a autorizar y firmar?</div><div class="qa-a">No. Tiene derecho de rechazar o aceptar los procedimientos en cualquier momento previo a la cirugía, sin temor a repercusiones por parte del equipo quirúrgico.</div></div>
+        <div class="qa"><div class="qa-q">¿Qué es la anestesia?</div><div class="qa-a">Procedimiento médico que permite realizar una cirugía sin dolor, pudiendo dormir al paciente (general, local o regional). En ocasiones pueden desarrollarse dos tipos simultáneamente.</div></div>
+        <div class="qa"><div class="qa-q">¿Quién es el anestesiólogo?</div><div class="qa-a">El médico especialista encargado de sugerir y administrar el tipo de anestesia adecuada, y de cuidar el estado general del paciente durante la operación.</div></div>
+      </div>
+      <div>
+        <div class="qa"><div class="qa-q">¿La anestesia tiene riesgos?</div><div class="qa-a">Todo tipo de anestesia implica riesgos de lesiones, secuelas tardías e incluso la muerte. Los riesgos se relacionan con el estado de salud, edad, tipo y complejidad de la cirugía, alergias u otros factores imprevisibles.</div></div>
+        <div class="qa"><div class="qa-q">¿Qué factores son importantes antes de la anestesia?</div><div class="qa-a">Dificultades en anestesias previas, alergias medicamentosas, alteraciones de la coagulación, prótesis o marcapasos, enfermedades de tiroides, riñones, hígado, pulmones, corazón o cerebro.</div></div>
+        <div class="qa"><div class="qa-q">¿Cómo prepararme para la anestesia?</div><div class="qa-a"><ul><li>Cumpliendo ayuno absoluto por el tiempo indicado (su incumplimiento suspende la cirugía automáticamente).</li><li>Siguiendo el tratamiento habitual de enfermedades previas, salvo indicación del médico tratante.</li><li>Suspendiendo el hábito de fumar el mayor tiempo posible antes de la cirugía.</li></ul></div></div>
+      </div>
+    </div>
+    <div class="sec-hdr">ANESTESIA GENERAL — Descripción del Procedimiento</div>
+    <div class="s">Administración de medicamentos por vía endovenosa inhalatoria hasta quedar totalmente dormido. Se introduce un tubo por la boca o nariz hasta la tráquea, conectándolo a una máquina respiratoria durante toda la cirugía. Al concluir se desconecta y retira el tubo hasta que el paciente respire con su propio esfuerzo.</div>
+    <div class="sec-hdr">RIESGOS DE LA ANESTESIA GENERAL</div>
+    <div class="s"><ul class="rl">
+      <li>Podría lesionar alguna pieza dentaria.</li>
+      <li>Podría producir irritación en las cuerdas vocales (disfonía).</li>
+      <li>Podría pasar contenido gástrico a los pulmones, requiriendo recuperación en terapia intensiva.</li>
+      <li>Podría presentar reacciones alérgicas inesperadas a los medicamentos utilizados.</li>
+      <li>Náuseas y vómitos después de la cirugía. Inflamación y dolor de la vena utilizada.</li>
+      <li>Arritmia cardiaca, infarto de miocardio, muerte (si existe riesgo cardiaco).</li>
+    </ul></div>
+    <div class="indiv">Habiendo leído este documento y comprendiendo el procedimiento anestésico y sus riesgos, habiendo aclarado mis dudas con el/la ${hl(anesthesiologist)}, quien respondió a todas mis preguntas, yo ${hl(guardian)}, representante legal de ${hl(patientName)}, con CI ${hl(ci)}, de manera libre y voluntaria <strong>DOY MI CONSENTIMIENTO</strong> para que sea sometido a la <strong>ANESTESIA GENERAL.</strong></div>
+  </div>
+  <div class="bottom">
+    <div class="sigs">
+      <div class="sig"><div class="stamp-box">SELLO</div><div class="sig-line"></div><div class="sig-txt"><strong>${guardian}</strong><br/>C.I.: ${ci}<br/>(Tutor / Representante legal)</div></div>
+      <div class="sig"><div class="stamp-box">SELLO</div><div class="sig-line"></div><div class="sig-txt"><strong>${anesthesiologist}</strong><br/>(Firma del Anestesiólogo)</div></div>
+    </div>
+    <div class="date-row">Fecha: <strong>${dateStr}</strong></div>
+  </div>
+</div>
+<div class="bot"></div>
+</body></html>`;
+
+  const win = window.open('', '_blank', 'width=816,height=1056');
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(() => { win.print(); }, 500);
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
-const TABS = [
-  { id: 'info',       label: 'Información',  icon: User },
-  { id: 'financiero', label: 'Financiero',   icon: DollarSign },
-  { id: 'historial',  label: 'Historial',    icon: History },
+const ALL_TABS = [
+  { id: 'info',       label: 'Información', icon: User,        adminOnly: false },
+  { id: 'financiero', label: 'Financiero',  icon: DollarSign,  adminOnly: true  },
+  { id: 'historial',  label: 'Historial',   icon: History,     adminOnly: false },
 ];
 
 export default function SurgeryDetail({
@@ -197,6 +396,7 @@ export default function SurgeryDetail({
   onCancelSurgery,
   onSuspendSurgery,
   isAdmin,
+  canEdit,
 }) {
   const [activeTab,        setActiveTab]        = useState('info');
   const [printPreviewOpen, setPrintPreviewOpen] = useState(false);
@@ -210,7 +410,8 @@ export default function SurgeryDetail({
 
   if (!surgery) return null;
 
-  const patient     = patients.find((p) => p.id === surgery.patientId);
+  const TABS    = ALL_TABS.filter((t) => !t.adminOnly || isAdmin);
+  const patient = patients.find((p) => p.id === surgery.patientId);
   const age         = calcAge(patient?.birthDate);
   const fichaFields = buildFichaFields(surgery, patient);
   const dateStr  = surgery.date
@@ -438,6 +639,20 @@ export default function SurgeryDetail({
             <Printer className="w-4 h-4" />
             Imprimir
           </button>
+          <button
+            onClick={() => printConsentForm(surgery, patient)}
+            className="btn btn-sm border border-teal-200 text-teal-700 hover:bg-teal-50 gap-1.5"
+          >
+            <FileText className="w-4 h-4" />
+            Consentimiento
+          </button>
+          <button
+            onClick={() => printAnesthesiaConsentForm(surgery, patient)}
+            className="btn btn-sm border border-purple-200 text-purple-700 hover:bg-purple-50 gap-1.5"
+          >
+            <FileText className="w-4 h-4" />
+            Anestesia
+          </button>
           {isAdmin && !isCancelled && surgery.status !== 'suspendido' && (
             <button onClick={() => { setSuspendOpen(true); setSuspendReason(''); setSuspendMode('suspendido'); setNewDate(surgery.date ?? ''); setNewTime(surgery.startTime ?? ''); }}
               className="btn btn-sm text-amber-700 border border-amber-300 hover:bg-amber-50 gap-1.5">
@@ -463,7 +678,7 @@ export default function SurgeryDetail({
 
         <div className="flex gap-2 ml-auto">
           <button onClick={onClose} className="btn-secondary btn btn-sm">Cerrar</button>
-          {isAdmin && (
+          {canEdit && (
             <button onClick={onEdit} className="btn-primary btn btn-sm">
               <Pencil className="w-4 h-4" /> Editar
             </button>
@@ -493,19 +708,19 @@ export default function SurgeryDetail({
               {/* ── Copy 1: CLÍNICO ── */}
               <div style={{ backgroundColor: 'white', borderBottom: '2px dashed #b0bec5' }}>
                 {/* Header - Navy */}
-                <div style={{ backgroundColor: '#1F3A5F', padding: '12px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, borderBottom: '4px solid #4FC3C2' }}>
+                <div style={{ backgroundColor: '#1F3A5F', padding: '12px 20px', display: 'grid', gridTemplateColumns: 'auto 1fr auto', alignItems: 'center', gap: 14, borderBottom: '4px solid #4FC3C2' }}>
                   {/* Logo wrapper white box */}
-                  <div style={{ backgroundColor: '#FFFFFF', padding: '5px 10px', borderRadius: 4, display: 'flex', alignItems: 'center', gap: 9, minHeight: 58, flexShrink: 0 }}>
-                    <img src={logoImg} alt="Logo" style={{ width: 46, height: 46, objectFit: 'contain', flexShrink: 0 }} />
-                    <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.1 }}>
-                      <span style={{ fontSize: 14, fontWeight: 800, color: '#1F3A5F', letterSpacing: '-0.3px' }}>Hospital</span>
-                      <span style={{ fontSize: 14, fontWeight: 800, color: '#1F3A5F', letterSpacing: '-0.3px' }}>Munay</span>
-                      <span style={{ fontSize: 8, color: '#2B5C8A', fontWeight: 600, letterSpacing: '0.3px', marginTop: 1 }}>Centro del Niño con Fisura</span>
-                    </div>
+                  <div style={{ backgroundColor: '#FFFFFF', padding: '5px 10px', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 62, flexShrink: 0 }}>
+                    <img src={logo2Img} alt="Logo" style={{ width: 54, height: 54, objectFit: 'contain' }} />
+                  </div>
+                  {/* Center: Centro Médico Quirúrgico MUNAY */}
+                  <div style={{ textAlign: 'center', color: '#FFFFFF' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase', opacity: 0.85 }}>Centro Médico Quirúrgico</div>
+                    <div style={{ fontSize: 20, fontWeight: 900, letterSpacing: '4px', color: '#4FC3C2', marginTop: 2 }}>MUNAY</div>
                   </div>
                   {/* Title right */}
                   <div style={{ textAlign: 'right', color: '#FFFFFF' }}>
-                    <div style={{ fontSize: 17, fontWeight: 700, letterSpacing: '0.8px', textTransform: 'uppercase' }}>Programación Quirúrgica</div>
+                    <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: '0.8px', textTransform: 'uppercase' }}>Programación Quirúrgica</div>
                     <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.85)', marginTop: 2 }}>{format(new Date(), "dd/MM/yyyy HH:mm")}</div>
                   </div>
                 </div>
@@ -569,16 +784,16 @@ export default function SurgeryDetail({
                 {/* Header */}
                 <div style={{ background: 'linear-gradient(180deg, #FFFFFF 0%, #FBFAFE 100%)', padding: '12px 20px 8px', display: 'grid', gridTemplateColumns: 'auto 1fr auto', alignItems: 'center', gap: 14, borderBottom: '1px solid #E8E4F2' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ width: 62, height: 62, background: 'linear-gradient(135deg, #E8DFFA 0%, #D4C5EC 100%)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 2px 8px rgba(107,95,191,0.15)', overflow: 'hidden' }}>
-                      <img src={logoImg} alt="Logo" style={{ width: 56, height: 56, objectFit: 'contain' }} />
+                    <div style={{ width: 70, height: 70, background: 'linear-gradient(135deg, #E8DFFA 0%, #D4C5EC 100%)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 2px 10px rgba(107,95,191,0.2)', overflow: 'hidden' }}>
+                      <img src={logo2Img} alt="Logo" style={{ width: 64, height: 64, objectFit: 'contain' }} />
                     </div>
                     <div>
-                      <div style={{ fontSize: 15, fontWeight: 700, color: '#4A3F8C', lineHeight: 1.1 }}>Hospital Munay</div>
-                      <div style={{ fontSize: 9, color: '#5A5A6E', marginTop: 1 }}>Centro del Niño con Fisura</div>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: '#6B5FBF', textTransform: 'uppercase', letterSpacing: '1px' }}>Centro Médico Quirúrgico</div>
+                      <div style={{ fontSize: 17, fontWeight: 900, color: '#4A3F8C', letterSpacing: '3px', marginTop: 2 }}>MUNAY</div>
                     </div>
                   </div>
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: 16, fontWeight: 700, color: '#6B5FBF', letterSpacing: '1px', textTransform: 'uppercase' }}>Programación Quirúrgica</div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: '#6B5FBF', letterSpacing: '1px', textTransform: 'uppercase' }}>Orden de Internación</div>
                     <div style={{ fontSize: 9, color: '#5A5A6E', marginTop: 2 }}>{format(new Date(), "dd/MM/yyyy HH:mm")}</div>
                   </div>
                   {/* Bear mascot */}

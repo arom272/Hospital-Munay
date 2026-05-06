@@ -41,11 +41,13 @@ export function AuthProvider({ children }) {
 
   const resetPassword = (email) => sendPasswordResetEmail(auth, email);
 
-  const isAdmin  = role === 'admin';
-  const isViewer = role === 'viewer';
+  const isAdmin     = role === 'admin';
+  const isSecretary = role === 'secretaria';
+  const isViewer    = role === 'viewer';
+  const canEdit     = isAdmin || isSecretary;
 
   return (
-    <AuthContext.Provider value={{ user, role, isAdmin, isViewer, loading, login, logout, resetPassword }}>
+    <AuthContext.Provider value={{ user, role, isAdmin, isSecretary, isViewer, canEdit, loading, login, logout, resetPassword }}>
       {children}
     </AuthContext.Provider>
   );
