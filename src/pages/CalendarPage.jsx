@@ -58,7 +58,10 @@ export default function CalendarPage() {
   const calEvents = filteredSurgeries
     .filter((s) => s.status !== 'cancelado')
     .map((s) => {
-      const colors  = CAL_COLORS[s.patientType] ?? CAL_COLORS.ext;
+      const isSuspended = s.status === 'suspendido';
+      const colors = isSuspended
+        ? { backgroundColor: '#9ca3af', borderColor: '#6b7280', textColor: '#fff' }
+        : (CAL_COLORS[s.patientType] ?? CAL_COLORS.ext);
       const endTime = addMinutes(s.startTime, DISPLAY_MINUTES);
       return {
         id:    s.id,
@@ -130,6 +133,18 @@ export default function CalendarPage() {
     }
   };
 
+  const handleSuspendSurgery = async (id, updates) => {
+    try {
+      await updateSurgery(id, updates);
+      toast.success(updates.status === 'suspendido' ? 'Cirugía suspendida' : 'Cirugía reprogramada');
+      setDetailOpen(false);
+      setSelected(null);
+    } catch (err) {
+      toast.error('Error: ' + err.message);
+      throw err;
+    }
+  };
+
   const printDaily = () => {
     const api  = calRef.current?.getApi();
     const date = api ? format(api.getDate(), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd');
@@ -154,6 +169,7 @@ export default function CalendarPage() {
               { v: 'programado', l: 'Programadas' },
               { v: 'confirmado', l: 'Confirmadas' },
               { v: 'realizado',  l: 'Realizadas' },
+              { v: 'suspendido', l: 'Suspendidas' },
             ].map(({ v, l }) => (
               <button key={v} onClick={() => setFilterStatus(v)}
                 className={`btn btn-sm ${filterStatus === v ? 'btn-primary' : 'btn-secondary'}`}>
@@ -163,7 +179,7 @@ export default function CalendarPage() {
           </div>
 
           <div className="ml-auto flex gap-2 flex-wrap items-center">
-            <div className="flex items-center gap-3 mr-2">
+            <div className="flex items-center gap-3 mr-2 flex-wrap">
               <span className="flex items-center gap-1.5 text-xs text-gray-600">
                 <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: '#1e40af' }} /> MNY
               </span>
@@ -172,6 +188,16 @@ export default function CalendarPage() {
               </span>
               <span className="flex items-center gap-1.5 text-xs text-gray-600">
                 <span className="w-3 h-3 rounded-full bg-green-600 inline-block" /> EXT
+              </span>
+              <span className="w-px h-4 bg-gray-200" />
+              <span className="flex items-center gap-1.5 text-xs text-gray-600">
+                <span className="w-2.5 h-2.5 rounded-full inline-block bg-green-500" /> Pagado
+              </span>
+              <span className="flex items-center gap-1.5 text-xs text-gray-600">
+                <span className="w-2.5 h-2.5 rounded-full inline-block bg-yellow-400" /> Parcial
+              </span>
+              <span className="flex items-center gap-1.5 text-xs text-gray-600">
+                <span className="w-2.5 h-2.5 rounded-full inline-block bg-red-500" /> Sin pago
               </span>
             </div>
             <button onClick={printDaily}   className="btn-secondary btn btn-sm"><Printer className="w-4 h-4" /> Día</button>
@@ -209,6 +235,18 @@ export default function CalendarPage() {
           eventDrop={handleEventDrop}
           eventMouseEnter={handleEventMouseEnter}
           eventMouseLeave={handleEventMouseLeave}
+          eventContent={(arg) => {
+            const s = arg.event.extendedProps;
+            const dotColor = s.paymentComplete ? '#22c55e' : Number(s.amountPaid) > 0 ? '#eab308' : '#ef4444';
+            return (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '0 4px', overflow: 'hidden', height: '100%', width: '100%' }}>
+                <span style={{ width: 7, height: 7, minWidth: 7, borderRadius: '50%', backgroundColor: dotColor, border: '1.5px solid rgba(255,255,255,0.8)' }} />
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '0.72rem', fontWeight: 600 }}>
+                  {arg.event.title}
+                </span>
+              </div>
+            );
+          }}
           eventTimeFormat={{ hour: '2-digit', minute: '2-digit', meridiem: false }}
           slotMinTime="06:00:00"
           slotMaxTime="22:00:00"
@@ -312,6 +350,7 @@ export default function CalendarPage() {
               onEdit={openEdit}
               onClose={closeDetail}
               onCancelSurgery={() => setCancelTarget(selected)}
+              onSuspendSurgery={handleSuspendSurgery}
               isAdmin={isAdmin}
             />
           </div>

@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { UserPlus, Pencil, Trash2, Eye, FileDown, FileText } from 'lucide-react';
-import { differenceInYears, parseISO, isValid, format } from 'date-fns';
+import { differenceInYears, differenceInMonths, differenceInDays, parseISO, isValid, format } from 'date-fns';
 import toast from 'react-hot-toast';
 import useStore from '../store/useStore';
 import { subscribePatients, addPatient, updatePatient, deletePatient } from '../services/patientService';
@@ -19,8 +19,24 @@ import { exportPatientsPDF } from '../utils/pdfExport';
 
 function calcAge(birthDate) {
   if (!birthDate) return null;
-  const d = parseISO(birthDate);
-  return isValid(d) ? differenceInYears(new Date(), d) : null;
+  const birth = parseISO(birthDate);
+  if (!isValid(birth)) return null;
+  const now = new Date();
+  const years = differenceInYears(now, birth);
+  const afterYears = new Date(birth.getFullYear() + years, birth.getMonth(), birth.getDate());
+  const months = differenceInMonths(now, afterYears);
+  const afterMonths = new Date(afterYears.getFullYear(), afterYears.getMonth() + months, afterYears.getDate());
+  const days = differenceInDays(now, afterMonths);
+  return { years, months, days };
+}
+
+function fmtAge(age) {
+  if (!age) return '-';
+  const parts = [];
+  if (age.years > 0)  parts.push(`${age.years}a`);
+  if (age.months > 0) parts.push(`${age.months}m`);
+  if (age.days > 0 || parts.length === 0) parts.push(`${age.days}d`);
+  return parts.join(' ');
 }
 
 const FILTER_OPTIONS = [
@@ -161,7 +177,7 @@ export default function PatientsPage() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
-                  {['Código', 'Nombre', 'Diagnóstico', 'Edad', 'Teléfono', 'Responsable', 'Tel. Resp.', 'Tipo', ''].map((h) => (
+                  {['Código', 'Nombre', 'Diagnóstico', 'Edad', 'Responsable', 'Tel. Resp.', 'Tipo', ''].map((h) => (
                     <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
                       {h}
                     </th>
@@ -183,8 +199,7 @@ export default function PatientsPage() {
                       </td>
                       <td className="px-4 py-3 font-medium text-gray-800">{p.fullName}</td>
                       <td className="px-4 py-3 text-gray-600 max-w-[200px] truncate" title={p.diagnosis}>{p.diagnosis}</td>
-                      <td className="px-4 py-3 text-gray-600">{age !== null ? `${age} a` : '-'}</td>
-                      <td className="px-4 py-3 text-gray-600">{p.phone || '-'}</td>
+                      <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{fmtAge(age)}</td>
                       <td className="px-4 py-3 text-gray-600">{p.guardian || '-'}</td>
                       <td className="px-4 py-3 text-gray-600">{p.guardianPhone || '-'}</td>
                       <td className="px-4 py-3">
@@ -230,8 +245,7 @@ export default function PatientsPage() {
                       )}
                       <p className="font-medium text-gray-800 truncate">{p.fullName}</p>
                       <p className="text-xs text-gray-500 mt-0.5">{p.diagnosis}</p>
-                      {age !== null && <p className="text-xs text-gray-400">{age} años</p>}
-                      {p.phone && <p className="text-xs text-gray-400 mt-0.5">{p.phone}</p>}
+                      {age && <p className="text-xs text-gray-400">{fmtAge(age)}</p>}
                       {p.guardian && (
                         <p className="text-xs text-gray-400">
                           Resp: {p.guardian}{p.guardianPhone ? ` · ${p.guardianPhone}` : ''}

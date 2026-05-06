@@ -1,15 +1,31 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { Loader2, AlertTriangle, Search, X, User } from 'lucide-react';
-import { differenceInYears, parseISO, isValid } from 'date-fns';
+import { differenceInYears, differenceInMonths, differenceInDays, parseISO, isValid } from 'date-fns';
 import { getSameDaySurgeries } from '../../utils/conflictChecker';
 import { getTypeInfo } from '../../utils/patientTypes';
 import useStore from '../../store/useStore';
 
 function calcAge(birthDate) {
   if (!birthDate) return null;
-  const d = parseISO(birthDate);
-  return isValid(d) ? differenceInYears(new Date(), d) : null;
+  const birth = parseISO(birthDate);
+  if (!isValid(birth)) return null;
+  const now = new Date();
+  const years = differenceInYears(now, birth);
+  const afterYears = new Date(birth.getFullYear() + years, birth.getMonth(), birth.getDate());
+  const months = differenceInMonths(now, afterYears);
+  const afterMonths = new Date(afterYears.getFullYear(), afterYears.getMonth() + months, afterYears.getDate());
+  const days = differenceInDays(now, afterMonths);
+  return { years, months, days };
+}
+
+function fmtAge(age) {
+  if (!age) return null;
+  const parts = [];
+  if (age.years > 0)  parts.push(`${age.years}a`);
+  if (age.months > 0) parts.push(`${age.months}m`);
+  if (age.days > 0 || parts.length === 0) parts.push(`${age.days}d`);
+  return parts.join(' ');
 }
 
 const STATUS_OPTIONS = ['programado', 'confirmado', 'realizado', 'cancelado'];
@@ -74,6 +90,7 @@ export default function SurgeryForm({ initial, onSubmit, onCancel, busy }) {
       surgeon: '', anesthesiologist: '', scrubNurse: '',
       status: 'programado', notes: '',
       quotation: '', paymentComplete: false, amountPaid: '',
+      paymentDate: '', partialPaymentDate: '',
       socialAid: false, socialAidAmount: '', adminNotes: '',
     },
   });
@@ -88,8 +105,11 @@ export default function SurgeryForm({ initial, onSubmit, onCancel, busy }) {
     }
   }, [initial]);
 
-  const date      = watch('date');
-  const patientId = watch('patientId');
+  const date            = watch('date');
+  const patientId       = watch('patientId');
+  const paymentComplete = watch('paymentComplete');
+  const currentStatus   = watch('status');
+  const amountPaid      = watch('amountPaid');
 
   useEffect(() => {
     if (patientId && !selectedPatient) {
@@ -97,6 +117,14 @@ export default function SurgeryForm({ initial, onSubmit, onCancel, busy }) {
       if (p) { setSelectedPatient(p); setPatientSearch(p.fullName); }
     }
   }, [patientId, patients]);
+
+  useEffect(() => {
+    if (paymentComplete && currentStatus === 'programado') {
+      setValue('status', 'confirmado');
+    } else if (!paymentComplete && currentStatus === 'confirmado') {
+      setValue('status', 'programado');
+    }
+  }, [paymentComplete]);
 
   const sameDaySurgeries = date ? getSameDaySurgeries(surgeries, { date, excludeId: initial?.id }) : [];
 
@@ -212,7 +240,7 @@ export default function SurgeryForm({ initial, onSubmit, onCancel, busy }) {
               </div>
               <p className="text-xs text-gray-600 mt-0.5">
                 {selectedPatient.diagnosis}
-                {age !== null && <span className="ml-2 font-semibold" style={{ color: '#09D6D4' }}>· {age} años</span>}
+                {age && <span className="ml-2 font-semibold" style={{ color: '#09D6D4' }}>· {fmtAge(age)}</span>}
               </p>
               {selectedPatient.guardian && (
                 <p className="text-xs text-gray-400 mt-0.5">
@@ -349,6 +377,19 @@ export default function SurgeryForm({ initial, onSubmit, onCancel, busy }) {
             Ayuda social
           </label>
         </div>
+
+        {paymentComplete && (
+          <div>
+            <label className="label">Fecha de pago completo</label>
+            <input type="date" className="input bg-white" {...register('paymentDate')} />
+          </div>
+        )}
+        {Number(amountPaid) > 0 && !paymentComplete && (
+          <div>
+            <label className="label">Fecha del último pago parcial</label>
+            <input type="date" className="input bg-white" {...register('partialPaymentDate')} />
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-4">
           <div>

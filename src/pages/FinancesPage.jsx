@@ -18,7 +18,7 @@ function fmt(n) {
 }
 
 function exportFinancesCSV(rows) {
-  const headers = ['Fecha', 'Paciente', 'Tipo', 'Cirujano', 'Estado', 'Cotización', 'Pagado', 'Pendiente', 'Pago Completo', 'Ayuda Social', 'Monto Ayuda', 'Obs. Admin.'];
+  const headers = ['Fecha', 'Paciente', 'Tipo', 'Cirujano', 'Estado', 'Cotización', 'Pagado', 'Fecha pago', 'Pendiente', 'Pago Completo', 'Ayuda Social', 'Monto Ayuda', 'Obs. Admin.'];
   const lines = [
     headers.join(','),
     ...rows.map((s) => [
@@ -29,6 +29,7 @@ function exportFinancesCSV(rows) {
       s.status,
       s.quotation || 0,
       s.amountPaid || 0,
+      s.paymentDate || s.partialPaymentDate || '',
       Math.max(0, (s.quotation || 0) - (s.amountPaid || 0)),
       s.paymentComplete ? 'Sí' : 'No',
       s.socialAid ? 'Sí' : 'No',
@@ -66,7 +67,7 @@ function exportFinancesPDF(rows, totals) {
 
       autoTable(doc, {
         startY: 26,
-        head: [['Fecha', 'Paciente', 'Tipo cirugía', 'Cirujano', 'Estado', 'Cotización', 'Pagado', 'Pendiente', 'Pago OK', 'Ayuda Social']],
+        head: [['Fecha', 'Paciente', 'Tipo cirugía', 'Cirujano', 'Estado', 'Cotización', 'Pagado', 'Fecha pago', 'Pendiente', 'Pago OK', 'Ayuda Social']],
         body: rows.map((s) => [
           s.date,
           s.patientName ?? '',
@@ -75,6 +76,7 @@ function exportFinancesPDF(rows, totals) {
           s.status,
           `$${Number(s.quotation || 0).toLocaleString('es-CL')}`,
           `$${Number(s.amountPaid || 0).toLocaleString('es-CL')}`,
+          s.paymentDate || s.partialPaymentDate || '—',
           `$${Math.max(0, (s.quotation || 0) - (s.amountPaid || 0)).toLocaleString('es-CL')}`,
           s.paymentComplete ? '✓' : '✗',
           s.socialAid ? `$${Number(s.socialAidAmount || 0).toLocaleString('es-CL')}` : '—',
@@ -284,6 +286,7 @@ export default function FinancesPage() {
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Estado</th>
                   <Th label="Cotización" field="quotation"  sortField={sortField} sortDir={sortDir} onSort={toggleSort} right />
                   <Th label="Pagado"     field="amountPaid" sortField={sortField} sortDir={sortDir} onSort={toggleSort} right />
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Fecha pago</th>
                   <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Pendiente</th>
                   <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Pago</th>
                   <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Ayuda Social</th>
@@ -311,6 +314,13 @@ export default function FinancesPage() {
                       </td>
                       <td className="px-4 py-3 text-right text-green-700 font-medium">
                         {s.amountPaid ? fmt(s.amountPaid) : <span className="text-gray-300">—</span>}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
+                        {s.paymentDate
+                          ? <span className="text-green-700 font-medium">{format(new Date(s.paymentDate + 'T12:00'), 'dd/MM/yyyy')}</span>
+                          : s.partialPaymentDate
+                          ? <span className="text-amber-600">{format(new Date(s.partialPaymentDate + 'T12:00'), 'dd/MM/yyyy')} <span className="text-gray-400">(parcial)</span></span>
+                          : <span className="text-gray-300">—</span>}
                       </td>
                       <td className="px-4 py-3 text-right">
                         {pending > 0
@@ -343,6 +353,7 @@ export default function FinancesPage() {
                   </td>
                   <td className="px-4 py-3 text-right font-bold text-gray-800">{fmt(totals.quoted)}</td>
                   <td className="px-4 py-3 text-right font-bold text-green-700">{fmt(totals.collected)}</td>
+                  <td className="px-4 py-3" />
                   <td className="px-4 py-3 text-right font-bold text-red-600">{totals.pending > 0 ? fmt(totals.pending) : '—'}</td>
                   <td className="px-4 py-3 text-center text-xs text-gray-500">{totals.paidCount}/{filtered.length}</td>
                   <td className="px-4 py-3 text-center font-bold text-purple-700 text-xs">{totals.socialAid > 0 ? fmt(totals.socialAid) : '—'}</td>
@@ -383,6 +394,14 @@ export default function FinancesPage() {
                       </p>
                     </div>
                   </div>
+                  {(s.paymentDate || s.partialPaymentDate) && (
+                    <p className="text-xs text-gray-500">
+                      Fecha pago:{' '}
+                      {s.paymentDate
+                        ? <span className="text-green-700 font-medium">{format(new Date(s.paymentDate + 'T12:00'), 'dd/MM/yyyy')}</span>
+                        : <span className="text-amber-600">{format(new Date(s.partialPaymentDate + 'T12:00'), 'dd/MM/yyyy')} (parcial)</span>}
+                    </p>
+                  )}
                   <div className="flex gap-2">
                     {s.paymentComplete && (
                       <span className="flex items-center gap-1 text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full">

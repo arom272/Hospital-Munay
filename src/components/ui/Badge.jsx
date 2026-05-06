@@ -9,6 +9,7 @@ const variants = {
   confirmado:  'bg-blue-100   text-blue-800   ring-blue-200',
   realizado:   'bg-green-100  text-green-800  ring-green-200',
   cancelado:   'bg-red-100    text-red-700    ring-red-200',
+  suspendido:  'bg-amber-100  text-amber-800  ring-amber-200',
   activo:      'bg-emerald-100 text-emerald-800 ring-emerald-200',
   inactivo:    'bg-gray-100   text-gray-600   ring-gray-200',
 };
@@ -23,6 +24,7 @@ const labels = {
   confirmado: 'Confirmado',
   realizado:  'Realizado',
   cancelado:  'Cancelado',
+  suspendido: 'Suspendida',
   activo:     'Activo',
   inactivo:   'Inactivo',
 };

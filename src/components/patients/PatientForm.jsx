@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Loader2 } from 'lucide-react';
-import { differenceInYears, isValid, parseISO } from 'date-fns';
+import { differenceInYears, differenceInMonths, differenceInDays, isValid, parseISO } from 'date-fns';
 import { getTypeInfo } from '../../utils/patientTypes';
 
 const DIAGNOSIS_OPTIONS = [
@@ -21,17 +21,31 @@ function initDiagSelect(val) {
 
 function calcAge(birthDate) {
   if (!birthDate) return null;
-  const d = parseISO(birthDate);
-  if (!isValid(d)) return null;
-  return differenceInYears(new Date(), d);
+  const birth = parseISO(birthDate);
+  if (!isValid(birth)) return null;
+  const now = new Date();
+  const years = differenceInYears(now, birth);
+  const afterYears = new Date(birth.getFullYear() + years, birth.getMonth(), birth.getDate());
+  const months = differenceInMonths(now, afterYears);
+  const afterMonths = new Date(afterYears.getFullYear(), afterYears.getMonth() + months, afterYears.getDate());
+  const days = differenceInDays(now, afterMonths);
+  return { years, months, days };
+}
+
+function fmtAge({ years, months, days }) {
+  const parts = [];
+  if (years > 0)  parts.push(`${years} ${years === 1 ? 'año' : 'años'}`);
+  if (months > 0) parts.push(`${months} ${months === 1 ? 'mes' : 'meses'}`);
+  if (days > 0 || parts.length === 0) parts.push(`${days} ${days === 1 ? 'día' : 'días'}`);
+  return parts.join(', ');
 }
 
 export default function PatientForm({ initial, onSubmit, onCancel, busy }) {
   const { register, handleSubmit, reset, watch, formState: { errors } } = useForm({
     defaultValues: initial ?? {
-      patientCode: '', fullName: '', birthDate: '', diagnosis: '', phone: '',
-      address: '', guardian: '', guardianPhone: '',
-      clinicalHistory: '', patientType: 'mny',
+      patientCode: '', fullName: '', birthDate: '', diagnosis: '', idNumber: '',
+      address: '', guardian: '', guardianIdNumber: '', guardianPhone: '',
+      allergies: '', clinicalHistory: '', patientType: 'mny',
     },
   });
 
@@ -115,16 +129,16 @@ export default function PatientForm({ initial, onSubmit, onCancel, busy }) {
           />
           {age !== null && (
             <p className="text-xs font-medium mt-1" style={{ color: '#09D6D4' }}>
-              Edad calculada: <span className="font-bold">{age} {age === 1 ? 'año' : 'años'}</span>
+              Edad: <span className="font-bold">{fmtAge(age)}</span>
             </p>
           )}
         </div>
 
         <div className="form-group mb-0">
-          <label className="label">Número de carnet de identidad</label>
+          <label className="label">CI del paciente</label>
           <input
             className="input"
-            placeholder="Ej: 12.345.678-9"
+            placeholder="Ej: 12345678"
             {...register('idNumber')}
           />
         </div>
@@ -159,16 +173,31 @@ export default function PatientForm({ initial, onSubmit, onCancel, busy }) {
         <input className="input" placeholder="Calle, ciudad, región" {...register('address')} />
       </div>
 
-      {/* Guardian + guardian phone */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="form-group mb-0">
+      {/* Guardian */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="sm:col-span-1 form-group mb-0">
           <label className="label">Responsable / Tutor</label>
           <input className="input" placeholder="Nombre del responsable" {...register('guardian')} />
         </div>
         <div className="form-group mb-0">
-          <label className="label">Teléfono del responsable</label>
-          <input className="input" placeholder="+56 9 1234 5678" {...register('guardianPhone')} />
+          <label className="label">CI del responsable</label>
+          <input className="input" placeholder="Ej: 12345678" {...register('guardianIdNumber')} />
         </div>
+        <div className="form-group mb-0">
+          <label className="label">Teléfono del responsable</label>
+          <input className="input" placeholder="+591 7XXXXXXX" {...register('guardianPhone')} />
+        </div>
+      </div>
+
+      {/* Allergies / Medications */}
+      <div className="form-group mb-0">
+        <label className="label">Alergias / Medicamentos</label>
+        <textarea
+          rows={2}
+          className="input resize-none"
+          placeholder="Alergias conocidas, medicamentos actuales..."
+          {...register('allergies')}
+        />
       </div>
 
       {/* Clinical history */}
@@ -177,7 +206,7 @@ export default function PatientForm({ initial, onSubmit, onCancel, busy }) {
         <textarea
           rows={3}
           className="input resize-none"
-          placeholder="Antecedentes, alergias, cirugías previas, observaciones..."
+          placeholder="Antecedentes, cirugías previas, observaciones..."
           {...register('clinicalHistory')}
         />
       </div>

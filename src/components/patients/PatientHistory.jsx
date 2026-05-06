@@ -1,4 +1,4 @@
-import { format, differenceInYears, parseISO, isValid } from 'date-fns';
+import { format, differenceInYears, differenceInMonths, differenceInDays, parseISO, isValid } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { Calendar, HeartPulse } from 'lucide-react';
 import Badge from '../ui/Badge';
@@ -6,8 +6,24 @@ import useStore from '../../store/useStore';
 
 function calcAge(birthDate) {
   if (!birthDate) return null;
-  const d = parseISO(birthDate);
-  return isValid(d) ? differenceInYears(new Date(), d) : null;
+  const birth = parseISO(birthDate);
+  if (!isValid(birth)) return null;
+  const now = new Date();
+  const years = differenceInYears(now, birth);
+  const afterYears = new Date(birth.getFullYear() + years, birth.getMonth(), birth.getDate());
+  const months = differenceInMonths(now, afterYears);
+  const afterMonths = new Date(afterYears.getFullYear(), afterYears.getMonth() + months, afterYears.getDate());
+  const days = differenceInDays(now, afterMonths);
+  return { years, months, days };
+}
+
+function fmtAge(age) {
+  if (!age) return '-';
+  const parts = [];
+  if (age.years > 0)  parts.push(`${age.years}a`);
+  if (age.months > 0) parts.push(`${age.months}m`);
+  if (age.days > 0 || parts.length === 0) parts.push(`${age.days}d`);
+  return parts.join(' ');
 }
 
 export default function PatientHistory({ patient }) {
@@ -30,9 +46,10 @@ export default function PatientHistory({ patient }) {
           ['Diagnóstico',  patient.diagnosis],
           ['Tipo',         patient.patientType === 'flap' ? 'FLAP' : 'Externo'],
           ['Fecha de nac.',patient.birthDate ? format(parseISO(patient.birthDate), 'dd/MM/yyyy') : '-'],
-          ['Edad',         age !== null ? `${age} años` : '-'],
-          ['Carnet de identidad', patient.idNumber || '-'],
-          ['Responsable',  patient.guardian || '-'],
+          ['Edad',          fmtAge(age)],
+          ['CI paciente',   patient.idNumber || '-'],
+          ['Responsable',   patient.guardian || '-'],
+          ['CI responsable',patient.guardianIdNumber || '-'],
           ['Tel. responsable', patient.guardianPhone || '-'],
           ['Dirección',    patient.address || '-'],
         ].map(([k, v]) => (
@@ -42,6 +59,13 @@ export default function PatientHistory({ patient }) {
           </div>
         ))}
       </div>
+
+      {patient.allergies && (
+        <div>
+          <p className="text-xs text-gray-400 uppercase font-medium mb-1">Alergias / Medicamentos</p>
+          <p className="text-sm text-gray-700 bg-amber-50 rounded-lg p-3">{patient.allergies}</p>
+        </div>
+      )}
 
       {patient.clinicalHistory && (
         <div>
