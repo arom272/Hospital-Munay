@@ -48,10 +48,12 @@ function buildFichaFields(surgery, patient) {
   const dateStr = surgery.date
     ? format(new Date(surgery.date + 'T12:00'), "dd/MM/yyyy")
     : '—';
+  const sexLabel = patient?.sex === 'masculino' ? 'Masculino' : patient?.sex === 'femenino' ? 'Femenino' : '—';
   const left = [
     { label: 'Diagnóstico',          value: patient?.diagnosis ?? '—' },
     { label: 'Fecha de internación', value: dateStr },
     { label: 'Hora de internación',  value: surgery.admissionTime || '—' },
+    { label: 'Sexo',                  value: sexLabel },
   ];
   const right = [
     { label: 'Hora de ayuno', value: surgery.fastingTime || (surgery.fastingHours ? `${surgery.fastingHours} h` : '—') },
@@ -89,6 +91,7 @@ async function printSurgeryFicha(surgery, patient) {
     '<rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4h6v2H9z"/><path d="M9 12h6M12 9v6"/>',
     '<rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>',
     '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    '<circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-7 8-7s8 3 8 7"/>',
   ];
   const clin1RightIcons = [
     '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
@@ -127,6 +130,7 @@ async function printSurgeryFicha(surgery, patient) {
     { bg: '#C7B8E8', svg: '<rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4h6v2H9z"/><path d="M9 12h6M12 9v6"/>' },
     { bg: '#A8DDDA', svg: '<rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>' },
     { bg: '#F4C58A', svg: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>' },
+    { bg: '#F8C8A8', svg: '<circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-7 8-7s8 3 8 7"/>' },
   ];
   const ped2RightIcons = [
     { bg: '#F5D88A', svg: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>' },
@@ -190,6 +194,7 @@ async function printConsentForm(surgery, patient) {
   const ci          = patient?.guardianIdNumber || patient?.idNumber || '___________';
   const address     = patient?.address    || '___________';
   const procedure   = surgery.surgeryType || '___________';
+  const sex         = patient?.sex === 'masculino' ? 'Masculino' : patient?.sex === 'femenino' ? 'Femenino' : '—';
   const dateStr     = surgery.date
     ? format(new Date(surgery.date + 'T12:00'), 'dd/MM/yyyy')
     : '___________';
@@ -236,8 +241,9 @@ async function printConsentForm(surgery, patient) {
 </div>
 <div class="pstrip">
   <div class="pi"><span class="lbl">Paciente: </span><strong>${patientName}</strong></div>
-  <div class="pi"><span class="lbl">Representante: </span><strong>${guardian}</strong></div>
+  <div class="pi"><span class="lbl">Sexo: </span><strong>${sex}</strong></div>
   <div class="pi"><span class="lbl">CI: </span><strong>${ci}</strong></div>
+  <div class="pi"><span class="lbl">Representante: </span><strong>${guardian}</strong></div>
   <div class="pi"><span class="lbl">Procedimiento: </span><strong style="color:#3DA8A7">${procedure}</strong></div>
 </div>
 <div class="content">
@@ -278,6 +284,7 @@ async function printAnesthesiaConsentForm(surgery, patient) {
   const patientName    = surgery.patientName        || '___________';
   const guardian       = patient?.guardian          || '___________';
   const ci             = patient?.guardianIdNumber  || patient?.idNumber || '___________';
+  const sex            = patient?.sex === 'masculino' ? 'Masculino' : patient?.sex === 'femenino' ? 'Femenino' : '—';
   const dateStr        = surgery.date
     ? format(new Date(surgery.date + 'T12:00'), 'dd/MM/yyyy')
     : '___________';
@@ -329,8 +336,9 @@ async function printAnesthesiaConsentForm(surgery, patient) {
 </div>
 <div class="pstrip">
   <div class="pi"><span class="lbl">Paciente: </span><strong>${patientName}</strong></div>
-  <div class="pi"><span class="lbl">Representante: </span><strong>${guardian}</strong></div>
+  <div class="pi"><span class="lbl">Sexo: </span><strong>${sex}</strong></div>
   <div class="pi"><span class="lbl">CI: </span><strong>${ci}</strong></div>
+  <div class="pi"><span class="lbl">Representante: </span><strong>${guardian}</strong></div>
   <div class="pi"><span class="lbl">Anestesiólogo: </span><strong style="color:#3DA8A7">${anesthesiologist}</strong></div>
 </div>
 <div class="content">
@@ -383,8 +391,11 @@ async function printAnesthesiaConsentForm(surgery, patient) {
 async function printPostOpControl(surgery, patient) {
   const logo2       = await getLogoBase64(logo2Img);
   const age         = calcAge(patient?.birthDate);
+  const typeInfo    = getTypeInfo(patient?.patientType);
+  const hcCode      = patient?.patientCode ? `${typeInfo.label}-${patient.patientCode}` : '';
   const patientName = surgery.patientName || '';
   const idNumber    = patient?.idNumber   || '';
+  const sex         = patient?.sex === 'masculino' ? 'Masculino' : patient?.sex === 'femenino' ? 'Femenino' : '';
   const diagnosis   = patient?.diagnosis  || surgery.surgeryType || '';
   const birthDateStr  = patient?.birthDate
     ? format(new Date(patient.birthDate + 'T12:00'), 'dd/MM/yyyy') : '';
@@ -394,185 +405,216 @@ async function printPostOpControl(surgery, patient) {
   const surgeon    = surgery.surgeon     || '';
   const ageStr     = age ? fmtAge(age)   : '';
   const pesoStr    = surgery.peso ? `${surgery.peso} kg` : '';
+  const now        = format(new Date(), 'dd/MM/yyyy');
 
   const logoBoxHtml = logo2
-    ? `<div style="background:#FFF;padding:6px 12px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><img src="${logo2}" style="height:60px;width:auto;object-fit:contain;"/></div>`
-    : `<div style="background:#FFF;padding:6px 12px;border-radius:6px;flex-shrink:0;"><span style="font-size:14px;font-weight:900;color:#1F3A5F;letter-spacing:2px;">MUNAY</span></div>`;
+    ? `<div style="background:#FFF;padding:5px 10px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><img src="${logo2}" style="height:54px;width:auto;object-fit:contain;"/></div>`
+    : `<div style="background:#FFF;padding:5px 10px;border-radius:6px;flex-shrink:0;"><span style="font-size:14px;font-weight:900;color:#1F3A5F;letter-spacing:2px;">MUNAY</span></div>`;
+
+  const signs = ['Edema','Hematoma','Sangrado','Fiebre','Vómitos / náuseas','Dehiscencia de sutura','Secreción en herida','Signos de infección','Diuresis presente','Llanto / irritabilidad'];
+  const stateItems = ['Alimentación','Tolerancia oral','Sueño','Estado general','Estado de la herida','Higiene bucal'];
+  const flagItems = ['Uso de coderas / contención de brazos','Higiene bucal con suero fisiológico','Alimentación con jeringa o cuchara','Evita biberón y chupete','Antibiótico administrado según indicación','Analgesia administrada según indicación','Curación de herida realizada','Reposo según indicación'];
+  const signRows = signs.map(it => `<div class="eval-row"><span class="eval-item">${it}</span><div class="eval-cell"><input type="checkbox"></div><div class="eval-cell"><input type="checkbox"></div></div>`).join('');
+  const stateRows = stateItems.map(it => `<div class="eval-row"><span class="eval-item">${it}</span><div class="eval-cell"><input type="checkbox"></div><div class="eval-cell"><input type="checkbox"></div></div>`).join('');
+  const flagChecks = flagItems.map(it => `<label class="ii"><input type="checkbox"> ${it}</label>`).join('');
+  const evaScale = [0,1,2,3,4,5,6,7,8,9,10].map(n => `<div class="n" data-v="${n}" onclick="selDolor(${n})">${n}</div>`).join('');
 
   const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/>
 <title>Control Post Operatorio — ${patientName}</title>
 <style>
-  @page{size:A4 portrait;margin:0}
+  @page{size:letter portrait;margin:0}
   *{box-sizing:border-box;margin:0;padding:0}
-  body{width:210mm;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#000;background:#fff}
-  .page{padding:6mm 12mm 8mm}
-  .hdr{background:#1F3A5F;padding:12px 24px;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:16px;border-bottom:4px solid #4FC3C2}
-  .sec{margin-bottom:9px}
-  .sec-hdr{font-size:10px;font-weight:bold;color:#1F3A5F;text-transform:uppercase;letter-spacing:0.8px;border-bottom:1.5px solid #1F3A5F;padding-bottom:2px;margin-bottom:5px}
-  .g3{display:grid;grid-template-columns:2fr 1fr 1fr;gap:4px 12px;margin-bottom:4px}
-  .g33{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px 12px;margin-bottom:4px}
-  .fl{display:flex;align-items:baseline;gap:4px}
-  .fl .lbl{font-weight:bold;white-space:nowrap;font-size:10px}
-  .fl .val{flex:1;border-bottom:1px dotted #888;min-height:13px;padding:0 3px;font-size:10.5px}
-  .mod{display:grid;grid-template-columns:1fr 1fr;gap:5px 20px;margin-bottom:7px;padding:5px 8px;background:#f0f0f0;border-radius:3px;font-size:10.5px}
-  .mod-g{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-  .mod-g .mlbl{font-weight:bold}
-  .chk{width:12px;height:12px;border:1.5px solid #000;background:#fff;display:inline-block;flex-shrink:0;vertical-align:middle}
-  .chi{display:inline-flex;align-items:center;gap:3px}
-  .tv{width:100%;border-collapse:collapse;font-size:10.5px}
-  .tv th,.tv td{border:1px solid #000;padding:3px 5px;text-align:center}
-  .tv th{background:#f0f0f0;font-weight:bold}
-  .tv td{height:20px}
-  .tv .u{font-weight:normal;font-size:8px;color:#555;display:block}
-  .gc{display:grid;grid-template-columns:1fr 1fr;gap:6px 18px}
-  .bc{display:grid;grid-template-columns:1fr auto auto;column-gap:8px;row-gap:3px;align-items:center;font-size:10.5px}
-  .bc .hc{text-align:center;font-weight:bold;font-size:9px;background:#f0f0f0;padding:2px 5px;border:1px solid #aaa}
-  .bc .it{font-weight:bold}
-  .ck{width:15px;height:15px;border:1.5px solid #000;background:#fff;display:inline-block;margin:0 auto}
-  .cc{display:flex;justify-content:center}
-  .dolor{display:grid;grid-template-columns:auto 1fr auto;gap:6px;align-items:center;padding:5px 8px;background:#f0f0f0;border-radius:3px;margin-top:5px;font-size:10.5px}
-  .eva{display:flex;justify-content:space-between;border:1px solid #000;background:#fff}
-  .eva .n{flex:1;text-align:center;padding:2px 0;border-right:1px solid #aaa;font-size:9px;font-weight:bold}
+  html,body{font-family:Arial,Helvetica,sans-serif;color:#000;font-size:9pt;background:#dde3ea}
+  .toolbar{max-width:8.5in;margin:0 auto;display:flex;gap:10px;justify-content:flex-end;padding:6px 20px;background:#dde3ea}
+  .toolbar button{background:#1F3A5F;color:#fff;border:none;padding:6px 18px;border-radius:4px;font-size:9.5pt;cursor:pointer;font-weight:bold}
+  .hoja{width:8.5in;min-height:11in;margin:0 auto 16px;background:#fff}
+  .hdr{background:#1F3A5F;padding:10px 22px;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:14px;border-bottom:4px solid #4FC3C2;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .content{padding:5mm 11mm 6mm}
+  .sec{margin-bottom:7px}
+  .sec-hdr{font-size:8.5pt;font-weight:bold;color:#1F3A5F;background:linear-gradient(90deg,#EBF4FF,#F4F7FA);padding:3px 9px;border-left:4px solid #4FC3C2;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.4px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .row{display:grid;gap:3px 10px;margin-bottom:4px}
+  .r2{grid-template-columns:1fr 1fr}
+  .r3{grid-template-columns:1fr 1fr 1fr}
+  .r4{grid-template-columns:1fr 1fr 1fr 1fr}
+  .fi{display:flex;align-items:baseline;gap:4px}
+  .fi .lbl{font-weight:bold;white-space:nowrap;font-size:7.5pt;color:#3A4D62}
+  .fi input{flex:1;border:none;border-bottom:1px dotted #AAB8C8;background:transparent;font-family:inherit;font-size:8.5pt;padding:1px 2px;outline:none;min-width:0}
+  .fi input:focus{background:#fffae6}
+  .mod-bar{display:flex;flex-wrap:wrap;gap:5px 16px;background:#F4F7FA;border:1px solid #D5DEE8;border-left:4px solid #4FC3C2;border-radius:0 4px 4px 0;padding:5px 9px;margin-bottom:6px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .mod-g{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+  .mod-g .mlbl{font-weight:bold;color:#1F3A5F;font-size:8.5pt}
+  .chi{display:inline-flex;align-items:center;gap:3px;font-size:8.5pt;cursor:pointer}
+  .chi input[type=checkbox]{width:12px;height:12px;cursor:pointer;accent-color:#1F3A5F}
+  .tv{width:100%;border-collapse:collapse;font-size:8.5pt}
+  .tv th,.tv td{border:1px solid #C5D8EE;padding:3px 5px;text-align:center}
+  .tv th{background:#1F3A5F;color:#fff;font-weight:bold;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .tv td{height:22px}
+  .tv td input{width:100%;border:none;background:transparent;font-family:inherit;font-size:8.5pt;text-align:center;outline:none;padding:0}
+  .tv td input:focus{background:#fffae6}
+  .tv .u{font-weight:normal;font-size:7pt;color:rgba(255,255,255,0.85);display:block}
+  .eval-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:3px}
+  .eval-card{border:1px solid #D5DEE8;border-radius:4px;overflow:hidden}
+  .eval-card-hdr{background:#2B5C8A;color:#fff;padding:3px 7px;font-size:7.5pt;font-weight:bold;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .eval-col-hdr{display:grid;grid-template-columns:1fr 40px 40px;padding:2px 7px;background:#E8F0F8;font-size:7pt;font-weight:bold;text-align:center;color:#1F3A5F;border-bottom:1px solid #D5DEE8;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .eval-col-hdr .lbl2{text-align:left}
+  .eval-row{display:grid;grid-template-columns:1fr 40px 40px;align-items:center;padding:2px 7px;border-bottom:1px solid #EEF2F7}
+  .eval-row:last-child{border-bottom:none}
+  .eval-row:nth-child(even){background:#F8FAFC}
+  .eval-cell{text-align:center}
+  .eval-item{font-size:8pt;color:#1A2B42}
+  .eval-cell input[type=checkbox]{width:12px;height:12px;cursor:pointer;accent-color:#1F3A5F}
+  .dolor-wrap{background:linear-gradient(90deg,#EBF4FF,#F4F7FA);border:1px solid #C5D8EE;border-radius:4px;padding:4px 9px;margin-top:5px;display:flex;align-items:center;gap:10px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .eva{display:flex;flex:1;border:1px solid #C5D8EE;border-radius:3px;overflow:hidden}
+  .eva .n{flex:1;text-align:center;padding:3px 0;border-right:1px solid #C5D8EE;font-size:8.5pt;font-weight:bold;cursor:pointer}
   .eva .n:last-child{border-right:none}
-  .ind{display:grid;grid-template-columns:1fr 1fr;gap:3px 14px;font-size:10.5px}
-  .ii{display:flex;align-items:center;gap:5px}
-  .obs-l{border-bottom:1px dotted #888;min-height:15px;padding:0 3px 2px;margin-bottom:9px}
-  .pc{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:5px 8px;background:#f0f0f0;border-left:3px solid #1F3A5F;margin-top:7px;font-size:10.5px}
-  .fir{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:16px}
-  .fbox{text-align:center;font-size:10px}
-  .stamp-box{border:1px dashed #8AAFC8;border-radius:6px;height:56px;display:flex;align-items:center;justify-content:center;color:#A0B8CC;font-size:9pt;letter-spacing:1px;margin-bottom:5px}
-  .flin{border-top:1px solid #000;padding-top:3px;margin-top:4px}
+  .eva .n.sel0{background:#4ade80;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .eva .n.sel3{background:#facc15;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .eva .n.sel7{background:#f97316;color:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .eva .n.sel9{background:#ef4444;color:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .ind{display:grid;grid-template-columns:1fr 1fr;gap:3px 14px}
+  .ii{display:inline-flex;align-items:center;gap:4px;font-size:8.5pt;cursor:pointer}
+  .ii input[type=checkbox]{width:12px;height:12px;cursor:pointer;accent-color:#1F3A5F}
+  .obs-input{display:block;width:100%;border:none;border-bottom:1px dotted #AAB8C8;background:transparent;font-family:inherit;font-size:8.5pt;padding:2px 2px 1px;outline:none;margin-bottom:4px}
+  .obs-input:focus{background:#fffae6}
+  .pc{background:linear-gradient(90deg,#EBF4FF,#F4F7FA);border:1px solid #D5DEE8;border-left:4px solid #1F3A5F;border-radius:0 4px 4px 0;padding:5px 12px;margin-top:6px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .fir{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:10px}
+  .fbox{text-align:center;font-size:8.5pt}
+  .stamp-box{border:1px dashed #8AAFC8;border-radius:6px;height:48px;display:flex;align-items:center;justify-content:center;color:#A0B8CC;font-size:8.5pt;letter-spacing:1px;margin-bottom:4px}
+  .flin{border-top:1px solid #000;padding-top:2px;margin-top:3px}
   .fbox .flbl{font-weight:bold;display:block}
-  .fbox .fsub{font-size:8px;color:#555;margin-top:2px}
-  .pie{margin-top:10px;padding-top:5px;border-top:1px solid #ccc;display:flex;justify-content:space-between;font-size:8px;color:#777}
-  .bot{height:5px;background:#4FC3C2}
-</style></head><body>
+  .fbox .fsub{font-size:7pt;color:#666;margin-top:1px}
+  .pie{margin-top:5px;padding-top:4px;border-top:1px solid #D5DEE8;display:flex;justify-content:space-between;font-size:7pt;color:#888}
+  .bot{height:5px;background:#4FC3C2;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  @media print{
+    html,body{background:#fff}
+    .toolbar{display:none}
+    .hoja{margin:0}
+  }
+</style>
+<script>
+function selDolor(n){
+  document.querySelectorAll('.eva .n').forEach(function(el){el.className='n'});
+  var el=document.querySelector('.eva .n[data-v="'+n+'"]');
+  if(!el)return;
+  if(n<=2)el.classList.add('sel0');
+  else if(n<=6)el.classList.add('sel3');
+  else if(n<=8)el.classList.add('sel7');
+  else el.classList.add('sel9');
+}
+</script>
+</head><body>
+<div class="toolbar">
+  <button onclick="window.print()">&#128424; Imprimir</button>
+</div>
+<div class="hoja">
 <div class="hdr">
   ${logoBoxHtml}
   <div style="text-align:center;color:#FFF">
-    <div style="font-size:13px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;opacity:.85">Centro Médico Quirúrgico</div>
-    <div style="font-size:24px;font-weight:900;letter-spacing:5px;color:#4FC3C2;margin-top:3px">MUNAY</div>
+    <div style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;opacity:.8">Centro Médico Quirúrgico</div>
+    <div style="font-size:18px;font-weight:900;letter-spacing:4px;color:#4FC3C2;margin-top:1px">MUNAY</div>
+    <div style="font-size:13px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#fff;margin-top:3px;background:rgba(255,255,255,0.15);padding:2px 12px;border-radius:3px;display:inline-block">CONTROL POSTOPERATORIO</div>
   </div>
   <div style="text-align:right;color:#FFF">
-    <div style="font-size:14px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase">Control Post Operatorio</div>
-    <div style="font-size:10px;opacity:.9;margin-top:3px">FLAP / FLP</div>
+    <div style="font-size:10px;font-weight:600;opacity:.85;margin-bottom:3px">FLAP / FLP</div>
+    <div style="font-size:8px;opacity:.75">${now}</div>
   </div>
 </div>
-<div class="page">
-  <div class="mod">
-    <div class="mod-g"><span class="mlbl">TIPO DE CONTROL:</span>
-      <span class="chi"><span class="chk"></span> 24 horas</span>
-      <span class="chi"><span class="chk"></span> 7 días</span>
-      <span class="chi"><span class="chk"></span> 30 días</span>
-      <span class="chi"><span class="chk"></span> Otro:<span style="display:inline-block;min-width:36px;border-bottom:1px dotted #888;margin-left:2px"></span></span>
+<div class="content">
+
+  <div class="sec">
+    <div class="sec-hdr">Datos del Control</div>
+    <div class="mod-bar">
+      <div class="mod-g">
+        <span class="mlbl">TIPO:</span>
+        <label class="chi"><input type="checkbox"> 24 horas</label>
+        <label class="chi"><input type="checkbox"> 7 días</label>
+        <label class="chi"><input type="checkbox"> 30 días</label>
+        <label class="chi"><input type="checkbox"> Otro:<input type="text" style="border:none;border-bottom:1px dotted #888;background:transparent;font-family:inherit;font-size:8.5pt;outline:none;min-width:40px;margin-left:3px"/></label>
+      </div>
+      <div class="mod-g" style="gap:12px">
+        <div class="fi"><span class="lbl">Fecha:</span><input type="date" style="font-family:Arial;font-size:8.5pt;border:1px solid #C5D8EE;border-radius:3px;padding:2px 4px;outline:none;margin-left:3px"/></div>
+        <div class="fi"><span class="lbl">Hora:</span><input type="time" style="font-family:Arial;font-size:8.5pt;border:1px solid #C5D8EE;border-radius:3px;padding:2px 4px;outline:none;margin-left:3px"/></div>
+      </div>
     </div>
-    <div class="mod-g"><span class="mlbl">MODALIDAD:</span>
-      <span class="chi"><span class="chk"></span> Presencial</span>
-      <span class="chi"><span class="chk"></span> Telefónico</span>
-    </div>
-    <div class="mod-g"><div class="fl" style="flex:1"><span class="lbl">FECHA:</span><span class="val"></span></div></div>
-    <div class="mod-g"><div class="fl" style="flex:1"><span class="lbl">HORA:</span><span class="val"></span></div></div>
   </div>
 
   <div class="sec">
     <div class="sec-hdr">Identificación del Paciente</div>
-    <div class="g3">
-      <div class="fl"><span class="lbl">Nombre completo:</span><span class="val">${patientName}</span></div>
-      <div class="fl"><span class="lbl">Edad:</span><span class="val">${ageStr}</span></div>
-      <div class="fl"><span class="lbl">F. Nac.:</span><span class="val">${birthDateStr}</span></div>
+    <div class="row r4">
+      <div class="fi" style="grid-column:span 2"><span class="lbl">Nombre completo:</span><input value="${patientName}"/></div>
+      <div class="fi"><span class="lbl">Edad:</span><input value="${ageStr}"/></div>
+      <div class="fi"><span class="lbl">F. Nacimiento:</span><input value="${birthDateStr}"/></div>
     </div>
-    <div class="g33">
-      <div class="fl"><span class="lbl">N° HC / CI:</span><span class="val">${idNumber}</span></div>
-      <div class="fl"><span class="lbl">Diagnóstico:</span><span class="val">${diagnosis}</span></div>
-      <div class="fl"><span class="lbl">F. Cirugía:</span><span class="val">${surgeryDateStr}</span></div>
+    <div class="row r4">
+      <div class="fi"><span class="lbl">N° HC:</span><input value="${hcCode}"/></div>
+      <div class="fi"><span class="lbl">CI:</span><input value="${idNumber}"/></div>
+      <div class="fi"><span class="lbl">Sexo:</span><input value="${sex}"/></div>
+      <div class="fi"><span class="lbl">F. Cirugía:</span><input value="${surgeryDateStr}"/></div>
     </div>
-    <div class="g33">
-      <div class="fl"><span class="lbl">Procedimiento:</span><span class="val">${procedure}</span></div>
-      <div class="fl"><span class="lbl">Cirujano:</span><span class="val">${surgeon}</span></div>
-      <div class="fl"><span class="lbl">Informante:</span><span class="val"></span></div>
+    <div class="row r3">
+      <div class="fi"><span class="lbl">Diagnóstico:</span><input value="${diagnosis}"/></div>
+      <div class="fi"><span class="lbl">Procedimiento:</span><input value="${procedure}"/></div>
+      <div class="fi"><span class="lbl">Cirujano:</span><input value="${surgeon}"/></div>
     </div>
   </div>
 
   <div class="sec">
     <div class="sec-hdr">Signos Vitales</div>
     <table class="tv"><thead><tr>
-      <th>FC <span class="u">(lpm)</span></th>
-      <th>FR <span class="u">(rpm)</span></th>
-      <th>Temp <span class="u">(°C)</span></th>
-      <th>SatO&#8322; <span class="u">(%)</span></th>
-      <th>PA <span class="u">(mmHg)</span></th>
-      <th>Peso <span class="u">(kg)</span></th>
-    </tr></thead>
-    <tbody><tr>
-      <td></td><td></td><td></td><td></td><td></td>
-      <td>${pesoStr}</td>
+      <th>FC <span class="u">lpm</span></th>
+      <th>FR <span class="u">rpm</span></th>
+      <th>Temp <span class="u">°C</span></th>
+      <th>SatO&#8322; <span class="u">%</span></th>
+      <th>PA <span class="u">mmHg</span></th>
+      <th>Peso <span class="u">kg</span></th>
+    </tr></thead><tbody><tr>
+      <td><input/></td><td><input/></td><td><input/></td><td><input/></td><td><input/></td>
+      <td><input value="${pesoStr}"/></td>
     </tr></tbody></table>
   </div>
 
   <div class="sec">
     <div class="sec-hdr">Evaluación Clínica Postoperatoria</div>
-    <div class="gc">
-      <div class="bc">
-        <div></div><div class="hc">SÍ</div><div class="hc">NO</div>
-        <div class="it">Edema</div><div class="cc"><span class="ck"></span></div><div class="cc"><span class="ck"></span></div>
-        <div class="it">Hematoma</div><div class="cc"><span class="ck"></span></div><div class="cc"><span class="ck"></span></div>
-        <div class="it">Sangrado</div><div class="cc"><span class="ck"></span></div><div class="cc"><span class="ck"></span></div>
-        <div class="it">Fiebre</div><div class="cc"><span class="ck"></span></div><div class="cc"><span class="ck"></span></div>
-        <div class="it">Vómitos / náuseas</div><div class="cc"><span class="ck"></span></div><div class="cc"><span class="ck"></span></div>
-        <div class="it">Dehiscencia de sutura</div><div class="cc"><span class="ck"></span></div><div class="cc"><span class="ck"></span></div>
-        <div class="it">Secreción en herida</div><div class="cc"><span class="ck"></span></div><div class="cc"><span class="ck"></span></div>
-        <div class="it">Signos de infección</div><div class="cc"><span class="ck"></span></div><div class="cc"><span class="ck"></span></div>
-        <div class="it">Diuresis presente</div><div class="cc"><span class="ck"></span></div><div class="cc"><span class="ck"></span></div>
-        <div class="it">Llanto / irritabilidad</div><div class="cc"><span class="ck"></span></div><div class="cc"><span class="ck"></span></div>
+    <div class="eval-grid">
+      <div class="eval-card">
+        <div class="eval-card-hdr">Signos y Síntomas</div>
+        <div class="eval-col-hdr"><span class="lbl2">Parámetro</span><span>SÍ</span><span>NO</span></div>
+        ${signRows}
       </div>
-      <div class="bc">
-        <div></div><div class="hc">MAL</div><div class="hc">BIEN</div>
-        <div class="it">Alimentación</div><div class="cc"><span class="ck"></span></div><div class="cc"><span class="ck"></span></div>
-        <div class="it">Tolerancia oral</div><div class="cc"><span class="ck"></span></div><div class="cc"><span class="ck"></span></div>
-        <div class="it">Sueño</div><div class="cc"><span class="ck"></span></div><div class="cc"><span class="ck"></span></div>
-        <div class="it">Estado general</div><div class="cc"><span class="ck"></span></div><div class="cc"><span class="ck"></span></div>
-        <div class="it">Estado de la herida</div><div class="cc"><span class="ck"></span></div><div class="cc"><span class="ck"></span></div>
-        <div class="it">Higiene bucal</div><div class="cc"><span class="ck"></span></div><div class="cc"><span class="ck"></span></div>
+      <div class="eval-card">
+        <div class="eval-card-hdr">Estado General</div>
+        <div class="eval-col-hdr"><span class="lbl2">Parámetro</span><span>MAL</span><span>BIEN</span></div>
+        ${stateRows}
       </div>
     </div>
-    <div class="dolor">
-      <span><b>DOLOR:</b></span>
-      <div class="eva">
-        <div class="n">0</div><div class="n">1</div><div class="n">2</div><div class="n">3</div><div class="n">4</div>
-        <div class="n">5</div><div class="n">6</div><div class="n">7</div><div class="n">8</div><div class="n">9</div><div class="n">10</div>
-      </div>
-      <span style="font-size:9px">EVA / Wong-Baker</span>
+    <div class="dolor-wrap">
+      <b style="color:#1F3A5F;white-space:nowrap;font-size:8.5pt">DOLOR (EVA):</b>
+      <div class="eva">${evaScale}</div>
+      <span style="font-size:7.5pt;color:#5A6B82;white-space:nowrap">Wong-Baker</span>
     </div>
   </div>
 
   <div class="sec">
     <div class="sec-hdr">Cumplimiento de Indicaciones FLAP/FLP</div>
-    <div class="ind">
-      <div class="ii"><span class="chk"></span> Uso de coderas / contención de brazos</div>
-      <div class="ii"><span class="chk"></span> Higiene bucal con suero fisiológico</div>
-      <div class="ii"><span class="chk"></span> Alimentación con jeringa o cuchara</div>
-      <div class="ii"><span class="chk"></span> Evita biberón y chupete</div>
-      <div class="ii"><span class="chk"></span> Antibiótico administrado según indicación</div>
-      <div class="ii"><span class="chk"></span> Analgesia administrada según indicación</div>
-      <div class="ii"><span class="chk"></span> Curación de herida realizada</div>
-      <div class="ii"><span class="chk"></span> Reposo según indicación</div>
-    </div>
+    <div class="ind">${flagChecks}</div>
   </div>
 
   <div class="sec">
     <div class="sec-hdr">Observaciones Clínicas</div>
-    <div class="obs-l"></div><div class="obs-l"></div><div class="obs-l"></div>
+    <input class="obs-input" placeholder="Observaciones..."/>
+    <input class="obs-input"/>
+    <input class="obs-input"/>
   </div>
 
   <div class="sec">
     <div class="sec-hdr">Recomendaciones a la Madre / Cuidador</div>
-    <div class="obs-l"></div><div class="obs-l"></div><div class="obs-l"></div>
+    <input class="obs-input" placeholder="Recomendaciones..."/>
+    <input class="obs-input"/>
+    <input class="obs-input"/>
   </div>
 
   <div class="pc">
-    <div class="fl"><span class="lbl">Próximo control:</span><span class="val"></span></div>
-    <div class="fl"><span class="lbl">Modalidad:</span><span class="val"></span></div>
-    <div class="fl"><span class="lbl">Especialidad:</span><span class="val"></span></div>
+    <div class="fi"><span class="lbl" style="font-size:9pt;color:#1F3A5F">Próximo control:</span><input type="date" style="font-family:Arial;font-size:9pt;border:1px solid #C5D8EE;border-radius:3px;padding:2px 7px;outline:none;min-width:130px;margin-left:6px"/></div>
   </div>
 
   <div class="fir">
@@ -587,114 +629,106 @@ async function printPostOpControl(surgery, patient) {
   </div>
 
   <div class="pie">
-    <span>FLAP-PO-001 v.2.0 / 2026</span>
+    <span>FLAP-PO-001 v.3.0 / 2026</span>
     <span>Centro Médico Quirúrgico MUNAY · La Paz, Bolivia</span>
     <span>Control Postoperatorio FLAP/FLP</span>
   </div>
+
 </div>
 <div class="bot"></div>
+</div>
 </body></html>`;
 
-  const win = window.open('', '_blank', 'width=816,height=1056');
+  const win = window.open('', '_blank', 'width=820,height=1060');
   win.document.write(html);
   win.document.close();
   win.focus();
-  setTimeout(() => { win.print(); }, 500);
 }
+
 
 async function printEpicrisis(surgery, patient) {
   const logo2        = await getLogoBase64(logo2Img);
   const age          = calcAge(patient?.birthDate);
+  const typeInfo     = getTypeInfo(patient?.patientType);
+  const hcCode       = patient?.patientCode ? `${typeInfo.label}-${patient.patientCode}` : '';
   const patientName  = surgery.patientName     || '';
   const idNumber     = patient?.idNumber       || '';
+  const sex          = patient?.sex === 'masculino' ? 'Masculino' : patient?.sex === 'femenino' ? 'Femenino' : '';
   const birthDateISO = patient?.birthDate      || '';
   const ageStr       = age ? fmtAge(age)        : '';
   const pesoStr      = surgery.peso ? String(surgery.peso) : '';
   const guardian     = patient?.guardian       || '';
   const guardianPhone= patient?.guardianPhone  || '';
-  const allergies    = patient?.allergies      || '';
   const surgeryDate  = surgery.date            || '';
   const admissionTime= surgery.admissionTime   || surgery.startTime || '';
   const diagnosis    = patient?.diagnosis      || '';
   const procedure    = surgery.surgeryType     || '';
-  const today        = format(new Date(), 'yyyy-MM-dd');
 
   const logoBoxHtml = logo2
-    ? `<div style="background:#FFF;padding:6px 12px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><img src="${logo2}" style="height:60px;width:auto;object-fit:contain;"/></div>`
-    : `<div style="background:#FFF;padding:6px 12px;border-radius:6px;flex-shrink:0;"><span style="font-size:14px;font-weight:900;color:#1F3A5F;letter-spacing:2px;">MUNAY</span></div>`;
+    ? `<div style="background:#FFF;padding:5px 10px;border-radius:5px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><img src="${logo2}" style="height:52px;width:auto;object-fit:contain;"/></div>`
+    : `<div style="background:#FFF;padding:5px 10px;border-radius:5px;flex-shrink:0;"><span style="font-size:13px;font-weight:900;color:#1F3A5F;letter-spacing:2px;">MUNAY</span></div>`;
 
   const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/>
 <title>Epicrisis — ${patientName}</title>
 <style>
   @page{size:letter portrait;margin:0}
   *{box-sizing:border-box;margin:0;padding:0}
-  html,body{font-family:Arial,Helvetica,sans-serif;color:#000;font-size:10.5pt;background:#e8e8e8}
-  .hdr{background:#1F3A5F;padding:12px 24px;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:16px;border-bottom:4px solid #4FC3C2}
-  .meta-strip{background:#EBF4FF;padding:5px 24px;border-bottom:1px solid #C5D8EE;display:flex;align-items:center;font-size:9pt}
-  .mi{padding:0 12px;border-right:1px solid #C5D8EE;display:flex;align-items:center;gap:5px}
-  .mi:first-child{padding-left:0}.mi:last-child{border-right:none}
-  .mi .lbl{font-weight:bold;color:#1F3A5F;white-space:nowrap}
-  .mi input{border:none;border-bottom:1px dotted #888;background:transparent;font-family:inherit;font-size:9pt;padding:1px 3px;outline:none;min-width:70px}
-  .mi input:focus{background:#fffae6}
-  .toolbar{max-width:8.5in;margin:0 auto;display:flex;gap:10px;justify-content:flex-end;padding:8px 24px;background:#e8e8e8}
-  .toolbar button{background:#1F3A5F;color:#fff;border:none;padding:7px 14px;border-radius:4px;font-size:10pt;cursor:pointer;font-weight:bold}
+  html,body{font-family:Arial,Helvetica,sans-serif;color:#000;font-size:9.5pt;background:#e8e8e8}
+  .hdr{background:#1F3A5F;padding:10px 22px;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:14px;border-bottom:4px solid #4FC3C2}
+  .toolbar{max-width:8.5in;margin:0 auto;display:flex;gap:10px;justify-content:flex-end;padding:7px 22px;background:#e8e8e8}
+  .toolbar button{background:#1F3A5F;color:#fff;border:none;padding:6px 13px;border-radius:4px;font-size:9.5pt;cursor:pointer;font-weight:bold}
   .toolbar button.add{background:#2a8f3f}.toolbar button.sec{background:#666}
-  .hoja{width:8.5in;margin:0 auto 20px;background:#fff;padding:0.3in 0.45in}
-  .titulo{text-align:center;font-size:13.5pt;font-weight:bold;margin:8px 0;letter-spacing:1px;border-top:2px solid #000;border-bottom:2px solid #000;padding:5px 0}
-  .bloque{border:1px solid #000;margin-bottom:7px}
-  .bt{background:#ddd;padding:3px 8px;font-weight:bold;font-size:10pt;border-bottom:1px solid #000;text-transform:uppercase;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .bc{padding:5px 8px}
-  .g2{display:grid;grid-template-columns:1fr 1fr;gap:3px 14px}
-  .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px 14px}
-  .g4{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:3px 14px}
+  .hoja{width:8.5in;margin:0 auto 16px;background:#fff;padding:0.22in 0.38in}
+  .titulo{text-align:center;font-size:12pt;font-weight:bold;margin:6px 0;letter-spacing:1px;border-top:2px solid #1F3A5F;border-bottom:2px solid #1F3A5F;padding:4px 0;color:#1F3A5F}
+  .bloque{border:1px solid #ccc;border-radius:4px;margin-bottom:5px;overflow:hidden}
+  .bt{background:linear-gradient(90deg,#e8f4f4 0%,#f5f5f5 100%);padding:3px 8px;font-weight:bold;font-size:9pt;border-bottom:1px solid #ccc;border-left:4px solid #4FC3C2;text-transform:uppercase;color:#1F3A5F;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .bc{padding:4px 8px}
+  .g2{display:grid;grid-template-columns:1fr 1fr;gap:2px 12px}
+  .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:2px 12px}
+  .g4{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:2px 12px}
   .f{display:flex;align-items:baseline;gap:4px;padding:2px 0}
-  .f .lbl{font-weight:bold;white-space:nowrap;font-size:9.5pt}
-  .f input,.f select{flex:1;border:none;border-bottom:1px dotted #666;background:transparent;font-family:inherit;font-size:10pt;padding:1px 2px;outline:none;min-width:0}
+  .f .lbl{font-weight:bold;white-space:nowrap;font-size:8.5pt;color:#333}
+  .f input,.f select{flex:1;border:none;border-bottom:1px dotted #666;background:transparent;font-family:inherit;font-size:9.5pt;padding:1px 2px;outline:none;min-width:0}
   .f input:focus,.f select:focus,textarea:focus{background:#fffae6}
-  .fv{display:flex;flex-direction:column;gap:2px;padding:2px 0}
-  .fv .lbl{font-weight:bold;font-size:9.5pt}
-  .fv input{border:none;border-bottom:1px dotted #666;background:transparent;font-family:inherit;font-size:10pt;padding:1px 2px;outline:none;width:100%}
+  .fv{display:flex;flex-direction:column;gap:1px;padding:2px 0}
+  .fv .lbl{font-weight:bold;font-size:8.5pt;color:#333}
+  .fv input{border:none;border-bottom:1px dotted #666;background:transparent;font-family:inherit;font-size:9.5pt;padding:1px 2px;outline:none;width:100%}
   .fv input:focus{background:#fffae6}
-  textarea{width:100%;border:1px solid #999;background:transparent;font-family:inherit;font-size:10pt;line-height:1.4;padding:4px 6px;resize:vertical;outline:none;min-height:26px}
-  table.med{width:100%;border-collapse:collapse;font-size:9pt}
+  textarea{width:100%;border:1px solid #bbb;background:transparent;font-family:inherit;font-size:9.5pt;line-height:1.4;padding:3px 5px;resize:vertical;outline:none;min-height:24px}
+  table.med{width:100%;border-collapse:collapse;font-size:8.5pt}
   table.med th,table.med td{border:1px solid #000;padding:2px 4px;text-align:left;vertical-align:top}
-  table.med th{background:#ddd;font-weight:bold;text-align:center;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  table.med input{width:100%;border:none;background:transparent;font-family:inherit;font-size:9pt;outline:none;padding:1px}
+  table.med th{background:linear-gradient(90deg,#e8f4f4,#f0f0f0);font-weight:bold;text-align:center;-webkit-print-color-adjust:exact;print-color-adjust:exact;color:#1F3A5F}
+  table.med input{width:100%;border:none;background:transparent;font-family:inherit;font-size:8.5pt;outline:none;padding:1px}
   table.med input:focus{background:#fffae6}
   .chk-l{display:grid;grid-template-columns:1fr 1fr;gap:2px 14px}
-  .chk-i{display:flex;align-items:center;gap:5px;font-size:10pt}
-  .chk-i input[type="checkbox"]{width:13px;height:13px;margin:0}
-  .firmas{display:grid;grid-template-columns:1fr 1fr;gap:25px;margin-top:22px}
-  .firma{text-align:center;font-size:9pt}
-  .firma .esp{height:44px}
+  .chk-i{display:flex;align-items:center;gap:5px;font-size:9.5pt}
+  .chk-i input[type="checkbox"]{width:12px;height:12px;margin:0}
+  .firmas{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:16px}
+  .firma{text-align:center;font-size:8.5pt}
+  .firma .esp{height:38px}
   .firma .lin{border-top:1px solid #000;margin-bottom:3px}
   .firma .nom{font-weight:bold}
-  .pie-v{text-align:center;font-size:7.5pt;color:#666;margin-top:10px;border-top:1px solid #999;padding-top:4px}
+  .pie-v{text-align:center;font-size:7pt;color:#666;margin-top:8px;border-top:1px solid #ccc;padding-top:3px}
   .bot{height:5px;background:#4FC3C2}
   @media print{
     body{background:#fff}
     .toolbar{display:none}
-    .hoja{margin:0;width:100%;padding:0.3in 0.4in}
+    .hoja{margin:0;width:100%;padding:0.22in 0.38in}
     input,select,textarea{background:transparent!important}
-    .bt{background:#ddd!important}
-    table.med th{background:#ddd!important}
+    .bt{background:linear-gradient(90deg,#e8f4f4 0%,#f5f5f5 100%)!important}
+    table.med th{background:linear-gradient(90deg,#e8f4f4,#f0f0f0)!important}
   }
 </style></head><body>
 <div class="hdr">
   ${logoBoxHtml}
   <div style="text-align:center;color:#FFF">
-    <div style="font-size:13px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;opacity:.85">Centro Médico Quirúrgico</div>
-    <div style="font-size:24px;font-weight:900;letter-spacing:5px;color:#4FC3C2;margin-top:3px">MUNAY</div>
+    <div style="font-size:12px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;opacity:.85">Centro Médico Quirúrgico</div>
+    <div style="font-size:22px;font-weight:900;letter-spacing:5px;color:#4FC3C2;margin-top:2px">MUNAY</div>
   </div>
   <div style="text-align:right;color:#FFF">
-    <div style="font-size:14px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase">Epicrisis</div>
-    <div style="font-size:10px;opacity:.9;margin-top:3px">Departamento Médico Quirúrgico</div>
+    <div style="font-size:13px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase">Epicrisis</div>
+    <div style="font-size:9px;opacity:.9;margin-top:2px">Departamento Médico Quirúrgico</div>
   </div>
-</div>
-<div class="meta-strip">
-  <div class="mi"><span class="lbl">N° HC:</span><input id="numero_hc" value="${idNumber}"/></div>
-  <div class="mi"><span class="lbl">N° Epicrisis:</span><input id="numero_epicrisis"/></div>
-  <div class="mi"><span class="lbl">Fecha emisión:</span><input type="date" id="fecha_emision" value="${today}"/></div>
 </div>
 <div class="toolbar">
   <button onclick="window.print()">Imprimir</button>
@@ -709,29 +743,22 @@ async function printEpicrisis(surgery, patient) {
     <div class="bc">
       <div class="g2">
         <div class="f"><span class="lbl">Apellidos y nombres:</span><input value="${patientName}"/></div>
-        <div class="f"><span class="lbl">CI:</span><input value="${idNumber}"/></div>
+        <div class="f"><span class="lbl">N° HC:</span><input value="${hcCode}"/></div>
       </div>
       <div class="g4">
-        <div class="f"><span class="lbl">Sexo:</span><select><option value=""></option><option>Masculino</option><option>Femenino</option></select></div>
+        <div class="f"><span class="lbl">CI:</span><input value="${idNumber}"/></div>
+        <div class="f"><span class="lbl">Sexo:</span><select><option value=""></option><option ${sex==='Masculino'?'selected':''}>Masculino</option><option ${sex==='Femenino'?'selected':''}>Femenino</option></select></div>
         <div class="f"><span class="lbl">Fecha nac.:</span><input type="date" value="${birthDateISO}"/></div>
         <div class="f"><span class="lbl">Edad:</span><input value="${ageStr}"/></div>
-        <div class="f"><span class="lbl">Peso (kg):</span><input value="${pesoStr}"/></div>
       </div>
-      <div class="g2">
-        <div class="f"><span class="lbl">Procedencia:</span><input placeholder="Ciudad / Comunidad / Departamento"/></div>
+      <div class="g3">
+        <div class="f"><span class="lbl">Peso (kg):</span><input value="${pesoStr}"/></div>
+        <div class="f"><span class="lbl">Procedencia:</span><input placeholder="Ciudad / Comunidad"/></div>
         <div class="f"><span class="lbl">Idioma:</span><input placeholder="Español / Aymara / Quechua"/></div>
       </div>
       <div class="g2">
         <div class="f"><span class="lbl">Responsable legal:</span><input value="${guardian}"/></div>
-        <div class="f"><span class="lbl">Parentesco:</span><input/></div>
-      </div>
-      <div class="g2">
         <div class="f"><span class="lbl">Teléfono contacto:</span><input type="tel" value="${guardianPhone}"/></div>
-        <div class="f"><span class="lbl">Teléfono alternativo:</span><input type="tel"/></div>
-      </div>
-      <div class="fv">
-        <span class="lbl">Alergias conocidas:</span>
-        <input value="${allergies}" placeholder="Especificar fármacos, alimentos, látex u otros. Si no tiene, escribir NIEGA."/>
       </div>
     </div>
   </div>
@@ -778,10 +805,6 @@ async function printEpicrisis(surgery, patient) {
         <div class="f"><span class="lbl">Duración (min):</span><input/></div>
         <div class="f"><span class="lbl">Sangrado:</span><select><option value=""></option><option>Mínimo</option><option>Moderado</option><option>Abundante</option></select></div>
       </div>
-      <div class="fv">
-        <span class="lbl">Complicaciones intra/post-operatorias:</span>
-        <textarea rows="2" placeholder="Si no hubo, escribir NINGUNA."></textarea>
-      </div>
     </div>
   </div>
 
@@ -797,7 +820,7 @@ async function printEpicrisis(surgery, patient) {
           <th style="width:10%">Vía</th>
           <th style="width:12%">Frecuencia</th>
           <th style="width:10%">Duración</th>
-          <th style="width:8%">Inicio</th>
+          <th style="width:8%">Final</th>
         </tr></thead>
         <tbody></tbody>
       </table>
@@ -826,9 +849,7 @@ async function printEpicrisis(surgery, patient) {
         <label class="chk-i"><input type="checkbox" checked> Dificultad respiratoria</label>
         <label class="chk-i"><input type="checkbox" checked> Rechazo total de alimentos o líquidos</label>
         <label class="chk-i"><input type="checkbox" checked> Vómitos persistentes</label>
-        <label class="chk-i"><input type="checkbox"> Otros:</label>
       </div>
-      <div class="fv" style="margin-top:5px"><input placeholder="Especificar otros signos de alarma"/></div>
     </div>
   </div>
 
@@ -869,7 +890,7 @@ async function printEpicrisis(surgery, patient) {
   }
   document.getElementById('fecha_ingreso').addEventListener('change',calcularDias);
   document.getElementById('fecha_egreso').addEventListener('change',calcularDias);
-  for(var i=0;i<4;i++) agregarMedicamento();
+  for(var i=0;i<3;i++) agregarMedicamento();
 </script>
 </body></html>`;
 
@@ -1264,6 +1285,7 @@ export default function SurgeryDetail({
                       '<rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4h6v2H9z"/><path d="M9 12h6M12 9v6"/>',
                       '<rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>',
                       '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+                      '<circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-7 8-7s8 3 8 7"/>',
                     ]},
                     { fields: fichaFields.right, icons: [
                       '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
@@ -1340,6 +1362,7 @@ export default function SurgeryDetail({
                       '<rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4h6v2H9z"/><path d="M9 12h6M12 9v6"/>',
                       '<rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>',
                       '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+                      '<circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 4-7 8-7s8 3 8 7"/>',
                     ]},
                     { fields: fichaFields.right, icons: [
                       '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',

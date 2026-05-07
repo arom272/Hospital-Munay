@@ -5,7 +5,9 @@
       "Bash(npm run *)",
       "Bash(powershell -Command ' *)",
       "Bash(cp \"c:/Users/aromg/Music/pagina munay/APP MUNAY/public/icons/pwa-192X192.png.png\" \"c:/Users/aromg/Music/pagina munay/APP MUNAY/public/icons/icon-192.png\")",
-      "Bash(cp \"c:/Users/aromg/Music/pagina munay/APP MUNAY/public/icons/pwa-215x512.png.png\" \"c:/Users/aromg/Music/pagina munay/APP MUNAY/public/icons/icon-512.png\")"
+      "Bash(cp \"c:/Users/aromg/Music/pagina munay/APP MUNAY/public/icons/pwa-215x512.png.png\" \"c:/Users/aromg/Music/pagina munay/APP MUNAY/public/icons/icon-512.png\")",
+      "Bash(node -e ' *)",
+      "Bash(rm __postop_new.js)"
     ]
   }
 }

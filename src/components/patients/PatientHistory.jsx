@@ -49,6 +49,7 @@ export default function PatientHistory({ patient }) {
           ['Fecha de nac.',patient.birthDate ? format(parseISO(patient.birthDate), 'dd/MM/yyyy') : '-'],
           ['Edad',          fmtAge(age)],
           ['CI paciente',   patient.idNumber || '-'],
+          ['Sexo',          patient.sex === 'masculino' ? 'Masculino' : patient.sex === 'femenino' ? 'Femenino' : '-'],
           ['Responsable',   patient.guardian || '-'],
           ['CI responsable',patient.guardianIdNumber || '-'],
           ['Tel. responsable', patient.guardianPhone || '-'],

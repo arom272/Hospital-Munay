@@ -44,7 +44,7 @@ export default function PatientForm({ initial, onSubmit, onCancel, busy }) {
   const { register, handleSubmit, reset, watch, formState: { errors } } = useForm({
     defaultValues: initial ?? {
       patientCode: '', fullName: '', birthDate: '', diagnosis: '', idNumber: '',
-      address: '', guardian: '', guardianIdNumber: '', guardianPhone: '',
+      sex: '', address: '', guardian: '', guardianIdNumber: '', guardianPhone: '',
       allergies: '', clinicalHistory: '', patientType: 'mny',
     },
   });
@@ -118,8 +118,8 @@ export default function PatientForm({ initial, onSubmit, onCancel, busy }) {
         <p className="text-xs text-gray-400 mt-1">Número correlativo para buscar al paciente por código.</p>
       </div>
 
-      {/* Birth date + calculated age */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {/* Birth date + sex + CI */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="form-group mb-0">
           <label className="label">Fecha de nacimiento</label>
           <input
@@ -132,6 +132,15 @@ export default function PatientForm({ initial, onSubmit, onCancel, busy }) {
               Edad: <span className="font-bold">{fmtAge(age)}</span>
             </p>
           )}
+        </div>
+
+        <div className="form-group mb-0">
+          <label className="label">Sexo</label>
+          <select className="input" {...register('sex')}>
+            <option value="">— Seleccionar —</option>
+            <option value="masculino">Masculino</option>
+            <option value="femenino">Femenino</option>
+          </select>
         </div>
 
         <div className="form-group mb-0">
