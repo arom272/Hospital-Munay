@@ -3,6 +3,7 @@ import { es } from 'date-fns/locale';
 import { Calendar, HeartPulse } from 'lucide-react';
 import Badge from '../ui/Badge';
 import useStore from '../../store/useStore';
+import { getTypeInfo } from '../../utils/patientTypes';
 
 function calcAge(birthDate) {
   if (!birthDate) return null;
@@ -44,7 +45,7 @@ export default function PatientHistory({ patient }) {
       <div className="grid grid-cols-2 gap-3 text-sm">
         {[
           ['Diagnóstico',  patient.diagnosis],
-          ['Tipo',         patient.patientType === 'flap' ? 'FLAP' : 'Externo'],
+          ['Tipo',         getTypeInfo(patient.patientType).longLabel],
           ['Fecha de nac.',patient.birthDate ? format(parseISO(patient.birthDate), 'dd/MM/yyyy') : '-'],
           ['Edad',          fmtAge(age)],
           ['CI paciente',   patient.idNumber || '-'],

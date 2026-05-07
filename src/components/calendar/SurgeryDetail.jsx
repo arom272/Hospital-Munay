@@ -141,21 +141,20 @@ async function printSurgeryFicha(surgery, patient) {
   }).join('');
 
   const card2 = `
-    <div style="background:linear-gradient(180deg,#FFFFFF 0%,#FBFAFE 100%);padding:14px 24px 10px;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:16px;flex-shrink:0;border-bottom:1px solid #E8E4F2;">
-      <div style="display:flex;align-items:center;gap:10px;">${logoCircleHtml}<div><div style="font-size:11px;font-weight:700;color:#6B5FBF;text-transform:uppercase;letter-spacing:1px;">Centro Médico Quirúrgico</div><div style="font-size:19px;font-weight:900;color:#4A3F8C;letter-spacing:3px;margin-top:1px;">MUNAY</div></div></div>
-      <div style="text-align:center;"><div style="font-size:19px;font-weight:700;color:#6B5FBF;letter-spacing:1.2px;text-transform:uppercase;">Orden de Internación</div><div style="font-size:10px;color:#5A5A6E;margin-top:2px;">${now}</div></div>
+    <div style="background:#1F3A5F;padding:14px 24px;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:16px;flex-shrink:0;border-bottom:4px solid #4FC3C2;">
+      ${logoWrapperHtml}
+      <div style="text-align:center;color:#FFFFFF;"><div style="font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;opacity:0.85;">Centro Médico Quirúrgico</div><div style="font-size:22px;font-weight:900;letter-spacing:4px;color:#4FC3C2;margin-top:2px;">MUNAY</div></div>
+      <div style="text-align:right;color:#FFFFFF;"><div style="font-size:18px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;">Orden de Internación</div><div style="font-size:11px;color:rgba(255,255,255,0.85);margin-top:3px;">${now}</div></div>
+    </div>
+    <div style="padding:14px 24px 10px;display:grid;grid-template-columns:1fr auto;align-items:center;gap:16px;flex-shrink:0;">
+      <div><div style="font-size:22px;font-weight:700;color:#1F3A5F;letter-spacing:-0.3px;line-height:1.1;">${surgery.patientName ?? '—'}</div><div style="font-size:16px;font-weight:700;color:#3DA8A7;letter-spacing:0.5px;margin-top:5px;text-transform:uppercase;">${surgery.surgeryType ?? '—'}</div></div>
       ${bearSvg}
     </div>
-    <div style="margin:8px 24px 10px;background:linear-gradient(90deg,#EFE9FA 0%,#F3EEFC 100%);border-radius:12px;padding:10px 18px;display:flex;align-items:center;gap:12px;flex-shrink:0;">
-      <div style="flex:1;font-size:18px;font-weight:700;color:#5B4FB8;">${surgery.patientName ?? '—'}</div>
-      <div style="width:1px;height:22px;background:linear-gradient(180deg,transparent,#C5B5E5,transparent);flex-shrink:0;"></div>
-      <div style="font-size:16px;font-weight:700;color:#2A2A3E;white-space:nowrap;max-width:220px;overflow:hidden;text-overflow:ellipsis;">${surgery.surgeryType ?? '—'}</div>
+    <div style="flex:1;display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:0 24px 18px;overflow:hidden;">
+      <div style="border:1px solid #D5DEE8;border-radius:4px;overflow:hidden;">${mkClin1Row(left, clin1LeftIcons)}</div>
+      <div style="border:1px solid #D5DEE8;border-radius:4px;overflow:hidden;">${mkClin1Row(right, clin1RightIcons)}</div>
     </div>
-    <div style="flex:1;display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:0 24px 12px;overflow:hidden;">
-      <div style="background:#FBFAFE;border:1px solid #E8E4F2;border-radius:12px;padding:10px 14px;display:flex;flex-direction:column;gap:5px;overflow:hidden;">${mkPed2Row(left, ped2LeftIcons)}</div>
-      <div style="background:#FBFAFE;border:1px solid #E8E4F2;border-radius:12px;padding:10px 14px;display:flex;flex-direction:column;gap:5px;overflow:hidden;">${mkPed2Row(right, ped2RightIcons)}</div>
-    </div>
-    <div style="height:28px;background:linear-gradient(180deg,transparent 0%,#E8F5E0 100%);flex-shrink:0;position:relative;overflow:hidden;"><div style="position:absolute;bottom:3px;left:0;right:0;font-size:10px;color:#F5B5C8;text-align:center;letter-spacing:20px;">✿ ❀ ✿ ❀</div></div>`;
+    <div style="height:6px;background:#4FC3C2;flex-shrink:0;"></div>`;
 
   const html = `<!DOCTYPE html>
 <html lang="es">
@@ -379,6 +378,505 @@ async function printAnesthesiaConsentForm(surgery, patient) {
   win.document.close();
   win.focus();
   setTimeout(() => { win.print(); }, 500);
+}
+
+async function printPostOpControl(surgery, patient) {
+  const logo2       = await getLogoBase64(logo2Img);
+  const age         = calcAge(patient?.birthDate);
+  const patientName = surgery.patientName || '';
+  const idNumber    = patient?.idNumber   || '';
+  const diagnosis   = patient?.diagnosis  || surgery.surgeryType || '';
+  const birthDateStr  = patient?.birthDate
+    ? format(new Date(patient.birthDate + 'T12:00'), 'dd/MM/yyyy') : '';
+  const surgeryDateStr = surgery.date
+    ? format(new Date(surgery.date + 'T12:00'), 'dd/MM/yyyy') : '';
+  const procedure  = surgery.surgeryType || '';
+  const surgeon    = surgery.surgeon     || '';
+  const ageStr     = age ? fmtAge(age)   : '';
+  const pesoStr    = surgery.peso ? `${surgery.peso} kg` : '';
+
+  const logoBoxHtml = logo2
+    ? `<div style="background:#FFF;padding:6px 12px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><img src="${logo2}" style="height:60px;width:auto;object-fit:contain;"/></div>`
+    : `<div style="background:#FFF;padding:6px 12px;border-radius:6px;flex-shrink:0;"><span style="font-size:14px;font-weight:900;color:#1F3A5F;letter-spacing:2px;">MUNAY</span></div>`;
+
+  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/>
+<title>Control Post Operatorio — ${patientName}</title>
+<style>
+  @page{size:A4 portrait;margin:0}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{width:210mm;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#000;background:#fff}
+  .page{padding:6mm 12mm 8mm}
+  .hdr{background:#1F3A5F;padding:12px 24px;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:16px;border-bottom:4px solid #4FC3C2}
+  .sec{margin-bottom:9px}
+  .sec-hdr{font-size:10px;font-weight:bold;color:#1F3A5F;text-transform:uppercase;letter-spacing:0.8px;border-bottom:1.5px solid #1F3A5F;padding-bottom:2px;margin-bottom:5px}
+  .g3{display:grid;grid-template-columns:2fr 1fr 1fr;gap:4px 12px;margin-bottom:4px}
+  .g33{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px 12px;margin-bottom:4px}
+  .fl{display:flex;align-items:baseline;gap:4px}
+  .fl .lbl{font-weight:bold;white-space:nowrap;font-size:10px}
+  .fl .val{flex:1;border-bottom:1px dotted #888;min-height:13px;padding:0 3px;font-size:10.5px}
+  .mod{display:grid;grid-template-columns:1fr 1fr;gap:5px 20px;margin-bottom:7px;padding:5px 8px;background:#f0f0f0;border-radius:3px;font-size:10.5px}
+  .mod-g{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .mod-g .mlbl{font-weight:bold}
+  .chk{width:12px;height:12px;border:1.5px solid #000;background:#fff;display:inline-block;flex-shrink:0;vertical-align:middle}
+  .chi{display:inline-flex;align-items:center;gap:3px}
+  .tv{width:100%;border-collapse:collapse;font-size:10.5px}
+  .tv th,.tv td{border:1px solid #000;padding:3px 5px;text-align:center}
+  .tv th{background:#f0f0f0;font-weight:bold}
+  .tv td{height:20px}
+  .tv .u{font-weight:normal;font-size:8px;color:#555;display:block}
+  .gc{display:grid;grid-template-columns:1fr 1fr;gap:6px 18px}
+  .bc{display:grid;grid-template-columns:1fr auto auto;column-gap:8px;row-gap:3px;align-items:center;font-size:10.5px}
+  .bc .hc{text-align:center;font-weight:bold;font-size:9px;background:#f0f0f0;padding:2px 5px;border:1px solid #aaa}
+  .bc .it{font-weight:bold}
+  .ck{width:15px;height:15px;border:1.5px solid #000;background:#fff;display:inline-block;margin:0 auto}
+  .cc{display:flex;justify-content:center}
+  .dolor{display:grid;grid-template-columns:auto 1fr auto;gap:6px;align-items:center;padding:5px 8px;background:#f0f0f0;border-radius:3px;margin-top:5px;font-size:10.5px}
+  .eva{display:flex;justify-content:space-between;border:1px solid #000;background:#fff}
+  .eva .n{flex:1;text-align:center;padding:2px 0;border-right:1px solid #aaa;font-size:9px;font-weight:bold}
+  .eva .n:last-child{border-right:none}
+  .ind{display:grid;grid-template-columns:1fr 1fr;gap:3px 14px;font-size:10.5px}
+  .ii{display:flex;align-items:center;gap:5px}
+  .obs-l{border-bottom:1px dotted #888;min-height:15px;padding:0 3px 2px;margin-bottom:9px}
+  .pc{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:5px 8px;background:#f0f0f0;border-left:3px solid #1F3A5F;margin-top:7px;font-size:10.5px}
+  .fir{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:16px}
+  .fbox{text-align:center;font-size:10px}
+  .stamp-box{border:1px dashed #8AAFC8;border-radius:6px;height:56px;display:flex;align-items:center;justify-content:center;color:#A0B8CC;font-size:9pt;letter-spacing:1px;margin-bottom:5px}
+  .flin{border-top:1px solid #000;padding-top:3px;margin-top:4px}
+  .fbox .flbl{font-weight:bold;display:block}
+  .fbox .fsub{font-size:8px;color:#555;margin-top:2px}
+  .pie{margin-top:10px;padding-top:5px;border-top:1px solid #ccc;display:flex;justify-content:space-between;font-size:8px;color:#777}
+  .bot{height:5px;background:#4FC3C2}
+</style></head><body>
+<div class="hdr">
+  ${logoBoxHtml}
+  <div style="text-align:center;color:#FFF">
+    <div style="font-size:13px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;opacity:.85">Centro Médico Quirúrgico</div>
+    <div style="font-size:24px;font-weight:900;letter-spacing:5px;color:#4FC3C2;margin-top:3px">MUNAY</div>
+  </div>
+  <div style="text-align:right;color:#FFF">
+    <div style="font-size:14px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase">Control Post Operatorio</div>
+    <div style="font-size:10px;opacity:.9;margin-top:3px">FLAP / FLP</div>
+  </div>
+</div>
+<div class="page">
+  <div class="mod">
+    <div class="mod-g"><span class="mlbl">TIPO DE CONTROL:</span>
+      <span class="chi"><span class="chk"></span> 24 horas</span>
+      <span class="chi"><span class="chk"></span> 7 días</span>
+      <span class="chi"><span class="chk"></span> 30 días</span>
+      <span class="chi"><span class="chk"></span> Otro:<span style="display:inline-block;min-width:36px;border-bottom:1px dotted #888;margin-left:2px"></span></span>
+    </div>
+    <div class="mod-g"><span class="mlbl">MODALIDAD:</span>
+      <span class="chi"><span class="chk"></span> Presencial</span>
+      <span class="chi"><span class="chk"></span> Telefónico</span>
+    </div>
+    <div class="mod-g"><div class="fl" style="flex:1"><span class="lbl">FECHA:</span><span class="val"></span></div></div>
+    <div class="mod-g"><div class="fl" style="flex:1"><span class="lbl">HORA:</span><span class="val"></span></div></div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-hdr">Identificación del Paciente</div>
+    <div class="g3">
+      <div class="fl"><span class="lbl">Nombre completo:</span><span class="val">${patientName}</span></div>
+      <div class="fl"><span class="lbl">Edad:</span><span class="val">${ageStr}</span></div>
+      <div class="fl"><span class="lbl">F. Nac.:</span><span class="val">${birthDateStr}</span></div>
+    </div>
+    <div class="g33">
+      <div class="fl"><span class="lbl">N° HC / CI:</span><span class="val">${idNumber}</span></div>
+      <div class="fl"><span class="lbl">Diagnóstico:</span><span class="val">${diagnosis}</span></div>
+      <div class="fl"><span class="lbl">F. Cirugía:</span><span class="val">${surgeryDateStr}</span></div>
+    </div>
+    <div class="g33">
+      <div class="fl"><span class="lbl">Procedimiento:</span><span class="val">${procedure}</span></div>
+      <div class="fl"><span class="lbl">Cirujano:</span><span class="val">${surgeon}</span></div>
+      <div class="fl"><span class="lbl">Informante:</span><span class="val"></span></div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-hdr">Signos Vitales</div>
+    <table class="tv"><thead><tr>
+      <th>FC <span class="u">(lpm)</span></th>
+      <th>FR <span class="u">(rpm)</span></th>
+      <th>Temp <span class="u">(°C)</span></th>
+      <th>SatO&#8322; <span class="u">(%)</span></th>
+      <th>PA <span class="u">(mmHg)</span></th>
+      <th>Peso <span class="u">(kg)</span></th>
+    </tr></thead>
+    <tbody><tr>
+      <td></td><td></td><td></td><td></td><td></td>
+      <td>${pesoStr}</td>
+    </tr></tbody></table>
+  </div>
+
+  <div class="sec">
+    <div class="sec-hdr">Evaluación Clínica Postoperatoria</div>
+    <div class="gc">
+      <div class="bc">
+        <div></div><div class="hc">SÍ</div><div class="hc">NO</div>
+        <div class="it">Edema</div><div class="cc"><span class="ck"></span></div><div class="cc"><span class="ck"></span></div>
+        <div class="it">Hematoma</div><div class="cc"><span class="ck"></span></div><div class="cc"><span class="ck"></span></div>
+        <div class="it">Sangrado</div><div class="cc"><span class="ck"></span></div><div class="cc"><span class="ck"></span></div>
+        <div class="it">Fiebre</div><div class="cc"><span class="ck"></span></div><div class="cc"><span class="ck"></span></div>
+        <div class="it">Vómitos / náuseas</div><div class="cc"><span class="ck"></span></div><div class="cc"><span class="ck"></span></div>
+        <div class="it">Dehiscencia de sutura</div><div class="cc"><span class="ck"></span></div><div class="cc"><span class="ck"></span></div>
+        <div class="it">Secreción en herida</div><div class="cc"><span class="ck"></span></div><div class="cc"><span class="ck"></span></div>
+        <div class="it">Signos de infección</div><div class="cc"><span class="ck"></span></div><div class="cc"><span class="ck"></span></div>
+        <div class="it">Diuresis presente</div><div class="cc"><span class="ck"></span></div><div class="cc"><span class="ck"></span></div>
+        <div class="it">Llanto / irritabilidad</div><div class="cc"><span class="ck"></span></div><div class="cc"><span class="ck"></span></div>
+      </div>
+      <div class="bc">
+        <div></div><div class="hc">MAL</div><div class="hc">BIEN</div>
+        <div class="it">Alimentación</div><div class="cc"><span class="ck"></span></div><div class="cc"><span class="ck"></span></div>
+        <div class="it">Tolerancia oral</div><div class="cc"><span class="ck"></span></div><div class="cc"><span class="ck"></span></div>
+        <div class="it">Sueño</div><div class="cc"><span class="ck"></span></div><div class="cc"><span class="ck"></span></div>
+        <div class="it">Estado general</div><div class="cc"><span class="ck"></span></div><div class="cc"><span class="ck"></span></div>
+        <div class="it">Estado de la herida</div><div class="cc"><span class="ck"></span></div><div class="cc"><span class="ck"></span></div>
+        <div class="it">Higiene bucal</div><div class="cc"><span class="ck"></span></div><div class="cc"><span class="ck"></span></div>
+      </div>
+    </div>
+    <div class="dolor">
+      <span><b>DOLOR:</b></span>
+      <div class="eva">
+        <div class="n">0</div><div class="n">1</div><div class="n">2</div><div class="n">3</div><div class="n">4</div>
+        <div class="n">5</div><div class="n">6</div><div class="n">7</div><div class="n">8</div><div class="n">9</div><div class="n">10</div>
+      </div>
+      <span style="font-size:9px">EVA / Wong-Baker</span>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-hdr">Cumplimiento de Indicaciones FLAP/FLP</div>
+    <div class="ind">
+      <div class="ii"><span class="chk"></span> Uso de coderas / contención de brazos</div>
+      <div class="ii"><span class="chk"></span> Higiene bucal con suero fisiológico</div>
+      <div class="ii"><span class="chk"></span> Alimentación con jeringa o cuchara</div>
+      <div class="ii"><span class="chk"></span> Evita biberón y chupete</div>
+      <div class="ii"><span class="chk"></span> Antibiótico administrado según indicación</div>
+      <div class="ii"><span class="chk"></span> Analgesia administrada según indicación</div>
+      <div class="ii"><span class="chk"></span> Curación de herida realizada</div>
+      <div class="ii"><span class="chk"></span> Reposo según indicación</div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-hdr">Observaciones Clínicas</div>
+    <div class="obs-l"></div><div class="obs-l"></div><div class="obs-l"></div>
+  </div>
+
+  <div class="sec">
+    <div class="sec-hdr">Recomendaciones a la Madre / Cuidador</div>
+    <div class="obs-l"></div><div class="obs-l"></div><div class="obs-l"></div>
+  </div>
+
+  <div class="pc">
+    <div class="fl"><span class="lbl">Próximo control:</span><span class="val"></span></div>
+    <div class="fl"><span class="lbl">Modalidad:</span><span class="val"></span></div>
+    <div class="fl"><span class="lbl">Especialidad:</span><span class="val"></span></div>
+  </div>
+
+  <div class="fir">
+    <div class="fbox">
+      <div class="stamp-box">SELLO</div>
+      <div class="flin"><span class="flbl">Profesional Responsable</span><div class="fsub">Nombre, firma y matrícula profesional</div></div>
+    </div>
+    <div class="fbox">
+      <div class="stamp-box">SELLO</div>
+      <div class="flin"><span class="flbl">Sello Institucional</span><div class="fsub">Centro Médico Quirúrgico MUNAY</div></div>
+    </div>
+  </div>
+
+  <div class="pie">
+    <span>FLAP-PO-001 v.2.0 / 2026</span>
+    <span>Centro Médico Quirúrgico MUNAY · La Paz, Bolivia</span>
+    <span>Control Postoperatorio FLAP/FLP</span>
+  </div>
+</div>
+<div class="bot"></div>
+</body></html>`;
+
+  const win = window.open('', '_blank', 'width=816,height=1056');
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(() => { win.print(); }, 500);
+}
+
+async function printEpicrisis(surgery, patient) {
+  const logo2        = await getLogoBase64(logo2Img);
+  const age          = calcAge(patient?.birthDate);
+  const patientName  = surgery.patientName     || '';
+  const idNumber     = patient?.idNumber       || '';
+  const birthDateISO = patient?.birthDate      || '';
+  const ageStr       = age ? fmtAge(age)        : '';
+  const pesoStr      = surgery.peso ? String(surgery.peso) : '';
+  const guardian     = patient?.guardian       || '';
+  const guardianPhone= patient?.guardianPhone  || '';
+  const allergies    = patient?.allergies      || '';
+  const surgeryDate  = surgery.date            || '';
+  const admissionTime= surgery.admissionTime   || surgery.startTime || '';
+  const diagnosis    = patient?.diagnosis      || '';
+  const procedure    = surgery.surgeryType     || '';
+  const today        = format(new Date(), 'yyyy-MM-dd');
+
+  const logoBoxHtml = logo2
+    ? `<div style="background:#FFF;padding:6px 12px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><img src="${logo2}" style="height:60px;width:auto;object-fit:contain;"/></div>`
+    : `<div style="background:#FFF;padding:6px 12px;border-radius:6px;flex-shrink:0;"><span style="font-size:14px;font-weight:900;color:#1F3A5F;letter-spacing:2px;">MUNAY</span></div>`;
+
+  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/>
+<title>Epicrisis — ${patientName}</title>
+<style>
+  @page{size:letter portrait;margin:0}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{font-family:Arial,Helvetica,sans-serif;color:#000;font-size:10.5pt;background:#e8e8e8}
+  .hdr{background:#1F3A5F;padding:12px 24px;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:16px;border-bottom:4px solid #4FC3C2}
+  .meta-strip{background:#EBF4FF;padding:5px 24px;border-bottom:1px solid #C5D8EE;display:flex;align-items:center;font-size:9pt}
+  .mi{padding:0 12px;border-right:1px solid #C5D8EE;display:flex;align-items:center;gap:5px}
+  .mi:first-child{padding-left:0}.mi:last-child{border-right:none}
+  .mi .lbl{font-weight:bold;color:#1F3A5F;white-space:nowrap}
+  .mi input{border:none;border-bottom:1px dotted #888;background:transparent;font-family:inherit;font-size:9pt;padding:1px 3px;outline:none;min-width:70px}
+  .mi input:focus{background:#fffae6}
+  .toolbar{max-width:8.5in;margin:0 auto;display:flex;gap:10px;justify-content:flex-end;padding:8px 24px;background:#e8e8e8}
+  .toolbar button{background:#1F3A5F;color:#fff;border:none;padding:7px 14px;border-radius:4px;font-size:10pt;cursor:pointer;font-weight:bold}
+  .toolbar button.add{background:#2a8f3f}.toolbar button.sec{background:#666}
+  .hoja{width:8.5in;margin:0 auto 20px;background:#fff;padding:0.3in 0.45in}
+  .titulo{text-align:center;font-size:13.5pt;font-weight:bold;margin:8px 0;letter-spacing:1px;border-top:2px solid #000;border-bottom:2px solid #000;padding:5px 0}
+  .bloque{border:1px solid #000;margin-bottom:7px}
+  .bt{background:#ddd;padding:3px 8px;font-weight:bold;font-size:10pt;border-bottom:1px solid #000;text-transform:uppercase;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .bc{padding:5px 8px}
+  .g2{display:grid;grid-template-columns:1fr 1fr;gap:3px 14px}
+  .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px 14px}
+  .g4{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:3px 14px}
+  .f{display:flex;align-items:baseline;gap:4px;padding:2px 0}
+  .f .lbl{font-weight:bold;white-space:nowrap;font-size:9.5pt}
+  .f input,.f select{flex:1;border:none;border-bottom:1px dotted #666;background:transparent;font-family:inherit;font-size:10pt;padding:1px 2px;outline:none;min-width:0}
+  .f input:focus,.f select:focus,textarea:focus{background:#fffae6}
+  .fv{display:flex;flex-direction:column;gap:2px;padding:2px 0}
+  .fv .lbl{font-weight:bold;font-size:9.5pt}
+  .fv input{border:none;border-bottom:1px dotted #666;background:transparent;font-family:inherit;font-size:10pt;padding:1px 2px;outline:none;width:100%}
+  .fv input:focus{background:#fffae6}
+  textarea{width:100%;border:1px solid #999;background:transparent;font-family:inherit;font-size:10pt;line-height:1.4;padding:4px 6px;resize:vertical;outline:none;min-height:26px}
+  table.med{width:100%;border-collapse:collapse;font-size:9pt}
+  table.med th,table.med td{border:1px solid #000;padding:2px 4px;text-align:left;vertical-align:top}
+  table.med th{background:#ddd;font-weight:bold;text-align:center;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  table.med input{width:100%;border:none;background:transparent;font-family:inherit;font-size:9pt;outline:none;padding:1px}
+  table.med input:focus{background:#fffae6}
+  .chk-l{display:grid;grid-template-columns:1fr 1fr;gap:2px 14px}
+  .chk-i{display:flex;align-items:center;gap:5px;font-size:10pt}
+  .chk-i input[type="checkbox"]{width:13px;height:13px;margin:0}
+  .firmas{display:grid;grid-template-columns:1fr 1fr;gap:25px;margin-top:22px}
+  .firma{text-align:center;font-size:9pt}
+  .firma .esp{height:44px}
+  .firma .lin{border-top:1px solid #000;margin-bottom:3px}
+  .firma .nom{font-weight:bold}
+  .pie-v{text-align:center;font-size:7.5pt;color:#666;margin-top:10px;border-top:1px solid #999;padding-top:4px}
+  .bot{height:5px;background:#4FC3C2}
+  @media print{
+    body{background:#fff}
+    .toolbar{display:none}
+    .hoja{margin:0;width:100%;padding:0.3in 0.4in}
+    input,select,textarea{background:transparent!important}
+    .bt{background:#ddd!important}
+    table.med th{background:#ddd!important}
+  }
+</style></head><body>
+<div class="hdr">
+  ${logoBoxHtml}
+  <div style="text-align:center;color:#FFF">
+    <div style="font-size:13px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;opacity:.85">Centro Médico Quirúrgico</div>
+    <div style="font-size:24px;font-weight:900;letter-spacing:5px;color:#4FC3C2;margin-top:3px">MUNAY</div>
+  </div>
+  <div style="text-align:right;color:#FFF">
+    <div style="font-size:14px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase">Epicrisis</div>
+    <div style="font-size:10px;opacity:.9;margin-top:3px">Departamento Médico Quirúrgico</div>
+  </div>
+</div>
+<div class="meta-strip">
+  <div class="mi"><span class="lbl">N° HC:</span><input id="numero_hc" value="${idNumber}"/></div>
+  <div class="mi"><span class="lbl">N° Epicrisis:</span><input id="numero_epicrisis"/></div>
+  <div class="mi"><span class="lbl">Fecha emisión:</span><input type="date" id="fecha_emision" value="${today}"/></div>
+</div>
+<div class="toolbar">
+  <button onclick="window.print()">Imprimir</button>
+  <button class="add" onclick="agregarMedicamento()">+ Medicamento</button>
+  <button class="sec" onclick="limpiarFormulario()">Limpiar</button>
+</div>
+<div class="hoja">
+  <div class="titulo">EPICRISIS DE EGRESO HOSPITALARIO</div>
+
+  <div class="bloque">
+    <div class="bt">1. Datos del paciente</div>
+    <div class="bc">
+      <div class="g2">
+        <div class="f"><span class="lbl">Apellidos y nombres:</span><input value="${patientName}"/></div>
+        <div class="f"><span class="lbl">CI:</span><input value="${idNumber}"/></div>
+      </div>
+      <div class="g4">
+        <div class="f"><span class="lbl">Sexo:</span><select><option value=""></option><option>Masculino</option><option>Femenino</option></select></div>
+        <div class="f"><span class="lbl">Fecha nac.:</span><input type="date" value="${birthDateISO}"/></div>
+        <div class="f"><span class="lbl">Edad:</span><input value="${ageStr}"/></div>
+        <div class="f"><span class="lbl">Peso (kg):</span><input value="${pesoStr}"/></div>
+      </div>
+      <div class="g2">
+        <div class="f"><span class="lbl">Procedencia:</span><input placeholder="Ciudad / Comunidad / Departamento"/></div>
+        <div class="f"><span class="lbl">Idioma:</span><input placeholder="Español / Aymara / Quechua"/></div>
+      </div>
+      <div class="g2">
+        <div class="f"><span class="lbl">Responsable legal:</span><input value="${guardian}"/></div>
+        <div class="f"><span class="lbl">Parentesco:</span><input/></div>
+      </div>
+      <div class="g2">
+        <div class="f"><span class="lbl">Teléfono contacto:</span><input type="tel" value="${guardianPhone}"/></div>
+        <div class="f"><span class="lbl">Teléfono alternativo:</span><input type="tel"/></div>
+      </div>
+      <div class="fv">
+        <span class="lbl">Alergias conocidas:</span>
+        <input value="${allergies}" placeholder="Especificar fármacos, alimentos, látex u otros. Si no tiene, escribir NIEGA."/>
+      </div>
+    </div>
+  </div>
+
+  <div class="bloque">
+    <div class="bt">2. Datos de internación</div>
+    <div class="bc">
+      <div class="g2">
+        <div class="f"><span class="lbl">Fecha ingreso:</span><input type="date" id="fecha_ingreso" value="${surgeryDate}"/></div>
+        <div class="f"><span class="lbl">Hora ingreso:</span><input type="time" value="${admissionTime}"/></div>
+        <div class="f"><span class="lbl">Fecha egreso:</span><input type="date" id="fecha_egreso"/></div>
+        <div class="f"><span class="lbl">Hora egreso:</span><input type="time"/></div>
+      </div>
+      <div class="g2">
+        <div class="f"><span class="lbl">Días de estancia:</span><input id="dias_estancia"/></div>
+        <div class="f"><span class="lbl">Tipo de egreso:</span><select><option value=""></option><option>Mejoría</option><option>Alta médica</option><option>Solicitud familiar</option><option>Referencia</option></select></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bloque">
+    <div class="bt">3. Diagnósticos</div>
+    <div class="bc">
+      <div class="fv">
+        <span class="lbl">Diagnóstico pre-quirúrgico (CIE-10):</span>
+        <input value="${diagnosis}" placeholder="Ej: Q37.5 - Fisura labial bilateral con fisura palatina"/>
+      </div>
+      <div class="fv">
+        <span class="lbl">Diagnóstico post-quirúrgico (CIE-10):</span>
+        <input/>
+      </div>
+    </div>
+  </div>
+
+  <div class="bloque">
+    <div class="bt">4. Procedimiento quirúrgico</div>
+    <div class="bc">
+      <div class="fv">
+        <span class="lbl">Cirugía realizada:</span>
+        <input value="${procedure}"/>
+      </div>
+      <div class="g3">
+        <div class="f"><span class="lbl">Tipo de anestesia:</span><select><option value=""></option><option>General</option><option>Local</option><option>Local + sedación</option><option>Regional</option></select></div>
+        <div class="f"><span class="lbl">Duración (min):</span><input/></div>
+        <div class="f"><span class="lbl">Sangrado:</span><select><option value=""></option><option>Mínimo</option><option>Moderado</option><option>Abundante</option></select></div>
+      </div>
+      <div class="fv">
+        <span class="lbl">Complicaciones intra/post-operatorias:</span>
+        <textarea rows="2" placeholder="Si no hubo, escribir NINGUNA."></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="bloque">
+    <div class="bt">5. Tratamiento al alta — Medicamentos</div>
+    <div class="bc">
+      <table class="med" id="tabla_med">
+        <thead><tr>
+          <th style="width:22%">Fármaco</th>
+          <th style="width:14%">Presentación</th>
+          <th style="width:12%">Dosis (mg/kg/día)</th>
+          <th style="width:12%">Dosis indicada</th>
+          <th style="width:10%">Vía</th>
+          <th style="width:12%">Frecuencia</th>
+          <th style="width:10%">Duración</th>
+          <th style="width:8%">Inicio</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="bloque">
+    <div class="bt">6. Indicaciones al alta</div>
+    <div class="bc">
+      <div class="fv"><span class="lbl">Alimentación:</span><textarea rows="2" placeholder="Tipo de dieta, consistencia, duración."></textarea></div>
+      <div class="fv"><span class="lbl">Higiene oral y de herida:</span><textarea rows="2"></textarea></div>
+      <div class="fv"><span class="lbl">Cuidados generales:</span><textarea rows="2"></textarea></div>
+      <div class="fv"><span class="lbl">Reposo / Actividad:</span><textarea rows="1"></textarea></div>
+    </div>
+  </div>
+
+  <div class="bloque">
+    <div class="bt">7. Signos de alarma — Acudir inmediatamente</div>
+    <div class="bc">
+      <div class="chk-l">
+        <label class="chk-i"><input type="checkbox" checked> Fiebre que no calma con medicamentos (&gt;38.5°C)</label>
+        <label class="chk-i"><input type="checkbox" checked> Sangrado abundante o persistente</label>
+        <label class="chk-i"><input type="checkbox" checked> Hematoma en la región de la herida</label>
+        <label class="chk-i"><input type="checkbox" checked> Dehiscencia (apertura) de la herida</label>
+        <label class="chk-i"><input type="checkbox" checked> Secreción purulenta o mal olor</label>
+        <label class="chk-i"><input type="checkbox" checked> Dificultad respiratoria</label>
+        <label class="chk-i"><input type="checkbox" checked> Rechazo total de alimentos o líquidos</label>
+        <label class="chk-i"><input type="checkbox" checked> Vómitos persistentes</label>
+        <label class="chk-i"><input type="checkbox"> Otros:</label>
+      </div>
+      <div class="fv" style="margin-top:5px"><input placeholder="Especificar otros signos de alarma"/></div>
+    </div>
+  </div>
+
+  <div class="bloque">
+    <div class="bt">8. Cita de control</div>
+    <div class="bc">
+      <div class="g3">
+        <div class="f"><span class="lbl">Fecha:</span><input type="date"/></div>
+        <div class="f"><span class="lbl">Hora:</span><input type="time"/></div>
+        <div class="f"><span class="lbl">Especialidad:</span><input/></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="firmas">
+    <div class="firma"><div class="esp"></div><div class="lin"></div><div class="nom">Enfermera responsable del egreso</div><div>Firma y sello</div></div>
+    <div class="firma"><div class="esp"></div><div class="lin"></div><div class="nom">Médico cirujano tratante</div><div>Firma y sello</div></div>
+  </div>
+
+  <div class="pie-v">Epicrisis v2026.1 — Centro Médico Quirúrgico MUNAY · La Paz, Bolivia — Documento clínico oficial</div>
+</div>
+<div class="bot"></div>
+<script>
+  function crearFila() {
+    return '<tr><td><input type="text"/></td><td><input type="text" placeholder="ej: 500mg"/></td><td><input type="text"/></td><td><input type="text" placeholder="ej: 3 ml"/></td><td><input type="text" placeholder="VO/IM/EV"/></td><td><input type="text" placeholder="c/8h"/></td><td><input type="text" placeholder="7 dias"/></td><td><input type="date"/></td></tr>';
+  }
+  function agregarMedicamento() {
+    document.querySelector('#tabla_med tbody').insertAdjacentHTML('beforeend', crearFila());
+  }
+  function limpiarFormulario() {
+    if (!confirm('Limpiar todos los campos?')) return;
+    document.querySelectorAll('input[type="text"],input[type="tel"],input[type="date"],input[type="time"],textarea,select').forEach(function(el){el.value='';});
+    document.querySelectorAll('input[type="checkbox"]').forEach(function(c){c.checked=false;});
+  }
+  function calcularDias() {
+    var i=document.getElementById('fecha_ingreso').value, e=document.getElementById('fecha_egreso').value;
+    if(i&&e){var d=(new Date(e)-new Date(i))/86400000;if(d>=0)document.getElementById('dias_estancia').value=d;}
+  }
+  document.getElementById('fecha_ingreso').addEventListener('change',calcularDias);
+  document.getElementById('fecha_egreso').addEventListener('change',calcularDias);
+  for(var i=0;i<4;i++) agregarMedicamento();
+</script>
+</body></html>`;
+
+  const win = window.open('', '_blank', 'width=980,height=900');
+  win.document.write(html);
+  win.document.close();
+  win.focus();
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -653,6 +1151,20 @@ export default function SurgeryDetail({
             <FileText className="w-4 h-4" />
             Anestesia
           </button>
+          <button
+            onClick={() => printPostOpControl(surgery, patient)}
+            className="btn btn-sm border border-sky-200 text-sky-700 hover:bg-sky-50 gap-1.5"
+          >
+            <FileText className="w-4 h-4" />
+            Post-Op
+          </button>
+          <button
+            onClick={() => printEpicrisis(surgery, patient)}
+            className="btn btn-sm border border-emerald-200 text-emerald-700 hover:bg-emerald-50 gap-1.5"
+          >
+            <FileText className="w-4 h-4" />
+            Epicrisis
+          </button>
           {isAdmin && !isCancelled && surgery.status !== 'suspendido' && (
             <button onClick={() => { setSuspendOpen(true); setSuspendReason(''); setSuspendMode('suspendido'); setNewDate(surgery.date ?? ''); setNewTime(surgery.startTime ?? ''); }}
               className="btn btn-sm text-amber-700 border border-amber-300 hover:bg-amber-50 gap-1.5">
@@ -779,22 +1291,27 @@ export default function SurgeryDetail({
                 <div style={{ height: 5, backgroundColor: '#4FC3C2' }} />
               </div>
 
-              {/* ── Copy 2: PEDIÁTRICO ── */}
+              {/* ── Copy 2: ORDEN DE INTERNACIÓN ── */}
               <div style={{ backgroundColor: 'white' }}>
-                {/* Header */}
-                <div style={{ background: 'linear-gradient(180deg, #FFFFFF 0%, #FBFAFE 100%)', padding: '12px 20px 8px', display: 'grid', gridTemplateColumns: 'auto 1fr auto', alignItems: 'center', gap: 14, borderBottom: '1px solid #E8E4F2' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ width: 70, height: 70, background: 'linear-gradient(135deg, #E8DFFA 0%, #D4C5EC 100%)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 2px 10px rgba(107,95,191,0.2)', overflow: 'hidden' }}>
-                      <img src={logo2Img} alt="Logo" style={{ width: 64, height: 64, objectFit: 'contain' }} />
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: '#6B5FBF', textTransform: 'uppercase', letterSpacing: '1px' }}>Centro Médico Quirúrgico</div>
-                      <div style={{ fontSize: 17, fontWeight: 900, color: '#4A3F8C', letterSpacing: '3px', marginTop: 2 }}>MUNAY</div>
-                    </div>
+                {/* Header - Navy (same as Copy 1) */}
+                <div style={{ backgroundColor: '#1F3A5F', padding: '12px 20px', display: 'grid', gridTemplateColumns: 'auto 1fr auto', alignItems: 'center', gap: 14, borderBottom: '4px solid #4FC3C2' }}>
+                  <div style={{ backgroundColor: '#FFFFFF', padding: '5px 10px', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 62, flexShrink: 0 }}>
+                    <img src={logo2Img} alt="Logo" style={{ width: 54, height: 54, objectFit: 'contain' }} />
                   </div>
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: 16, fontWeight: 700, color: '#6B5FBF', letterSpacing: '1px', textTransform: 'uppercase' }}>Orden de Internación</div>
-                    <div style={{ fontSize: 9, color: '#5A5A6E', marginTop: 2 }}>{format(new Date(), "dd/MM/yyyy HH:mm")}</div>
+                  <div style={{ textAlign: 'center', color: '#FFFFFF' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase', opacity: 0.85 }}>Centro Médico Quirúrgico</div>
+                    <div style={{ fontSize: 20, fontWeight: 900, letterSpacing: '4px', color: '#4FC3C2', marginTop: 2 }}>MUNAY</div>
+                  </div>
+                  <div style={{ textAlign: 'right', color: '#FFFFFF' }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: '0.8px', textTransform: 'uppercase' }}>Orden de Internación</div>
+                    <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.85)', marginTop: 2 }}>{format(new Date(), "dd/MM/yyyy HH:mm")}</div>
+                  </div>
+                </div>
+                {/* Patient section */}
+                <div style={{ padding: '12px 20px 8px', display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', gap: 12 }}>
+                  <div>
+                    <div style={{ fontSize: 19, fontWeight: 700, color: '#1F3A5F', letterSpacing: '-0.3px', lineHeight: 1.1 }}>{surgery.patientName ?? '—'}</div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: '#3DA8A7', letterSpacing: '0.5px', marginTop: 4, textTransform: 'uppercase' }}>{surgery.surgeryType ?? '—'}</div>
                   </div>
                   {/* Bear mascot */}
                   <svg style={{ width: 58, height: 58, flexShrink: 0 }} viewBox="0 0 80 80">
@@ -816,49 +1333,38 @@ export default function SurgeryDetail({
                     <circle cx="55" cy="42" r="2.5" fill="#F5B5C8" opacity="0.6"/>
                   </svg>
                 </div>
-                {/* Patient banner */}
-                <div style={{ margin: '8px 20px 10px', background: 'linear-gradient(90deg, #EFE9FA 0%, #F3EEFC 100%)', borderRadius: 10, padding: '9px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ flex: 1, fontSize: 16, fontWeight: 700, color: '#5B4FB8' }}>{surgery.patientName ?? '—'}</div>
-                  <div style={{ width: 1, height: 20, background: 'linear-gradient(180deg, transparent, #C5B5E5, transparent)', flexShrink: 0 }} />
-                  <div style={{ fontSize: 15, fontWeight: 700, color: '#2A2A3E', whiteSpace: 'nowrap', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>{surgery.surgeryType ?? '—'}</div>
-                </div>
-                {/* Info grid with SVG icon rows */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, padding: '0 20px 12px' }}>
+                {/* Info tables */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, padding: '0 20px 16px' }}>
                   {[
                     { fields: fichaFields.left, icons: [
-                      { bg: '#C7B8E8', svg: '<rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4h6v2H9z"/><path d="M9 12h6M12 9v6"/>' },
-                      { bg: '#A8DDDA', svg: '<rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>' },
-                      { bg: '#F4C58A', svg: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>' },
+                      '<rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4h6v2H9z"/><path d="M9 12h6M12 9v6"/>',
+                      '<rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>',
+                      '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
                     ]},
                     { fields: fichaFields.right, icons: [
-                      { bg: '#F5D88A', svg: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>' },
-                      { bg: '#F0A8B8', svg: '<path d="M5 7h14l-1 13H6z"/><path d="M9 7V5a3 3 0 016 0v2"/><path d="M10 12h4"/>' },
-                      { bg: '#B5C9E8', svg: '<rect x="9" y="3" width="6" height="18" rx="1"/><path d="M9 7h3M9 11h3M9 15h3M9 19h3"/>' },
-                      { bg: '#F0B5A8', svg: '<circle cx="9" cy="8" r="3"/><circle cx="16" cy="9" r="2.5"/><path d="M3 20c0-3 3-5 6-5s6 2 6 5"/><path d="M14 20c0-2 2-4 4-4s3 1 3 3"/>' },
-                      { bg: '#D4C5EC', svg: '<rect x="3" y="6" width="18" height="13" rx="2"/><circle cx="9" cy="12" r="2"/><path d="M14 11h4M14 14h3"/><path d="M7 17c0-1.5 1-2.5 2-2.5s2 1 2 2.5"/>' },
+                      '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+                      '<path d="M5 7h14l-1 13H6z"/><path d="M9 7V5a3 3 0 016 0v2"/><path d="M10 12h4"/>',
+                      '<rect x="9" y="3" width="6" height="18" rx="1"/><path d="M9 7h3M9 11h3M9 15h3M9 19h3"/>',
+                      '<circle cx="9" cy="8" r="3"/><circle cx="16" cy="9" r="2.5"/><path d="M3 20c0-3 3-5 6-5s6 2 6 5"/><path d="M14 20c0-2 2-4 4-4s3 1 3 3"/>',
+                      '<rect x="3" y="6" width="18" height="13" rx="2"/><circle cx="9" cy="12" r="2"/><path d="M14 11h4M14 14h3"/><path d="M7 17c0-1.5 1-2.5 2-2.5s2 1 2 2.5"/>',
                     ]},
                   ].map(({ fields, icons }, colIdx) => (
-                    <div key={colIdx} style={{ background: '#FBFAFE', border: '1px solid #E8E4F2', borderRadius: 10, padding: '9px 12px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-                      {fields.map(({ label, value }, i) => {
-                        const ic = icons[i] ?? { bg: '#D4C5EC', svg: '<circle cx="12" cy="12" r="6"/>' };
-                        return (
-                          <div key={label} style={{ display: 'grid', gridTemplateColumns: '30px 1fr auto', alignItems: 'center', gap: 8, padding: '3px 0', borderBottom: '1px dashed #EDE7F7' }}>
-                            <div style={{ width: 28, height: 28, borderRadius: '50%', background: ic.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                              <svg viewBox="0 0 24 24" style={{ width: 13, height: 13, stroke: '#FFFFFF', strokeWidth: 2, fill: 'none', strokeLinecap: 'round', strokeLinejoin: 'round' }}
-                                dangerouslySetInnerHTML={{ __html: ic.svg }} />
-                            </div>
-                            <span style={{ fontSize: 9, color: '#6B6B7E', fontWeight: 500 }}>{label}</span>
-                            <span style={{ fontSize: 10, fontWeight: 700, color: '#2A2A3E', textAlign: 'right', maxWidth: 90, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</span>
+                    <div key={colIdx} style={{ border: '1px solid #D5DEE8', borderRadius: 4, overflow: 'hidden' }}>
+                      {fields.map(({ label, value }, i) => (
+                        <div key={label} style={{ display: 'grid', gridTemplateColumns: '44px 1fr 1fr', alignItems: 'center', padding: '7px 12px 7px 8px', borderBottom: '1px solid #E5EBF2', backgroundColor: i % 2 === 1 ? '#F4F7FA' : '#FFFFFF' }}>
+                          <div style={{ width: 28, height: 28, borderRadius: '50%', backgroundColor: '#2B5C8A', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxShadow: '0 1px 3px rgba(43,92,138,0.25)' }}>
+                            <svg viewBox="0 0 24 24" style={{ width: 13, height: 13, stroke: '#FFFFFF', strokeWidth: 2, fill: 'none', strokeLinecap: 'round', strokeLinejoin: 'round' }}
+                              dangerouslySetInnerHTML={{ __html: icons[i] }} />
                           </div>
-                        );
-                      })}
+                          <span style={{ fontSize: 10, color: '#5A6B82', fontWeight: 500, paddingLeft: 3 }}>{label}</span>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: '#1A2B42', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{value}</span>
+                        </div>
+                      ))}
                     </div>
                   ))}
                 </div>
-                {/* Grass decoration */}
-                <div style={{ height: 24, background: 'linear-gradient(180deg, transparent 0%, #E8F5E0 100%)', position: 'relative', overflow: 'hidden' }}>
-                  <div style={{ position: 'absolute', bottom: 3, left: 0, right: 0, fontSize: 9, color: '#F5B5C8', textAlign: 'center', letterSpacing: 20 }}>✿ ❀ ✿ ❀</div>
-                </div>
+                {/* Bottom teal bar */}
+                <div style={{ height: 5, backgroundColor: '#4FC3C2' }} />
               </div>
 
             </div>

@@ -5,10 +5,10 @@ import { differenceInYears, differenceInMonths, differenceInDays, isValid, parse
 import { getTypeInfo } from '../../utils/patientTypes';
 
 const DIAGNOSIS_OPTIONS = [
-  'Fisura Labio Alveolo Palatina (FLAP) Izquierda',
+  'FLAP Izquierdo',
   'FLAP Derecho',
   'FLAP Bilateral',
-  'Fisura Labio Alveolo (FLA) Izquierda',
+  'FLA Izquierdo',
   'FLA Derecho',
   'FLA Bilateral',
   'Fisura Palatina',
