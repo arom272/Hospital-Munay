@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { UserPlus, Pencil, Trash2, Eye, FileDown, FileText } from 'lucide-react';
+import { UserPlus, Pencil, Trash2, Eye, FileDown, FileText, ClipboardList, Camera } from 'lucide-react';
 import { differenceInYears, differenceInMonths, differenceInDays, parseISO, isValid, format } from 'date-fns';
 import toast from 'react-hot-toast';
 import useStore from '../store/useStore';
@@ -16,6 +16,8 @@ import PatientForm    from '../components/patients/PatientForm';
 import PatientHistory from '../components/patients/PatientHistory';
 import { exportPatientsCSV } from '../utils/csvExport';
 import { exportPatientsPDF } from '../utils/pdfExport';
+import { printFichaSocial }  from '../utils/printFichaSocial';
+import { printConsentFotos } from '../utils/printConsentFotos';
 
 function calcAge(birthDate) {
   if (!birthDate) return null;
@@ -210,6 +212,12 @@ export default function PatientsPage() {
                           <button onClick={() => openHist(p)} className="btn-ghost btn btn-sm p-1.5" title="Ver historial">
                             <Eye className="w-4 h-4" />
                           </button>
+                          <button onClick={() => printFichaSocial(p)} className="btn-ghost btn btn-sm p-1.5 text-teal-600 hover:bg-teal-50" title="Ficha social">
+                            <ClipboardList className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => printConsentFotos(p)} className="btn-ghost btn btn-sm p-1.5 text-amber-600 hover:bg-amber-50" title="Consentimiento fotos">
+                            <Camera className="w-4 h-4" />
+                          </button>
                           {canEdit && (
                             <button onClick={() => openEdit(p)} className="btn-ghost btn btn-sm p-1.5" title="Editar">
                               <Pencil className="w-4 h-4" />
@@ -257,6 +265,12 @@ export default function PatientsPage() {
                   <div className="flex gap-2 mt-3">
                     <button onClick={() => openHist(p)} className="btn-secondary btn btn-sm flex-1 justify-center">
                       <Eye className="w-3.5 h-3.5" /> Historial
+                    </button>
+                    <button onClick={() => printFichaSocial(p)} className="btn btn-sm px-2.5 text-teal-600 border border-teal-200 hover:bg-teal-50" title="Ficha social">
+                      <ClipboardList className="w-3.5 h-3.5" />
+                    </button>
+                    <button onClick={() => printConsentFotos(p)} className="btn btn-sm px-2.5 text-amber-600 border border-amber-200 hover:bg-amber-50" title="Consentimiento fotos">
+                      <Camera className="w-3.5 h-3.5" />
                     </button>
                     {canEdit && (
                       <button onClick={() => openEdit(p)} className="btn-secondary btn btn-sm px-2.5">
