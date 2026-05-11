@@ -5,13 +5,15 @@ import { differenceInYears, differenceInMonths, differenceInDays, parseISO, isVa
 import {
   User, Users, DollarSign, History,
   Printer, PauseCircle, XCircle, X, Pencil,
-  CheckCircle, AlertCircle, CalendarClock, Loader2, FileText
+  CheckCircle, AlertCircle, CalendarClock, Loader2, FileText, Stethoscope
 } from 'lucide-react';
 import useStore      from '../../store/useStore';
 import Badge         from '../ui/Badge';
 import logoImg       from '../../../LOGO.jpg';
 import logo2Img      from '../../../LOGO 2.jpg';
 import { getTypeInfo } from '../../utils/patientTypes';
+import { printHistoriaClinicaQx } from '../../utils/printHistoriaClinicaQx';
+import { saveDocumento, getDocumento } from '../../services/documentService';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -388,8 +390,10 @@ async function printAnesthesiaConsentForm(surgery, patient) {
   setTimeout(() => { win.print(); }, 500);
 }
 
-async function printPostOpControl(surgery, patient) {
+async function printPostOpControl(surgery, patient, savedData = null) {
   const logo2       = await getLogoBase64(logo2Img);
+  const patientId   = patient?.id    || '';
+  const surgeryId   = surgery?.id    || '';
   const age         = calcAge(patient?.birthDate);
   const typeInfo    = getTypeInfo(patient?.patientType);
   const hcCode      = patient?.patientCode ? `${typeInfo.label}-${patient.patientCode}` : '';
@@ -492,6 +496,10 @@ async function printPostOpControl(surgery, patient) {
   }
 </style>
 <script>
+var __patientId = ${JSON.stringify(patientId)};
+var __surgeryId = ${JSON.stringify(surgeryId)};
+var __savedData = ${JSON.stringify(savedData)};
+
 function selDolor(n){
   document.querySelectorAll('.eva .n').forEach(function(el){el.className='n'});
   var el=document.querySelector('.eva .n[data-v="'+n+'"]');
@@ -501,10 +509,42 @@ function selDolor(n){
   else if(n<=8)el.classList.add('sel7');
   else el.classList.add('sel9');
 }
+
+function recopilarDatos() {
+  var inputs = [];
+  document.querySelectorAll('input[type="text"],input[type="date"],input[type="time"],input[type="number"]').forEach(function(el) { inputs.push(el.value); });
+  var checks = [];
+  document.querySelectorAll('input[type="checkbox"]').forEach(function(el) { checks.push(el.checked); });
+  var dolor = -1;
+  document.querySelectorAll('.eva .n').forEach(function(el) { if (el.className !== 'n') dolor = parseInt(el.dataset.v, 10); });
+  return { inputs: inputs, checks: checks, dolor: dolor };
+}
+
+function restaurarDatos(data) {
+  if (!data) return;
+  var inputEls = document.querySelectorAll('input[type="text"],input[type="date"],input[type="time"],input[type="number"]');
+  (data.inputs || []).forEach(function(v, i) { if (inputEls[i]) inputEls[i].value = v; });
+  var chkEls = document.querySelectorAll('input[type="checkbox"]');
+  (data.checks || []).forEach(function(v, i) { if (chkEls[i]) chkEls[i].checked = v; });
+  if (data.dolor >= 0) selDolor(data.dolor);
+}
+
+function guardarDatos() {
+  if (!window.opener || !window.opener.__munay_saveDoc) {
+    alert('No se puede guardar: ventana principal no disponible');
+    return;
+  }
+  window.opener.__munay_saveDoc(__patientId, 'control_post', recopilarDatos(), __surgeryId)
+    .then(function() { alert('Guardado correctamente'); })
+    .catch(function(err) { alert('Error al guardar: ' + (err && err.message || err)); });
+}
+
+if (__savedData) { restaurarDatos(__savedData); }
 </script>
 </head><body>
 <div class="toolbar">
   <button onclick="window.print()">&#128424; Imprimir</button>
+  <button onclick="guardarDatos()" style="background:#2e7d32">Guardar</button>
 </div>
 <div class="hoja">
 <div class="hdr">
@@ -646,8 +686,10 @@ function selDolor(n){
 }
 
 
-async function printEpicrisis(surgery, patient) {
+async function printEpicrisis(surgery, patient, savedData = null) {
   const logo2        = await getLogoBase64(logo2Img);
+  const patientId    = patient?.id    || '';
+  const surgeryId    = surgery?.id    || '';
   const age          = calcAge(patient?.birthDate);
   const typeInfo     = getTypeInfo(patient?.patientType);
   const hcCode       = patient?.patientCode ? `${typeInfo.label}-${patient.patientCode}` : '';
@@ -733,6 +775,7 @@ async function printEpicrisis(surgery, patient) {
 <div class="toolbar">
   <button onclick="window.print()">Imprimir</button>
   <button class="add" onclick="agregarMedicamento()">+ Medicamento</button>
+  <button onclick="guardarDatos()" style="background:#2e7d32">Guardar</button>
   <button class="sec" onclick="limpiarFormulario()">Limpiar</button>
 </div>
 <div class="hoja">
@@ -873,6 +916,10 @@ async function printEpicrisis(surgery, patient) {
 </div>
 <div class="bot"></div>
 <script>
+  var __patientId = ${JSON.stringify(patientId)};
+  var __surgeryId = ${JSON.stringify(surgeryId)};
+  var __savedData = ${JSON.stringify(savedData)};
+
   function crearFila() {
     return '<tr><td><input type="text"/></td><td><input type="text" placeholder="ej: 500mg"/></td><td><input type="text"/></td><td><input type="text" placeholder="ej: 3 ml"/></td><td><input type="text" placeholder="VO/IM/EV"/></td><td><input type="text" placeholder="c/8h"/></td><td><input type="text" placeholder="7 dias"/></td><td><input type="date"/></td></tr>';
   }
@@ -888,9 +935,61 @@ async function printEpicrisis(surgery, patient) {
     var i=document.getElementById('fecha_ingreso').value, e=document.getElementById('fecha_egreso').value;
     if(i&&e){var d=(new Date(e)-new Date(i))/86400000;if(d>=0)document.getElementById('dias_estancia').value=d;}
   }
+
+  function recopilarDatos() {
+    var inputs = [], selects = [], tas = [], checks = [], medRows = [];
+    document.querySelectorAll('input[type="text"],input[type="tel"],input[type="date"],input[type="time"],input[type="number"]').forEach(function(el) {
+      if (!el.closest('#tabla_med')) inputs.push(el.value);
+    });
+    document.querySelectorAll('select').forEach(function(el) { selects.push(el.value); });
+    document.querySelectorAll('textarea').forEach(function(el) { tas.push(el.value); });
+    document.querySelectorAll('input[type="checkbox"]').forEach(function(el) { checks.push(el.checked); });
+    document.querySelectorAll('#tabla_med tbody tr').forEach(function(tr) {
+      var cells = [];
+      tr.querySelectorAll('input').forEach(function(inp) { cells.push(inp.value); });
+      medRows.push(cells);
+    });
+    return { inputs: inputs, selects: selects, tas: tas, checks: checks, medRows: medRows };
+  }
+
+  function restaurarDatos(data) {
+    if (!data) return;
+    var inputEls = Array.from(document.querySelectorAll('input[type="text"],input[type="tel"],input[type="date"],input[type="time"],input[type="number"]')).filter(function(el) { return !el.closest('#tabla_med'); });
+    (data.inputs || []).forEach(function(v, i) { if (inputEls[i]) inputEls[i].value = v; });
+    var selectEls = document.querySelectorAll('select');
+    (data.selects || []).forEach(function(v, i) { if (selectEls[i]) selectEls[i].value = v; });
+    var taEls = document.querySelectorAll('textarea');
+    (data.tas || []).forEach(function(v, i) { if (taEls[i]) taEls[i].value = v; });
+    var chkEls = document.querySelectorAll('input[type="checkbox"]');
+    (data.checks || []).forEach(function(v, i) { if (chkEls[i]) chkEls[i].checked = v; });
+    if (data.medRows && data.medRows.length > 0) {
+      var tbody = document.querySelector('#tabla_med tbody');
+      tbody.innerHTML = '';
+      data.medRows.forEach(function(cells) {
+        agregarMedicamento();
+        var tr = tbody.lastElementChild;
+        tr.querySelectorAll('input').forEach(function(inp, i) { if (cells[i] !== undefined) inp.value = cells[i]; });
+      });
+    }
+  }
+
+  function guardarDatos() {
+    if (!window.opener || !window.opener.__munay_saveDoc) {
+      alert('No se puede guardar: ventana principal no disponible');
+      return;
+    }
+    window.opener.__munay_saveDoc(__patientId, 'epicrisis', recopilarDatos(), __surgeryId)
+      .then(function() { alert('Guardado correctamente'); })
+      .catch(function(err) { alert('Error al guardar: ' + (err && err.message || err)); });
+  }
+
   document.getElementById('fecha_ingreso').addEventListener('change',calcularDias);
   document.getElementById('fecha_egreso').addEventListener('change',calcularDias);
-  for(var i=0;i<3;i++) agregarMedicamento();
+  if (__savedData) {
+    restaurarDatos(__savedData);
+  } else {
+    for(var i=0;i<3;i++) agregarMedicamento();
+  }
 </script>
 </body></html>`;
 
@@ -1173,18 +1272,37 @@ export default function SurgeryDetail({
             Anestesia
           </button>
           <button
-            onClick={() => printPostOpControl(surgery, patient)}
+            onClick={async () => {
+              window.__munay_saveDoc = async (pid, dt, fd, sid) => { await saveDocumento(pid, dt, fd, sid); };
+              const saved = await getDocumento(patient.id, 'control_post', surgery.id);
+              printPostOpControl(surgery, patient, saved?.formData || null);
+            }}
             className="btn btn-sm border border-sky-200 text-sky-700 hover:bg-sky-50 gap-1.5"
           >
             <FileText className="w-4 h-4" />
             Post-Op
           </button>
           <button
-            onClick={() => printEpicrisis(surgery, patient)}
+            onClick={async () => {
+              window.__munay_saveDoc = async (pid, dt, fd, sid) => { await saveDocumento(pid, dt, fd, sid); };
+              const saved = await getDocumento(patient.id, 'epicrisis', surgery.id);
+              printEpicrisis(surgery, patient, saved?.formData || null);
+            }}
             className="btn btn-sm border border-emerald-200 text-emerald-700 hover:bg-emerald-50 gap-1.5"
           >
             <FileText className="w-4 h-4" />
             Epicrisis
+          </button>
+          <button
+            onClick={async () => {
+              window.__munay_saveDoc = async (pid, dt, fd, sid) => { await saveDocumento(pid, dt, fd, sid); };
+              const saved = await getDocumento(patient.id, 'hc_qx', surgery.id);
+              printHistoriaClinicaQx(surgery, patient, saved?.formData || null);
+            }}
+            className="btn btn-sm border border-indigo-200 text-indigo-700 hover:bg-indigo-50 gap-1.5"
+          >
+            <Stethoscope className="w-4 h-4" />
+            Hist. Clínica Qx
           </button>
           {isAdmin && !isCancelled && surgery.status !== 'suspendido' && (
             <button onClick={() => { setSuspendOpen(true); setSuspendReason(''); setSuspendMode('suspendido'); setNewDate(surgery.date ?? ''); setNewTime(surgery.startTime ?? ''); }}

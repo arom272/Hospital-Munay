@@ -107,7 +107,7 @@ html,body{margin:0;padding:0;background:#eef2f2;font-family:'Inter',Arial,sans-s
     <div class="hdr-center">
       <div class="hdr-sup">Centro Médico Quirúrgico</div>
       <div class="hdr-name">MUNAY</div>
-      <div class="hdr-tag">Amigo del Niño con Fisura · La Paz, Bolivia</div>
+      <div class="hdr-tag">Centro del Niño con Fisura · La Paz, Bolivia</div>
     </div>
     <div class="hdr-right">
       ${hcCode ? `<div class="hdr-nro">N.° HC</div><div class="hdr-code">${hcCode}</div>` : ''}
