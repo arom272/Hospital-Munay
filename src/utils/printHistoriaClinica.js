@@ -37,9 +37,8 @@ function fmtDate(iso) {
   } catch { return iso; }
 }
 
-export async function printHistoriaClinica(patient, savedData = null) {
+export async function printHistoriaClinica(patient) {
   const logo2         = await getLogoBase64(logo2Img);
-  const patientId     = patient?.id || '';
   const typeInfo      = getTypeInfo(patient?.patientType);
   const hcCode        = patient?.patientCode ? `${typeInfo.label}-${patient.patientCode}` : '';
   const patientName   = patient?.fullName     || '';
@@ -158,7 +157,6 @@ table.edu td.cell-chk .chk{justify-content:center}
 <div class="toolbar">
   <span>Historia Clínica Integral · Centro Médico Quirúrgico MUNAY</span>
   <button onclick="window.print()">Imprimir / Guardar PDF</button>
-  <button onclick="guardarDatos()">Guardar</button>
   <button onclick="resetForm()">Limpiar</button>
 </div>
 
@@ -602,8 +600,6 @@ table.edu td.cell-chk .chk{justify-content:center}
 
 <script>
   var DIAG = ${JSON.stringify(diagUp)};
-  var __patientId  = ${JSON.stringify(patientId)};
-  var __savedData  = ${JSON.stringify(savedData)};
 
   document.querySelectorAll('.chk').forEach(function(chk) {
     chk.addEventListener('click', function(e) {
@@ -654,44 +650,6 @@ table.edu td.cell-chk .chk{justify-content:center}
     document.querySelectorAll('.val-input').forEach(function(el) { el.value = ''; });
     document.getElementById('cesarea-motivo-parto').style.display = 'none';
   }
-
-  function recopilarDatos() {
-    var ce = [];
-    document.querySelectorAll('[contenteditable="true"]').forEach(function(el) { ce.push(el.textContent); });
-    var chks = [];
-    document.querySelectorAll('.chk').forEach(function(el, i) { if (el.classList.contains('checked')) chks.push(i); });
-    var vals = {};
-    document.querySelectorAll('.val-input').forEach(function(el) { if (el.id) vals[el.id] = el.value; });
-    var cesarea = document.getElementById('cesarea-motivo-parto');
-    return { ce: ce, chks: chks, vals: vals, cesarea: cesarea ? cesarea.style.display : 'none' };
-  }
-
-  function restaurarDatos(data) {
-    if (!data) return;
-    var els = document.querySelectorAll('[contenteditable="true"]');
-    (data.ce || []).forEach(function(v, i) { if (els[i]) els[i].textContent = v; });
-    var chkEls = document.querySelectorAll('.chk');
-    (data.chks || []).forEach(function(i) { if (chkEls[i]) chkEls[i].classList.add('checked'); });
-    Object.keys(data.vals || {}).forEach(function(id) {
-      var el = document.getElementById(id);
-      if (el) el.value = data.vals[id];
-    });
-    var cesarea = document.getElementById('cesarea-motivo-parto');
-    if (cesarea && data.cesarea) cesarea.style.display = data.cesarea;
-  }
-
-  function guardarDatos() {
-    if (!window.opener || !window.opener.__munay_saveDoc) {
-      alert('No se puede guardar: ventana principal no disponible');
-      return;
-    }
-    var datos = recopilarDatos();
-    window.opener.__munay_saveDoc(__patientId, 'hc_integral', datos)
-      .then(function() { alert('Guardado correctamente'); })
-      .catch(function(err) { alert('Error al guardar: ' + (err && err.message || err)); });
-  }
-
-  if (__savedData) { restaurarDatos(__savedData); }
 </script>
 </body></html>`;
 

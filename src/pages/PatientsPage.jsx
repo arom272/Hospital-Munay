@@ -19,7 +19,6 @@ import { exportPatientsPDF } from '../utils/pdfExport';
 import { printFichaSocial }  from '../utils/printFichaSocial';
 import { printConsentFotos }    from '../utils/printConsentFotos';
 import { printHistoriaClinica } from '../utils/printHistoriaClinica';
-import { saveDocumento, getDocumento } from '../services/documentService';
 
 function calcAge(birthDate) {
   if (!birthDate) return null;
@@ -66,9 +65,6 @@ export default function PatientsPage() {
     const u1 = subscribePatients(setPatients);
     const u2 = subscribeSurgeries(setSurgeries);
     const u3 = subscribeTherapies(setTherapies);
-    window.__munay_saveDoc = async (patientId, docType, formData, surgeryId) => {
-      await saveDocumento(patientId, docType, formData, surgeryId);
-    };
     return () => { u1(); u2(); u3(); };
   }, []);
 
@@ -217,13 +213,13 @@ export default function PatientsPage() {
                           <button onClick={() => openHist(p)} className="btn-ghost btn btn-sm p-1.5" title="Ver historial">
                             <Eye className="w-4 h-4" />
                           </button>
-                          <button onClick={async () => { const saved = await getDocumento(p.id, 'ficha_social'); printFichaSocial(p, saved?.formData || null); }} className="btn-ghost btn btn-sm p-1.5 text-teal-600 hover:bg-teal-50" title="Ficha social">
+                          <button onClick={() => printFichaSocial(p)} className="btn-ghost btn btn-sm p-1.5 text-teal-600 hover:bg-teal-50" title="Ficha social">
                             <ClipboardList className="w-4 h-4" />
                           </button>
                           <button onClick={() => printConsentFotos(p)} className="btn-ghost btn btn-sm p-1.5 text-amber-600 hover:bg-amber-50" title="Consentimiento fotos">
                             <Camera className="w-4 h-4" />
                           </button>
-                          <button onClick={async () => { const saved = await getDocumento(p.id, 'hc_integral'); printHistoriaClinica(p, saved?.formData || null); }} className="btn-ghost btn btn-sm p-1.5 text-indigo-600 hover:bg-indigo-50" title="Historia clínica integral">
+                          <button onClick={() => printHistoriaClinica(p)} className="btn-ghost btn btn-sm p-1.5 text-indigo-600 hover:bg-indigo-50" title="Historia clínica integral">
                             <Stethoscope className="w-4 h-4" />
                           </button>
                           {canEdit && (
@@ -274,13 +270,13 @@ export default function PatientsPage() {
                     <button onClick={() => openHist(p)} className="btn-secondary btn btn-sm flex-1 justify-center">
                       <Eye className="w-3.5 h-3.5" /> Historial
                     </button>
-                    <button onClick={async () => { const saved = await getDocumento(p.id, 'ficha_social'); printFichaSocial(p, saved?.formData || null); }} className="btn btn-sm px-2.5 text-teal-600 border border-teal-200 hover:bg-teal-50" title="Ficha social">
+                    <button onClick={() => printFichaSocial(p)} className="btn btn-sm px-2.5 text-teal-600 border border-teal-200 hover:bg-teal-50" title="Ficha social">
                       <ClipboardList className="w-3.5 h-3.5" />
                     </button>
                     <button onClick={() => printConsentFotos(p)} className="btn btn-sm px-2.5 text-amber-600 border border-amber-200 hover:bg-amber-50" title="Consentimiento fotos">
                       <Camera className="w-3.5 h-3.5" />
                     </button>
-                    <button onClick={async () => { const saved = await getDocumento(p.id, 'hc_integral'); printHistoriaClinica(p, saved?.formData || null); }} className="btn btn-sm px-2.5 text-indigo-600 border border-indigo-200 hover:bg-indigo-50" title="Historia clínica">
+                    <button onClick={() => printHistoriaClinica(p)} className="btn btn-sm px-2.5 text-indigo-600 border border-indigo-200 hover:bg-indigo-50" title="Historia clínica">
                       <Stethoscope className="w-3.5 h-3.5" />
                     </button>
                     {canEdit && (

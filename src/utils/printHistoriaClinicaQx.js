@@ -14,10 +14,8 @@ async function getLogoBase64(src) {
   } catch { return null; }
 }
 
-export async function printHistoriaClinicaQx(surgery, patient, savedData = null) {
+export async function printHistoriaClinicaQx(surgery, patient) {
   const logo2    = await getLogoBase64(logo2Img);
-  const patientId = patient?.id   || '';
-  const surgeryId = surgery?.id   || '';
   const typeInfo = getTypeInfo(patient?.patientType);
   const hcCode   = patient?.patientCode ? `${typeInfo.label}-${patient.patientCode}` : '';
 
@@ -192,7 +190,6 @@ table.edu td.cell-chk .chk,table.edu td.cell-chk-sn .chk{justify-content:center}
 <div class="toolbar">
   <span>Historia Clínica Quirúrgica · Centro Médico Quirúrgico MUNAY · ${patientName}</span>
   <button onclick="window.print()">Imprimir / PDF</button>
-  <button onclick="guardarDatos()">Guardar</button>
   <button onclick="resetForm()">Limpiar</button>
 </div>
 
@@ -624,10 +621,6 @@ table.edu td.cell-chk .chk,table.edu td.cell-chk-sn .chk{justify-content:center}
 </div>
 
 <script>
-  var __patientId = ${JSON.stringify(patientId)};
-  var __surgeryId = ${JSON.stringify(surgeryId)};
-  var __savedData = ${JSON.stringify(savedData)};
-
 document.querySelectorAll('.chk').forEach(function(chk) {
   chk.addEventListener('click', function(e) {
     if (e.target.classList.contains('other-line')) return;
@@ -700,50 +693,6 @@ function resetForm() {
     if (num && num.classList.contains('kern-num')) num.style.fill = '';
   });
 }
-
-function recopilarDatos() {
-  var ce = [];
-  document.querySelectorAll('[contenteditable="true"]').forEach(function(el) { ce.push(el.textContent); });
-  var chks = [];
-  document.querySelectorAll('.chk').forEach(function(el, i) { if (el.classList.contains('checked')) chks.push(i); });
-  var vals = {};
-  document.querySelectorAll('.val-input').forEach(function(el) { if (el.id) vals[el.id] = el.value; });
-  var kerns = [];
-  document.querySelectorAll('.kern-zone').forEach(function(z) { if (z.classList.contains('active')) kerns.push(z.dataset.zone); });
-  return { ce: ce, chks: chks, vals: vals, kerns: kerns };
-}
-
-function restaurarDatos(data) {
-  if (!data) return;
-  var els = document.querySelectorAll('[contenteditable="true"]');
-  (data.ce || []).forEach(function(v, i) { if (els[i]) els[i].textContent = v; });
-  var chkEls = document.querySelectorAll('.chk');
-  (data.chks || []).forEach(function(i) { if (chkEls[i]) chkEls[i].classList.add('checked'); });
-  Object.keys(data.vals || {}).forEach(function(id) {
-    var el = document.getElementById(id);
-    if (el) el.value = data.vals[id];
-  });
-  (data.kerns || []).forEach(function(z) {
-    var zone = document.querySelector('[data-zone="' + z + '"]');
-    if (!zone) return;
-    zone.classList.add('active');
-    var num = zone.nextElementSibling;
-    if (num && num.classList.contains('kern-num')) num.style.fill = 'white';
-  });
-}
-
-function guardarDatos() {
-  if (!window.opener || !window.opener.__munay_saveDoc) {
-    alert('No se puede guardar: ventana principal no disponible');
-    return;
-  }
-  var datos = recopilarDatos();
-  window.opener.__munay_saveDoc(__patientId, 'hc_qx', datos, __surgeryId)
-    .then(function() { alert('Guardado correctamente'); })
-    .catch(function(err) { alert('Error al guardar: ' + (err && err.message || err)); });
-}
-
-if (__savedData) { restaurarDatos(__savedData); }
 </script>
 </body>
 </html>`;

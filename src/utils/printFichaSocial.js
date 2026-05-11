@@ -38,7 +38,7 @@ function mapDiagnosis(d) {
   return '';
 }
 
-export async function printFichaSocial(patient, savedData = null) {
+export async function printFichaSocial(patient) {
   const logo2        = await getLogoBase64(logo2Img);
   const typeInfo     = getTypeInfo(patient?.patientType);
   const hcCode       = patient?.patientCode ? `${typeInfo.label}-${patient.patientCode}` : '';
@@ -59,8 +59,7 @@ export async function printFichaSocial(patient, savedData = null) {
   const guardianPhone = patient?.guardianPhone  || '';
   const today         = new Date().toISOString().slice(0, 10);
 
-  const patientId = patient?.id || '';
-  const pd       = JSON.stringify({ patientId, nroHC:hcCode, nombrePaciente:patientName, fechaNacimiento:birthDateISO, edad:ageStr, sexo, diagnostico, domicilio, nombreMadre:guardian, celMadre:guardianPhone, fechaEvaluacion:today });
+  const pd       = JSON.stringify({ nroHC:hcCode, nombrePaciente:patientName, fechaNacimiento:birthDateISO, edad:ageStr, sexo, diagnostico, domicilio, nombreMadre:guardian, celMadre:guardianPhone, fechaEvaluacion:today });
   const logoJson = JSON.stringify(logo2 || '');
 
   const html = `<!DOCTYPE html><html lang="es"><head>
@@ -97,7 +96,6 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--i
 .print-bar button{background:#1F3A5F;color:#fff;border:none;padding:7px 16px;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
 .print-bar button.clr{background:#666}
 .print-bar button.compact{background:#2a8c87}
-.print-bar button.save{background:#2e7d32}
 .tabs{display:flex;gap:4px;padding:8px 16px;background:#fff;box-shadow:var(--sh);overflow-x:auto;position:sticky;top:0;z-index:10}
 .tab{flex:1;border:none;background:transparent;padding:9px 12px;border-radius:8px;font-size:12.5px;font-weight:600;color:var(--ink-soft);cursor:pointer;white-space:nowrap;transition:all .15s;font-family:inherit}
 .tab:hover{background:var(--teal-soft);color:var(--teal-dark)}
@@ -175,9 +173,8 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--i
 </style></head><body>
 <div id="root"></div>
 <script>
-window.__pd        = ${pd};
-window.__logo      = ${logoJson};
-window.__savedData = ${JSON.stringify(savedData)};
+window.__pd   = ${pd};
+window.__logo = ${logoJson};
 </script>
 <script type="importmap">{"imports":{"react":"https://esm.sh/react@18.3.1","react-dom/client":"https://esm.sh/react-dom@18.3.1/client"}}</script>
 <script type="module">
@@ -215,8 +212,22 @@ const OPT_CRIT = [
   'Falta de adherencia','Solicitud institucional'
 ];
 
+const Field = ({label,children,full}) =>
+  e('div',{className:'field'+(full?' full':'')},
+    e('span',{className:'lbl'},label),children);
+
+const Radio = ({name,value,current,onChange,children}) =>
+  e('label',{className:'chip'+(current===value?' active':'')},
+    e('input',{type:'radio',name,checked:current===value,onChange:()=>onChange(value)}),
+    e('span',null,children));
+
+const Check = ({checked,onChange,children}) =>
+  e('label',{className:'chip'+(checked?' active':'')},
+    e('input',{type:'checkbox',checked,onChange}),
+    e('span',null,children));
+
 function FichaSocial() {
-  const [data, setData] = useState(window.__savedData || {...BASE, ...(window.__pd||{})});
+  const [data, setData] = useState({...BASE, ...(window.__pd||{})});
   const [tab, setTab] = useState('generales');
 
   const set  = (k,v) => setData(d => ({...d,[k]:v}));
@@ -461,20 +472,6 @@ function FichaSocial() {
     win.focus();
   }
 
-  const Field = ({label,children,full}) =>
-    e('div',{className:'field'+(full?' full':'')},
-      e('span',{className:'lbl'},label),children);
-
-  const Radio = ({name,value,current,onChange,children}) =>
-    e('label',{className:'chip'+(current===value?' active':'')},
-      e('input',{type:'radio',name,checked:current===value,onChange:()=>onChange(value)}),
-      e('span',null,children));
-
-  const Check = ({checked,onChange,children}) =>
-    e('label',{className:'chip'+(checked?' active':'')},
-      e('input',{type:'checkbox',checked,onChange}),
-      e('span',null,children));
-
   const TABS=[['generales','1. Generales'],['acceso','2. Acceso'],['vivienda','3. Vivienda'],['alertas','4. Alertas'],['observacion','5. Observacion'],['resumen','6. Resumen']];
 
   const logoEl = LOGO
@@ -501,7 +498,6 @@ function FichaSocial() {
     e('div',{className:'print-bar'},
       e('button',{className:'clr',onClick:()=>{if(confirm('Limpiar el formulario?'))setData(BASE);}},'Limpiar'),
       e('button',{className:'compact',onClick:()=>compactPrint()},'Imprimir compacto'),
-      e('button',{className:'save',onClick:()=>{if(!window.opener||!window.opener.__munay_saveDoc){alert('No se puede guardar: ventana principal no disponible');return;}window.opener.__munay_saveDoc(window.__pd.patientId,'ficha_social',data).then(()=>alert('Guardado correctamente')).catch(function(err){alert('Error al guardar: '+(err&&err.message||err));});}},'Guardar'),
       e('button',{onClick:()=>window.print()},'Imprimir completo')),
 
     e('nav',{className:'tabs'},
