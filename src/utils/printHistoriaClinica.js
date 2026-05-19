@@ -87,12 +87,12 @@ export async function printHistoriaClinica(patient) {
 <style>
 :root{--ink:#1a1d24;--ink-soft:#3a3f4a;--rule-soft:#b8bdc7;--navy:#1F3A5F;--teal:#4FC3C2;--amber:#F4B73C;--section-bg:#eef4f9;--hl:#fef9c3}
 *{box-sizing:border-box}
-html,body{margin:0;padding:0;background:#e8e9ec;font-family:"Helvetica Neue",Arial,sans-serif;color:var(--ink);font-size:8pt;line-height:1.22}
-.page{width:215.9mm;height:279.4mm;margin:14px auto;padding:0 11mm 9mm;background:#fff;box-shadow:0 2px 14px rgba(0,0,0,.12);position:relative;overflow:hidden}
-.page-hdr{background:var(--navy);margin:0 -11mm 3mm;padding:8px 12px;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:14px;border-bottom:4px solid var(--teal);-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.main-title{text-align:center;font-size:9pt;font-weight:bold;color:var(--navy);margin:2px 0 3px;letter-spacing:.5px;text-transform:uppercase;border-bottom:1.5px solid var(--teal);padding-bottom:2px}
-h3.section{background:var(--navy);color:#fff;padding:2px 6px;margin:4px 0 2px;font-size:8pt;font-weight:bold;letter-spacing:.5px;text-transform:uppercase;border-left:4px solid var(--amber);-webkit-print-color-adjust:exact;print-color-adjust:exact}
-h4.sub{margin:3px 0 1px;font-size:7.5pt;font-weight:bold;color:var(--navy);text-transform:uppercase;letter-spacing:.3px}
+html,body{margin:0;padding:0;background:#e8e9ec;font-family:"Helvetica Neue",Arial,sans-serif;color:var(--ink);font-size:8pt;line-height:1.2}
+.page{width:215.9mm;height:279.4mm;margin:14px auto;padding:0 10mm 8mm;background:#fff;box-shadow:0 2px 14px rgba(0,0,0,.12);position:relative;overflow:hidden}
+.page-hdr{background:var(--navy);margin:0 -10mm 2mm;padding:7px 11px;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;border-bottom:4px solid var(--teal);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.main-title{text-align:center;font-size:9pt;font-weight:bold;color:var(--navy);margin:1px 0 2px;letter-spacing:.5px;text-transform:uppercase;border-bottom:1.5px solid var(--teal);padding-bottom:1px}
+h3.section{background:var(--navy);color:#fff;padding:2px 6px;margin:2px 0 1px;font-size:8pt;font-weight:bold;letter-spacing:.5px;text-transform:uppercase;border-left:4px solid var(--amber);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+h4.sub{margin:1px 0 0;font-size:7.5pt;font-weight:bold;color:var(--navy);text-transform:uppercase;letter-spacing:.3px}
 .add-row-btn{background:var(--amber);color:#fff;border:none;padding:1px 7px;font-size:6.8pt;font-weight:bold;cursor:pointer;border-radius:2px;margin-left:8px;font-family:inherit}
 @media print{.add-row-btn{display:none}}
 .inline-fields{display:flex;flex-wrap:wrap;gap:1px 10px;margin:1px 0}
@@ -102,9 +102,9 @@ h4.sub{margin:3px 0 1px;font-size:7.5pt;font-weight:bold;color:var(--navy);text-
 .inline .val.wide{min-width:120px}.inline .val.xwide{min-width:200px}.inline .val.full{min-width:100%}
 [contenteditable="true"]{outline:none;cursor:text}
 [contenteditable="true"]:focus{background:var(--hl)}
-.narrative{border:1px solid var(--rule-soft);background:#fbfcfd;padding:2px 5px;min-height:24px;font-family:"Courier New",monospace;font-size:7.8pt;line-height:1.3;margin:1px 0}
-.narrative.tall{min-height:36px}
-.checklist{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:1px 10px;margin:1px 0 2px}
+.narrative{border:1px solid var(--rule-soft);background:#fbfcfd;padding:2px 5px;min-height:20px;font-family:"Courier New",monospace;font-size:7.8pt;line-height:1.3;margin:1px 0}
+.narrative.tall{min-height:26px}
+.checklist{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:0px 8px;margin:0 0 1px}
 .checklist.cols-2{grid-template-columns:repeat(2,1fr)}.checklist.cols-3{grid-template-columns:repeat(3,1fr)}
 .checklist.cols-4{grid-template-columns:repeat(4,1fr)}.checklist.cols-5{grid-template-columns:repeat(5,1fr)}
 .chk{display:flex;align-items:center;gap:4px;font-size:7.8pt;line-height:1.2;cursor:pointer;user-select:none}
@@ -116,9 +116,9 @@ h4.sub{margin:3px 0 1px;font-size:7.5pt;font-weight:bold;color:var(--navy);text-
 table.clinical{width:100%;border-collapse:collapse;margin:2px 0;font-size:7.5pt}
 table.clinical th,table.clinical td{border:1px solid var(--ink-soft);padding:1px 4px;text-align:left;vertical-align:top}
 table.clinical th{background:var(--section-bg);font-weight:bold;font-size:7.2pt}
-table.clinical td.fillable{min-height:15px;height:15px;font-family:"Courier New",monospace}
+table.clinical td.fillable{min-height:13px;height:13px;font-family:"Courier New",monospace}
 .other-line{display:inline-block;border-bottom:1px solid var(--ink-soft);min-width:50px;padding:0 2px;font-family:"Courier New",monospace;font-size:7.8pt;min-height:10px}
-.metrics-inline{display:flex;flex-wrap:wrap;gap:1px 10px;padding:2px 5px;background:var(--section-bg);border:1px solid var(--rule-soft);font-size:8pt;margin:1px 0}
+.metrics-inline{display:flex;flex-wrap:wrap;gap:1px 10px;padding:1px 4px;background:var(--section-bg);border:1px solid var(--rule-soft);font-size:8pt;margin:0}
 .metrics-inline .m{display:inline-flex;align-items:baseline;gap:3px}
 .metrics-inline .m .lbl{font-weight:bold;font-size:7.5pt}
 .metrics-inline .m .val{border-bottom:1px solid var(--ink-soft);min-width:38px;min-height:11px;padding:0 3px;font-family:"Courier New",monospace}
@@ -132,18 +132,18 @@ table.edu th{background:var(--section-bg);font-size:7pt}
 table.edu td.tema{width:60%}
 table.edu td.cell-chk{text-align:center;width:13.33%}
 table.edu td.cell-chk .chk{justify-content:center}
-.age-row{border-left:3px solid var(--amber);padding-left:6px;margin:1px 0}
+.age-row{border-left:3px solid var(--amber);padding-left:6px;margin:0}
 .age-row .age-label{display:inline-block;background:var(--amber);color:#fff;font-size:6.5pt;font-weight:bold;padding:1px 5px;margin-right:6px;text-transform:uppercase;letter-spacing:.3px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.firma-box{margin-top:4px;padding:6px 6px 3px;border:1px solid var(--ink-soft);text-align:center;background:#fbfcfd}
-.firma-line{border-bottom:1px solid var(--ink);min-height:36px;margin:0 auto 2px;width:70%}
+.firma-box{margin-top:3px;padding:4px 6px 3px;border:1px solid var(--ink-soft);text-align:center;background:#fbfcfd}
+.firma-line{border-bottom:1px solid var(--ink);min-height:28px;margin:0 auto 2px;width:70%}
 .firma-label{font-size:7.5pt;font-weight:bold;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-soft)}
-.footer{position:absolute;bottom:4mm;left:11mm;right:11mm;padding-top:3px;border-top:1px solid var(--rule-soft);font-size:6.5pt;color:var(--ink-soft);display:flex;justify-content:space-between;font-style:italic}
+.footer{position:absolute;bottom:3mm;left:10mm;right:10mm;padding-top:2px;border-top:1px solid var(--rule-soft);font-size:6.5pt;color:var(--ink-soft);display:flex;justify-content:space-between;font-style:italic}
 .legend{display:inline-flex;gap:10px;font-size:6.8pt;color:var(--ink-soft);margin-left:6px}
 .legend-item{display:inline-flex;align-items:center;gap:3px}
 .toolbar{position:sticky;top:0;background:var(--navy);color:#fff;padding:8px 20px;text-align:center;z-index:100;box-shadow:0 2px 6px rgba(0,0,0,.2);-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .toolbar button{background:var(--amber);color:#fff;border:none;padding:5px 14px;margin:0 4px;font-family:inherit;font-size:9pt;font-weight:bold;cursor:pointer;border-radius:3px}
 .toolbar span{margin-right:12px;font-size:9.5pt;opacity:.95}
-.two-col{display:grid;grid-template-columns:1fr 1fr;gap:4px 12px}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:2px 10px}
 .cesarea-motivo{display:none;flex-wrap:wrap;gap:1px 8px;margin-left:14px;margin-top:1px;padding:2px 6px;background:#fef9c3;border-left:3px solid var(--amber)}
 @page{size:letter;margin:0}
 @media print{
@@ -157,6 +157,7 @@ table.edu td.cell-chk .chk{justify-content:center}
 <div class="toolbar">
   <span>Historia Clínica Integral · Centro Médico Quirúrgico MUNAY</span>
   <button onclick="window.print()">Imprimir / Guardar PDF</button>
+  <button onclick="compactPrint()" style="background:#4a6fa5">Vista compacta</button>
   <button onclick="resetForm()">Limpiar</button>
 </div>
 
@@ -232,6 +233,9 @@ table.edu td.cell-chk .chk{justify-content:center}
         <div class="chk"><span class="box"></span>Sospecha sindrómica</div>
         <div class="chk"><span class="box"></span>Otro: <span class="other-line" contenteditable="true">${diagRaw}</span></div>
       </div>
+      <div class="inline-fields" style="margin-top:2px">
+        <span class="inline" style="flex:1"><span class="lbl">Especificar diagnóstico:</span><span class="val xwide" contenteditable="true"></span></span>
+      </div>
     </div>
   </div>
 
@@ -242,6 +246,9 @@ table.edu td.cell-chk .chk{justify-content:center}
     <span style="font-weight:bold;font-size:7.5pt;margin-left:8px">Atención previa:</span>
     <div class="chk"><span class="box"></span>Ninguna</div><div class="chk"><span class="box"></span>Hosp. público</div>
     <div class="chk"><span class="box"></span>Privado</div><div class="chk"><span class="box"></span>Fundación</div>
+  </div>
+  <div class="inline-fields" style="margin-top:2px">
+    <span class="inline" style="flex:1"><span class="lbl">Especificar atención previa:</span><span class="val xwide" contenteditable="true"></span></span>
   </div>
   <div class="narrative" contenteditable="true">Narrativa libre: relato de la madre/responsable sobre el origen, evolución y manejo previo del cuadro...</div>
   <h4 class="sub">Tratamientos / cirugías previas <span class="req opt-clin">CLÍN</span>
@@ -311,7 +318,7 @@ table.edu td.cell-chk .chk{justify-content:center}
         <div class="chk"><span class="box"></span>Convulsiones</div>
         <div class="chk"><span class="box"></span>Anemia</div>
         <div class="chk"><span class="box"></span>Desnutrición</div>
-        <div class="chk"><span class="box"></span>Hospitalizaciones previas</div>
+        <div class="chk"><span class="box"></span>Hospitalizaciones previas: <span class="other-line" contenteditable="true"></span></div>
         <div class="chk"><span class="box"></span>Otro: <span class="other-line" contenteditable="true"></span></div>
       </div>
       <div class="inline-fields" style="margin-top:2px">
@@ -396,7 +403,6 @@ table.edu td.cell-chk .chk{justify-content:center}
     <span class="m"><span class="lbl">Peso:</span><input type="number" step="0.1" min="0" class="val-input" id="peso-nut" oninput="calcIMC()"/><span style="font-size:7pt">kg</span></span>
     <span class="m"><span class="lbl">Talla:</span><input type="number" step="0.1" min="0" class="val-input" id="talla-nut" oninput="calcIMC()"/><span style="font-size:7pt">cm</span></span>
     <span class="m"><span class="lbl">IMC:</span><input type="text" class="val-input imc-auto" id="imc-nut" readonly/><span style="font-size:7pt">kg/m²</span></span>
-    <span class="m"><span class="lbl">Percentil:</span><span class="val" contenteditable="true"></span></span>
     <span style="font-size:7.5pt;font-weight:bold">Riesgo nutricional:</span>
     <div class="chk"><span class="box"></span>Sin riesgo</div>
     <div class="chk"><span class="box"></span>Leve</div>
@@ -452,6 +458,7 @@ table.edu td.cell-chk .chk{justify-content:center}
         <div class="chk"><span class="box"></span>Maloclusión</div>
         <div class="chk"><span class="box"></span>Higiene deficiente</div>
         <div class="chk"><span class="box"></span>Fístula alveolar</div>
+        <div class="chk" style="grid-column:span 2"><span class="box"></span>Edentulía fisiológica</div>
       </div>
     </div>
   </div>
@@ -600,6 +607,8 @@ table.edu td.cell-chk .chk{justify-content:center}
 
 <script>
   var DIAG = ${JSON.stringify(diagUp)};
+  var PATIENT_NAME = ${JSON.stringify(patientName)};
+  var HC_CODE = ${JSON.stringify(hcCode)};
 
   document.querySelectorAll('.chk').forEach(function(chk) {
     chk.addEventListener('click', function(e) {
@@ -649,6 +658,116 @@ table.edu td.cell-chk .chk{justify-content:center}
     document.querySelectorAll('[contenteditable="true"]').forEach(function(el) { el.textContent = ''; });
     document.querySelectorAll('.val-input').forEach(function(el) { el.value = ''; });
     document.getElementById('cesarea-motivo-parto').style.display = 'none';
+  }
+
+  function compactPrint() {
+    function collectItems(root, items) {
+      root.querySelectorAll('.chk.checked').forEach(function(chk) {
+        var cl = chk.cloneNode(true);
+        var other = cl.querySelector('.other-line');
+        var otherTxt = other ? other.textContent.trim() : '';
+        cl.querySelectorAll('.box,.other-line').forEach(function(s) { s.remove(); });
+        var txt = cl.textContent.trim();
+        if (otherTxt) txt += ' ' + otherTxt;
+        if (txt) items.push({type:'check', text: txt});
+      });
+      root.querySelectorAll('.inline').forEach(function(inl) {
+        var lbl = inl.querySelector('.lbl');
+        var val = inl.querySelector('[contenteditable="true"]');
+        if (lbl && val && val.textContent.trim()) {
+          items.push({type:'field', label: lbl.textContent.replace(/:$/, '').trim(), value: val.textContent.trim()});
+        }
+      });
+      root.querySelectorAll('.m').forEach(function(m) {
+        var lbl = m.querySelector('.lbl');
+        var inp = m.querySelector('input.val-input');
+        if (lbl && inp && inp.value.trim()) {
+          var unitEl = inp.nextElementSibling;
+          var unit = unitEl ? ' ' + unitEl.textContent.trim() : '';
+          items.push({type:'field', label: lbl.textContent.replace(/:$/, '').trim(), value: inp.value + unit});
+        }
+      });
+      if (root.classList && root.classList.contains('narrative')) {
+        var txt = root.textContent.trim();
+        if (txt && txt.indexOf('relato de la madre') === -1) items.push({type:'narrative', text: txt});
+      }
+      var tbls = (root.tagName === 'TABLE') ? [root] : Array.from(root.querySelectorAll('table'));
+      tbls.forEach(function(tbl) {
+        var hdrs = Array.from(tbl.querySelectorAll('thead th')).map(function(th) { return th.textContent.trim(); });
+        var rows = [];
+        tbl.querySelectorAll('tbody tr').forEach(function(tr) {
+          var cells = Array.from(tr.querySelectorAll('td')).map(function(td) { return td.textContent.trim(); });
+          if (cells.some(function(c) { return c; })) rows.push(cells);
+        });
+        if (rows.length) items.push({type:'table', headers: hdrs, rows: rows});
+      });
+    }
+
+    var sections = [];
+    document.querySelectorAll('h3.section').forEach(function(h3) {
+      var cl = h3.cloneNode(true);
+      cl.querySelectorAll('span').forEach(function(s) { s.remove(); });
+      var title = cl.textContent.trim();
+      var items = [];
+      var node = h3.nextElementSibling;
+      while (node && node.tagName !== 'H3') { collectItems(node, items); node = node.nextElementSibling; }
+      if (items.length) sections.push({title: title, items: items});
+    });
+
+    if (!sections.length) { alert('No hay datos positivos registrados.'); return; }
+
+    var body = '';
+    sections.forEach(function(sec) {
+      body += '<div class="sh">' + sec.title + '</div><div class="sb">';
+      sec.items.forEach(function(it) {
+        if (it.type === 'check') {
+          body += '<div class="it ck"><span class="tk">&#10003;</span><span>' + it.text + '</span></div>';
+        } else if (it.type === 'field') {
+          body += '<div class="it fd"><span class="fl">' + it.label + '</span><span class="fv">' + it.value + '</span></div>';
+        } else if (it.type === 'narrative') {
+          body += '<div class="it nv">' + it.text + '</div>';
+        } else if (it.type === 'table') {
+          body += '<table class="ct"><thead><tr>' + it.headers.map(function(h) { return '<th>' + h + '</th>'; }).join('') + '</tr></thead><tbody>';
+          it.rows.forEach(function(r) { body += '<tr>' + r.map(function(c) { return '<td>' + c + '</td>'; }).join('') + '</tr>'; });
+          body += '</tbody></table>';
+        }
+      });
+      body += '</div>';
+    });
+
+    var css = 'body{font-family:Arial,sans-serif;font-size:9pt;color:#1a1a2e;background:#f0f2f5;margin:0;padding:14px}' +
+      '.hdr{background:#1a1a2e;color:#fff;padding:8px 16px;border-radius:5px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}' +
+      '.hdr h1{margin:0;font-size:10.5pt;letter-spacing:.2px}' +
+      '.hdr p{margin:0;font-size:7.5pt;opacity:.75;white-space:nowrap}' +
+      '.tb{text-align:center;margin-bottom:10px}' +
+      '.tb button{background:#e8a317;color:#fff;border:none;padding:5px 16px;font-size:9pt;font-weight:700;cursor:pointer;border-radius:3px}' +
+      '.sh{background:#1a1a2e;color:#fff;padding:3px 10px;font-size:8pt;font-weight:700;letter-spacing:.3px;border-left:4px solid #e8a317;margin-top:9px;border-radius:0 3px 3px 0}' +
+      '.sb{padding:4px 8px 5px;background:#fff;border:1px solid #e2e4e8;border-top:none;border-radius:0 0 3px 3px}' +
+      '.it{padding:2px 0;display:flex;align-items:baseline;gap:5px;border-bottom:1px solid #f3f4f6}' +
+      '.it:last-child{border-bottom:none}' +
+      '.ck .tk{color:#e8a317;font-weight:900;font-size:10pt;flex-shrink:0;line-height:1}' +
+      '.fd .fl{font-size:7pt;font-weight:700;color:#4a6fa5;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap;flex-shrink:0}' +
+      '.fd .fv{font-family:"Courier New",monospace;font-size:9pt;color:#111;font-weight:600}' +
+      '.nv{border-left:3px solid #20b2aa;padding:2px 0 2px 8px;font-style:italic;color:#374151;font-size:8.5pt;width:100%;box-sizing:border-box}' +
+      '.ct{width:100%;border-collapse:collapse;font-size:7.5pt;margin:3px 0}' +
+      '.ct th{background:#e5e7eb;font-weight:700;text-align:left;padding:2px 5px;border:1px solid #d1d5db}' +
+      '.ct td{padding:2px 5px;border:1px solid #e5e7eb}' +
+      '@media print{body{background:#fff;padding:0}.tb{display:none}.sh{-webkit-print-color-adjust:exact;print-color-adjust:exact}}';
+
+    var pName = (typeof PATIENT_NAME !== 'undefined') ? PATIENT_NAME : '';
+    var pCode = (typeof HC_CODE !== 'undefined') ? HC_CODE : '';
+    var dateStr = new Date().toLocaleDateString('es-BO');
+    var title = 'Historia Cl&#237;nica Integral &#8212; Vista Compacta' + (pName ? ' &middot; ' + pName : '') + (pCode ? ' (' + pCode + ')' : '');
+
+    var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>HC Compacta</title><style>' + css + '</style></head><body>' +
+      '<div class="hdr"><h1>' + title + '</h1><p>MUNAY &middot; ' + dateStr + '</p></div>' +
+      '<div class="tb"><button onclick="window.print()">Imprimir / Guardar PDF</button></div>' +
+      body + '</body></html>';
+
+    var w = window.open('', '_blank', 'width=900,height=850');
+    w.document.write(html);
+    w.document.close();
+    w.focus();
   }
 </script>
 </body></html>`;

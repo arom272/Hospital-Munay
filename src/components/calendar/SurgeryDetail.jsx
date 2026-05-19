@@ -13,6 +13,8 @@ import logoImg       from '../../../LOGO.jpg';
 import logo2Img      from '../../../LOGO 2.jpg';
 import { getTypeInfo } from '../../utils/patientTypes';
 import { printHistoriaClinicaQx } from '../../utils/printHistoriaClinicaQx';
+import { useAuth }   from '../../contexts/AuthContext';
+import { saveDocumentSnapshot } from '../../modules/documents/services/documentSave';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -927,6 +929,7 @@ export default function SurgeryDetail({
   const [newTime,          setNewTime]          = useState(surgery?.startTime ?? '');
   const [suspendBusy,      setSuspendBusy]      = useState(false);
   const { patients, surgeries: allSurgeries, therapies } = useStore();
+  const { user: authUser } = useAuth();
 
   if (!surgery) return null;
 
@@ -1181,14 +1184,14 @@ export default function SurgeryDetail({
             Post-Op
           </button>
           <button
-            onClick={() => printEpicrisis(surgery, patient)}
+            onClick={() => { printEpicrisis(surgery, patient); saveDocumentSnapshot({ patientId: surgery.patientId, documentType: 'epicrisis', specialty: 'Cirugía', clinicalData: { paciente: patient?.name, cirugia: surgery.surgeryType, fecha: surgery.date, cirujano: surgery.surgeon, diagnostico: patient?.diagnosis, alergias: patient?.allergies, anestesia: surgery.anesthesia, duracion: surgery.duration, hallazgos: surgery.findings, procedimiento: surgery.procedure, complicaciones: surgery.complications, indicaciones: surgery.postOpInstructions, status: surgery.status }, user: authUser }); }}
             className="btn btn-sm border border-emerald-200 text-emerald-700 hover:bg-emerald-50 gap-1.5"
           >
             <FileText className="w-4 h-4" />
             Epicrisis
           </button>
           <button
-            onClick={() => printHistoriaClinicaQx(surgery, patient)}
+            onClick={() => { printHistoriaClinicaQx(surgery, patient); saveDocumentSnapshot({ patientId: surgery.patientId, documentType: 'historia_quirurgica', specialty: 'Cirugía', clinicalData: { paciente: patient?.name, fechaNac: patient?.birthDate, ci: patient?.idNumber, diagnostico: patient?.diagnosis, alergias: patient?.allergies, cirugia: surgery.surgeryType, fecha: surgery.date, cirujano: surgery.surgeon, anestesia: surgery.anesthesia, duracion: surgery.duration, hallazgos: surgery.findings, procedimiento: surgery.procedure, complicaciones: surgery.complications, status: surgery.status }, user: authUser }); }}
             className="btn btn-sm border border-indigo-200 text-indigo-700 hover:bg-indigo-50 gap-1.5"
           >
             <Stethoscope className="w-4 h-4" />

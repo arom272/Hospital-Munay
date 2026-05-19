@@ -21,3 +21,6 @@ export const updateTherapy = (id, data) =>
 
 export const deleteTherapy = (id) =>
   deleteDoc(doc(db, COL, id));
+
+export const deleteTherapies = (ids) =>
+  Promise.all(ids.map(id => deleteDoc(doc(db, COL, id))));

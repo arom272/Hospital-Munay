@@ -1,0 +1,58 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function canEdit() {
+      return isAuthenticated() && getUserRole() in ['admin', 'secretaria'];
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && getUserRole() == 'admin';
+    }
+
+    // Patients
+    match /patients/{id} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if canEdit();
+    }
+
+    // Clinical documents (subcollection of each patient)
+    match /patients/{patientId}/documents/{documentId} {
+      allow read:             if isAuthenticated();
+      allow create, update:   if canEdit();
+      allow delete:           if isAdmin();
+    }
+
+    // Therapies
+    match /therapies/{id} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if canEdit();
+    }
+
+    // Therapists directory
+    match /therapists/{id} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Users (roles)
+    match /users/{id} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Any other collection
+    match /{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if canEdit();
+    }
+  }
+}
