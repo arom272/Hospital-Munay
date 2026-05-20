@@ -63,470 +63,476 @@ export async function printHistoriaClinicaQx(surgery, patient) {
   const isPalatQx   = sl.includes('palat');
   const otroSurg    = surgType && !isQueilPrim && !isQueilSec && !isPalatQx ? surgType : '';
 
+  let yrAge = -1;
+  if (patient?.birthDate) {
+    const birth = parseISO(patient.birthDate);
+    if (isValid(birth)) yrAge = differenceInYears(new Date(), birth);
+  }
+  const showRN          = yrAge < 0 || yrAge < 2;
+  const showPreescolar  = yrAge < 0 || (yrAge >= 2 && yrAge <= 11);
+  const showAdolescente = yrAge < 0 || (yrAge >= 12 && yrAge <= 18);
+
+  const now      = new Date();
+  const todayStr = now.getDate().toString().padStart(2,'0') + '/' +
+                   (now.getMonth()+1).toString().padStart(2,'0') + '/' + now.getFullYear();
+
   const logoHtml = logo2
-    ? `<div style="background:#fff;padding:4px 8px;border-radius:5px;display:flex;align-items:center;flex-shrink:0"><img src="${logo2}" style="height:38px;width:auto;object-fit:contain;display:block"/></div>`
-    : `<div style="background:#fff;padding:4px 8px;border-radius:5px;display:flex;align-items:center"><span style="font-size:13px;font-weight:900;color:#1F3A5F;letter-spacing:2px">MUNAY</span></div>`;
+    ? `<div class="hdr-logo"><img src="${logo2}" alt="MUNAY"/></div>`
+    : `<div class="hdr-logo"><span class="hdr-logo-text">MUNAY</span></div>`;
 
-  const hdrBlock = `
-    <div class="header">
-      <div class="logo-block">
-        ${logoHtml}
-        <div class="brand">
-          <h1>Centro Médico Quirúrgico MUNAY</h1>
-          <h2>Centro del Niño con Fisura · La Paz, Bolivia</h2>
-        </div>
-      </div>`;
+  const hdr = (sheet, name) => `
+    <div class="page-hdr">
+      ${logoHtml}
+      <div class="hdr-center">
+        <div class="inst-name">MUNAY</div>
+        <div class="inst-sub">Centro Médico Quirúrgico · Centro del Niño con Fisura · La Paz, Bolivia</div>
+        <div class="doc-title">Historia Clínica Quirúrgica — Fisura Labio Alveolo Palatina</div>
+      </div>
+      <div class="hdr-right">
+        ${name ? `<div class="patient-name">${name}</div>` : ''}
+        <div class="hc-code">${hcCode || 'HC-QX ______'}</div>
+        <div>${surgDateFmt || todayStr} · Hoja ${sheet}/2</div>
+      </div>
+    </div>`;
 
-  const html = `<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
+  const html = `<!DOCTYPE html><html lang="es"><head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>HC-QX · MUNAY · ${patientName}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <style>
-/* ── TOKENS ── */
-:root{--ink:#1a1d24;--soft:#4a5568;--rule:#c4cad4;--blue:#1F3A5F;--orange:#F4B73C;--teal:#4FC3C2;--bg:#eef4f9;--hi:#fef9c3;--err-bg:#fdecec;--err:#c93232}
-*{box-sizing:border-box}
-html,body{margin:0;padding:0;background:#dde1e7;font-family:"Helvetica Neue",Arial,sans-serif;color:var(--ink);font-size:7.5pt;line-height:1.18}
-
-/* ── PAGE ── */
-.page{width:215.9mm;height:279.4mm;margin:10px auto;padding:5mm 9mm 7mm;background:#fff;box-shadow:0 2px 18px rgba(0,0,0,.15);position:relative;overflow:hidden}
-.page::before{content:"";position:absolute;top:0;right:0;width:52%;height:13mm;background:linear-gradient(115deg,transparent 0%,#1F3A5F 28%,#4FC3C2 72%,transparent 100%);opacity:.8;clip-path:polygon(16% 0%,100% 0%,100% 60%,0% 100%);z-index:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-
-/* ── HEADER ── */
-.header{position:relative;z-index:1;display:flex;justify-content:space-between;align-items:center;padding-bottom:2px;border-bottom:2px solid var(--blue);margin-bottom:2px}
-.logo-block{display:flex;align-items:center;gap:7px}
-.brand h1{font-size:10pt;margin:0;color:var(--blue);font-weight:bold;letter-spacing:.2px}
-.brand h2{font-size:6.8pt;margin:0;color:var(--soft);font-style:italic;font-weight:normal}
-.doc-id{font-family:"Courier New",monospace;font-size:6.8pt;color:var(--soft);background:#fff;padding:2px 5px;border:1px solid var(--rule);text-align:right;line-height:1.3}
-.main-title{text-align:center;font-size:9pt;font-weight:bold;color:var(--ink);margin:1px 0 2px;letter-spacing:.3px;text-transform:uppercase}
-
-/* ── SECTION HEADERS (collapsible & fixed) ── */
-h3.section{background:var(--blue);color:#fff;padding:2px 7px;margin:2px 0 0;font-size:7.5pt;font-weight:bold;letter-spacing:.4px;text-transform:uppercase;border-left:4px solid var(--orange);-webkit-print-color-adjust:exact;print-color-adjust:exact;display:flex;justify-content:space-between;align-items:center}
-h3.section.crit{background:var(--err);border-left-color:#ffb800}
-h3.section.collapsible{cursor:pointer}
-h3.section .toggle-icon{font-size:6pt;opacity:.75;margin-left:6px;font-weight:normal}
-
-/* ── SECTION BODY ── */
-.sec-body{padding:1px 0 2px}
-.sec-body.collapsed{display:none}
-
-/* ── SUB LABELS ── */
-.slbl{font-size:6.8pt;font-weight:bold;color:var(--blue);text-transform:uppercase;letter-spacing:.3px;padding-bottom:1px;border-bottom:1px solid #d4dce6;margin-bottom:2px;margin-top:3px}
-.slbl:first-child{margin-top:0}
-
-/* ── BADGES ── */
-.req{display:inline-block;font-size:5.5pt;font-weight:bold;padding:0 3px;border-radius:2px;margin-left:3px;vertical-align:middle;letter-spacing:.3px;color:#fff}
-.req.obl{background:#c93232}.req.opt-edad{background:#d4a017}.req.crit{background:#111}
-.legend-inline{font-size:6pt;font-weight:normal;text-transform:none;letter-spacing:0;opacity:.85;margin-left:8px}
-
-/* ── GRID SYSTEM ── */
-.g2{display:grid;grid-template-columns:1fr 1fr;gap:2px 8px}
-.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:2px 8px}
-.g3a{display:grid;grid-template-columns:2fr 1.15fr 1.6fr;gap:2px 8px}
-.gcol{display:flex;flex-direction:column;gap:1px}
-.gcol2{display:grid;grid-template-columns:1fr 1fr;gap:1px 6px}
-
-/* ── ID GRID ── */
-.id-row{display:grid;gap:1px 5px;margin:1px 0}
-.id-row.r1{grid-template-columns:1fr 1fr 1fr 1fr 2fr}
-.id-row.r2{grid-template-columns:2fr 1fr 1fr 1.2fr 1.2fr 1fr}
-
-/* ── INLINE FIELDS (label + underline value) ── */
-.inline{display:inline-flex;align-items:baseline;gap:3px;font-size:7.5pt}
-.inline .lbl{font-weight:bold;color:var(--ink);white-space:nowrap}
-.inline .val{border-bottom:1px solid var(--soft);min-width:50px;min-height:11px;padding:0 2px;font-family:"Courier New",monospace;font-size:7.5pt;flex:1}
-.inline .val.wide{min-width:90px}.inline .val.xwide{min-width:150px}
-
-/* ── ROW (flexible horizontal strip) ── */
-.row{display:flex;flex-wrap:wrap;gap:1px 7px;align-items:center;margin:1px 0}
-.f{font-weight:bold;font-size:7pt;white-space:nowrap;color:var(--ink);flex-shrink:0}
-
-/* ── INPUTS ── */
-[contenteditable="true"]{outline:none;cursor:text}
-[contenteditable="true"]:focus{background:var(--hi)}
-.val-input{border:none;border-bottom:1px solid var(--soft);background:transparent;width:42px;min-height:10px;padding:0 2px;font-family:"Courier New",monospace;font-size:7.5pt;color:var(--ink);outline:none}
-.val-input:focus{background:var(--hi)}
-.val-input.imc-auto{background:var(--bg);font-weight:bold;color:var(--blue);width:46px}
-.val-input::-webkit-outer-spin-button,.val-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
-.val-input[type="number"]{-moz-appearance:textfield}
-.other-line{display:inline-block;border-bottom:1px solid var(--soft);min-width:38px;padding:0 2px;font-family:"Courier New",monospace;font-size:7.3pt;min-height:9px}
-
-/* ── NARRATIVE ── */
-.narrative{border:1px solid var(--rule);background:#fafbfc;padding:2px 4px;min-height:15px;font-family:"Courier New",monospace;font-size:7.3pt;line-height:1.25;margin:1px 0}
-
-/* ── CHECKBOXES ── */
-.chk{display:flex;align-items:center;gap:3px;font-size:7.3pt;line-height:1.18;cursor:pointer;user-select:none}
-.chk .box{display:inline-block;width:8px;height:8px;border:1px solid var(--ink);flex-shrink:0;background:#fff;position:relative;transition:background .1s}
-.chk.checked .box{background:var(--blue);border-color:var(--blue)}
-.chk.checked .box::after{content:"✓";position:absolute;top:-4px;left:0;color:#fff;font-size:6.5pt;font-weight:bold;line-height:1}
-.cv{display:flex;flex-direction:column;gap:1px}
-.ch{display:flex;flex-wrap:wrap;gap:1px 7px}
-.checklist-v{display:flex;flex-direction:column;gap:1px}
-
-/* ── METRICS BAR ── */
-.metrics-inline{display:flex;flex-wrap:wrap;gap:1px 9px;padding:1px 4px;background:var(--bg);border:1px solid var(--rule);margin:0;align-items:center}
-.metrics-inline .m{display:inline-flex;align-items:baseline;gap:2px}
-.metrics-inline .m .lbl{font-weight:bold;font-size:7pt}
-.metrics-inline .m .val{border-bottom:1px solid var(--soft);min-width:32px;min-height:10px;padding:0 2px;font-family:"Courier New",monospace}
-
-/* ── AGE ROWS ── */
-.age-row{border-left:3px solid var(--orange);padding-left:5px;margin:1px 0}
-.age-row .age-label{display:inline-block;background:var(--orange);color:#fff;font-size:5.8pt;font-weight:bold;padding:1px 4px;margin-right:5px;text-transform:uppercase;letter-spacing:.2px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-
-/* ── CRITICAL BOX ── */
-.crit-box{border:1.5px solid var(--err);background:var(--err-bg);padding:2px 5px;margin:1px 0}
-
-/* ── TABLES ── */
-table.clinical{width:100%;border-collapse:collapse;margin:1px 0;font-size:7.2pt}
-table.clinical th,table.clinical td{border:1px solid var(--rule);padding:1px 3px;text-align:left;vertical-align:top}
-table.clinical th{background:var(--bg);font-weight:bold;font-size:6.8pt}
-table.clinical td.fillable{height:12px;font-family:"Courier New",monospace}
-table.edu{width:100%;border-collapse:collapse;font-size:7.2pt;margin:1px 0}
-table.edu th,table.edu td{border:1px solid var(--rule);padding:1px 3px}
-table.edu th{background:var(--bg);font-size:6.8pt}
-table.edu td.tema{width:60%}
-table.edu td.cell-chk{text-align:center;width:13%}
-table.edu td.cell-chk .chk{justify-content:center}
-.add-row-btn{background:var(--orange);color:#fff;border:none;padding:1px 6px;font-size:6.3pt;font-weight:bold;cursor:pointer;border-radius:2px;margin-left:6px;font-family:inherit;vertical-align:middle}
-
-/* ── KERNAHAN ── */
-.kernahan-container{display:grid;grid-template-columns:1fr auto 1fr;gap:6px;align-items:center;padding:3px;background:var(--bg);border:1px solid var(--rule);margin:1px 0}
-.kernahan-legend{font-size:6.3pt;line-height:1.3;font-style:italic}
-.kernahan-legend.left{text-align:right}.kernahan-legend.right{text-align:left}
-.kernahan-legend strong{font-style:normal;color:var(--blue)}
-.kernahan-svg{cursor:pointer}
-.kern-zone{fill:#fff;stroke:var(--ink);stroke-width:1;transition:fill .15s}
-.kern-zone:hover{fill:#ffe9a8}
-.kern-zone.active{fill:var(--blue)}
-.kern-num{font-size:6pt;font-family:"Helvetica Neue",sans-serif;fill:var(--ink);pointer-events:none;text-anchor:middle;dominant-baseline:middle;font-weight:bold}
-.kernahan-extra{grid-column:1/-1;text-align:center;font-size:6.3pt;font-style:italic;padding-top:2px;border-top:1px dashed var(--rule);margin-top:2px}
-.kernahan-extra strong{font-style:normal;color:var(--blue)}
-
-/* ── SIGNATURE ── */
-.firma-box{padding:3px 6px 2px;border:1px solid var(--soft);text-align:center;background:#fafbfc;margin-top:3px;max-width:50%;margin-left:auto;margin-right:auto}
-.firma-line{border-bottom:1px solid var(--ink);min-height:24px;margin:0 auto 2px;width:80%}
-.firma-label{font-size:7pt;font-weight:bold;text-transform:uppercase;letter-spacing:.5px;color:var(--soft)}
-
-/* ── FOOTER ── */
-.footer{position:absolute;bottom:3mm;left:9mm;right:9mm;padding-top:2px;border-top:1px solid var(--rule);font-size:6pt;color:var(--soft);display:flex;justify-content:space-between;font-style:italic}
-
-/* ── TOOLBAR ── */
-.toolbar{position:sticky;top:0;background:var(--blue);color:#fff;padding:6px 16px;text-align:center;z-index:100;box-shadow:0 2px 6px rgba(0,0,0,.22);font-family:inherit}
-.toolbar button{background:var(--orange);color:#fff;border:none;padding:4px 12px;margin:0 3px;font-family:inherit;font-size:8.5pt;font-weight:bold;cursor:pointer;border-radius:3px}
-.toolbar button:hover{opacity:.85}
-.toolbar span{margin-right:10px;font-size:9pt;opacity:.9}
-
-/* ── PRINT ── */
-@page{size:letter;margin:0}
-@media print{
-  body{background:#fff}
-  .toolbar,.add-row-btn{display:none}
-  .page{box-shadow:none;margin:0;page-break-after:always;width:215.9mm;height:279.4mm}
-  .page:last-child{page-break-after:auto}
-  [contenteditable="true"]:focus{background:transparent}
-  .kern-zone:hover{fill:#fff}
-  .kern-zone.active:hover{fill:var(--blue)}
-  .sec-body.collapsed{display:block!important}
-  h3.section .toggle-icon{display:none}
+:root {
+  --navy: #163A5F;
+  --navy-mid: #2F5D8A;
+  --navy-soft: #EBF2FA;
+  --rule: #CBD5E0;
+  --rule-light: #E2E8F0;
+  --bg: #EDF2F7;
+  --white: #FFFFFF;
+  --ink: #1A202C;
+  --ink-2: #4A5568;
+  --ink-3: #718096;
+  --amber: #B7791F;
+  --amber-bg: #FEFCE8;
+  --danger: #C53030;
+  --success: #276749;
 }
-</style>
-</head>
-<body>
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: var(--bg); font-family: 'Inter', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; color: var(--ink); font-size: 8.5pt; line-height: 1.35; }
+
+/* ── Document wrapper ── */
+.doc { width: 215.9mm; min-height: 279.4mm; margin: 12px auto; padding: 0 9mm 7mm; background: var(--white); box-shadow: 0 2px 16px rgba(0,0,0,.10); }
+
+/* ── Page 2 separator ── */
+.p2 { margin-top: 24px; padding-top: 14px; border-top: 3px dashed var(--rule-light); }
+
+/* ── Toolbar ── */
+.toolbar { position: sticky; top: 0; z-index: 100; background: var(--white); border-bottom: 2px solid var(--navy); padding: 7px 16px; display: flex; align-items: center; gap: 10px; box-shadow: 0 2px 8px rgba(22,58,95,.10); print-color-adjust: exact; }
+.toolbar-brand { font-size: 9.5pt; font-weight: 700; color: var(--navy); letter-spacing: .3px; flex: 1; }
+.toolbar-brand span { font-weight: 400; color: var(--ink-2); font-size: 8.5pt; }
+.toolbar button { border: none; padding: 5px 13px; font-family: inherit; font-size: 8.5pt; font-weight: 600; cursor: pointer; border-radius: 5px; transition: opacity .15s; }
+.btn-print { background: var(--navy); color: #fff; }
+.btn-clear { background: transparent; color: var(--ink-2); border: 1px solid var(--rule) !important; }
+
+/* ── Page Header ── */
+.page-hdr { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; padding: 8px 12px; margin-bottom: 6px; border-radius: 7px; background: linear-gradient(135deg, #0C1F35 0%, #163A5F 35%, #2F5D8A 70%, #3A7BBF 100%); print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+.hdr-logo { background: rgba(255,255,255,0.12); border-radius: 5px; padding: 3px; }
+.hdr-logo img { height: 40px; width: auto; display: block; border-radius: 3px; }
+.hdr-logo-text { font-size: 14pt; font-weight: 800; color: #fff; letter-spacing: 3px; }
+.hdr-center { text-align: center; }
+.hdr-center .inst-name { font-size: 13pt; font-weight: 800; color: #fff; letter-spacing: 2px; line-height: 1; }
+.hdr-center .inst-sub  { font-size: 7.5pt; color: rgba(255,255,255,0.80); margin-top: 2px; }
+.hdr-center .doc-title { font-size: 8pt; font-weight: 600; color: rgba(255,255,255,0.92); margin-top: 3px; letter-spacing: .5px; text-transform: uppercase; }
+.hdr-right { text-align: right; font-size: 7.5pt; color: rgba(255,255,255,0.85); line-height: 1.5; }
+.hdr-right .hc-code { font-size: 10pt; font-weight: 700; color: #fff; font-family: 'Courier New', monospace; }
+.hdr-right .patient-name { font-size: 8.5pt; font-weight: 600; color: #fff; }
+
+/* ── Legend badges ── */
+.badge { display: inline-block; font-size: 5.5pt; font-weight: 700; padding: 1px 4px; border-radius: 3px; vertical-align: middle; letter-spacing: .3px; }
+.badge-obl  { background: #C53030; color: #fff; }
+.badge-edad { background: #B7791F; color: #fff; }
+.badge-crit { background: #111; color: #fff; }
+
+/* ── Section card ── */
+.section-card { margin: 4px 0; border: 1px solid var(--rule-light); border-radius: 6px; overflow: hidden; }
+.section-card + .section-card { margin-top: 4px; }
+h3.section { background: var(--navy-soft); color: var(--navy); font-size: 8pt; font-weight: 700; letter-spacing: .4px; text-transform: uppercase; padding: 4px 10px 4px 13px; border-left: 4px solid var(--navy); display: flex; align-items: center; gap: 6px; }
+h3.section.crit-hdr { background: #FFF5F5; color: var(--danger); border-left-color: var(--danger); }
+.section-body { padding: 5px 10px; }
+
+/* Sub-headings */
+h4.sub { font-size: 7.5pt; font-weight: 600; color: var(--navy-mid); text-transform: uppercase; letter-spacing: .3px; margin: 3px 0 2px; border-bottom: 1px solid var(--rule-light); padding-bottom: 1px; }
+
+/* ── Field row ── */
+.field-row { display: flex; align-items: baseline; gap: 4px; }
+.lbl { font-size: 6.8pt; font-weight: 600; color: var(--ink-2); text-transform: uppercase; letter-spacing: .3px; white-space: nowrap; }
+.val { border: none; border-bottom: 1px solid var(--rule); min-width: 60px; min-height: 13px; padding: 0px 3px; font-family: 'Calibri', 'Gill Sans MT', 'Trebuchet MS', Arial, sans-serif; font-size: 8.5pt; font-weight: 600; color: var(--navy); outline: none; flex: 1; }
+.val.wide { min-width: 110px; }
+.val.xwide { min-width: 180px; }
+.val.full  { min-width: 100%; width: 100%; }
+.val.sm    { min-width: 38px; }
+[contenteditable="true"] { outline: none; cursor: text; }
+[contenteditable="true"]:focus { background: #EBF8FF; }
+
+/* ── Grid layouts ── */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; }
+.three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px 10px; }
+.three-col-asym { display: grid; grid-template-columns: 2fr 1.1fr 1.5fr; gap: 4px 10px; }
+.fg-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px 8px; }
+.fg-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 8px; }
+.fg-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 3px 8px; }
+.fg-5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 3px 8px; }
+
+/* ── Checkboxes ── */
+.checklist { display: grid; gap: 1px 8px; margin: 2px 0; }
+.cl-2 { grid-template-columns: repeat(2, 1fr); }
+.cl-3 { grid-template-columns: repeat(3, 1fr); }
+.cl-4 { grid-template-columns: repeat(4, 1fr); }
+.cl-inline { display: flex; flex-wrap: wrap; gap: 2px 10px; align-items: center; }
+.chk { display: flex; align-items: center; gap: 5px; font-size: 7.8pt; line-height: 1.25; cursor: pointer; user-select: none; padding: 1px 0; }
+.chk .box { display: inline-flex; align-items: center; justify-content: center; width: 10px; height: 10px; border: 1.5px solid var(--rule); border-radius: 2px; flex-shrink: 0; background: var(--white); font-size: 0; transition: all .1s; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+.chk.checked .box { background: var(--navy); border-color: var(--navy); font-size: 7pt; color: #fff; font-weight: 900; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+.chk.checked .box::after { content: "✓"; color: #fff; font-size: 7pt; line-height: 1; }
+
+/* Other-line */
+.other-line { display: inline-block; border-bottom: 1px solid var(--rule); min-width: 50px; padding: 0 2px; font-family: 'Calibri', 'Gill Sans MT', 'Trebuchet MS', Arial, sans-serif; font-size: 8.5pt; font-weight: 600; color: var(--navy); min-height: 10px; }
+
+/* ── Narrative ── */
+.narrative { border: 1px solid var(--rule-light); border-radius: 4px; background: #FAFBFC; padding: 3px 6px; min-height: 14px; font-family: 'Calibri', 'Gill Sans MT', 'Trebuchet MS', Arial, sans-serif; font-size: 8.5pt; font-weight: 500; line-height: 1.35; color: var(--navy); margin: 2px 0; }
+.narrative.tall  { min-height: 18px; }
+.narrative.xtall { min-height: 55px; }
+
+/* ── Metrics strip ── */
+.metrics-strip { display: flex; flex-wrap: wrap; gap: 3px 12px; background: var(--navy-soft); border: 1px solid var(--rule-light); border-radius: 5px; padding: 3px 8px; margin: 2px 0; }
+.metric { display: flex; align-items: baseline; gap: 3px; }
+.metric .lbl { font-size: 7pt; font-weight: 700; color: var(--navy); }
+.metric .val { border-bottom: 1px solid var(--navy-mid); min-width: 40px; }
+.metric .unit { font-size: 6.5pt; color: var(--ink-3); }
+
+/* ── Number input ── */
+.val-input { border: none; border-bottom: 1px solid var(--rule); background: transparent; width: 50px; padding: 0 3px; font-family: 'Calibri', 'Gill Sans MT', 'Trebuchet MS', Arial, sans-serif; font-size: 8.5pt; font-weight: 600; color: var(--navy); outline: none; }
+.val-input:focus { background: #EBF8FF; }
+.val-input.imc-auto { background: var(--navy-soft); font-weight: 700; color: var(--navy); width: 55px; }
+.val-input::-webkit-outer-spin-button, .val-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+.val-input[type="number"] { -moz-appearance: textfield; }
+
+/* ── Add row button ── */
+.add-row-btn { background: var(--navy-soft); color: var(--navy); border: 1px solid var(--rule); padding: 1px 7px; font-size: 6.8pt; font-weight: 600; cursor: pointer; border-radius: 3px; margin-left: 8px; font-family: inherit; }
+
+/* ── Tables ── */
+table.clinical { width: 100%; border-collapse: collapse; margin: 4px 0; font-size: 7.5pt; border-radius: 5px; overflow: hidden; }
+table.clinical thead tr { background: var(--navy-soft); }
+table.clinical th { padding: 4px 7px; text-align: left; font-size: 7pt; font-weight: 700; color: var(--navy); border: 1px solid var(--rule-light); }
+table.clinical td { border: 1px solid var(--rule-light); padding: 2px 6px; vertical-align: top; }
+table.clinical td.fillable { min-height: 14px; height: 14px; font-family: 'Calibri', 'Gill Sans MT', 'Trebuchet MS', Arial, sans-serif; font-size: 8.5pt; font-weight: 600; color: var(--navy); }
+
+table.edu { width: 100%; border-collapse: collapse; font-size: 7.8pt; margin: 4px 0; }
+table.edu thead tr { background: var(--navy-soft); }
+table.edu th { padding: 4px 8px; text-align: center; font-size: 7pt; font-weight: 700; color: var(--navy); border: 1px solid var(--rule-light); }
+table.edu td { border: 1px solid var(--rule-light); padding: 3px 8px; }
+table.edu td.tema { font-weight: 500; }
+table.edu td.cell-chk { text-align: center; width: 13%; }
+table.edu td.cell-chk .chk { justify-content: center; }
+
+/* ── Age blocks ── */
+.age-block { border-left: 3px solid var(--amber); background: var(--amber-bg); padding: 2px 8px; margin: 2px 0; border-radius: 0 4px 4px 0; display: flex; flex-wrap: wrap; gap: 1px 8px; align-items: center; }
+.age-label { display: inline-block; background: var(--amber); color: #fff; font-size: 6.5pt; font-weight: 700; padding: 1px 6px; border-radius: 3px; margin-right: 6px; text-transform: uppercase; letter-spacing: .3px; print-color-adjust: exact; -webkit-print-color-adjust: exact; flex-shrink: 0; }
+
+/* ── Critical box ── */
+.crit-box { border: 1.5px solid var(--danger); background: #FFF5F5; padding: 5px 8px; border-radius: 4px; margin: 3px 0; }
+
+/* ── Kernahan ── */
+.kernahan-container { display: grid; grid-template-columns: 1fr auto 1fr; gap: 6px; align-items: center; padding: 3px; background: var(--navy-soft); border: 1px solid var(--rule-light); border-radius: 5px; margin: 2px 0; }
+.kernahan-legend { font-size: 6.3pt; line-height: 1.3; font-style: italic; color: var(--ink-2); }
+.kernahan-legend.left { text-align: right; }
+.kernahan-legend.right { text-align: left; }
+.kernahan-legend strong { font-style: normal; color: var(--navy); }
+.kernahan-svg { cursor: pointer; }
+.kern-zone { fill: #fff; stroke: var(--ink); stroke-width: 1; transition: fill .15s; }
+.kern-zone:hover { fill: #ffe9a8; }
+.kern-zone.active { fill: var(--navy); print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+.kern-num { font-size: 6pt; font-family: 'Inter', 'Helvetica Neue', sans-serif; fill: var(--ink); pointer-events: none; text-anchor: middle; dominant-baseline: middle; font-weight: bold; }
+.kernahan-extra { grid-column: 1/-1; text-align: center; font-size: 6.3pt; font-style: italic; padding-top: 2px; border-top: 1px dashed var(--rule-light); margin-top: 2px; color: var(--ink-2); }
+.kernahan-extra strong { font-style: normal; color: var(--navy); }
+
+/* ── Signature ── */
+.firma-section { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 6px; }
+.firma-box { border: 1px solid var(--rule-light); border-radius: 5px; padding: 6px 10px 5px; text-align: center; background: #FAFBFC; }
+.firma-line { border-bottom: 1px solid var(--ink); min-height: 30px; margin: 0 auto 3px; width: 75%; }
+.firma-label { font-size: 7pt; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; color: var(--ink-3); }
+
+/* ── Page footer ── */
+.footer { margin-top: 6px; padding-top: 4px; border-top: 1px solid var(--rule-light); font-size: 6.5pt; color: var(--ink-3); display: flex; justify-content: space-between; font-style: italic; }
+
+/* ── Print ── */
+@page { size: letter; margin: 8mm 9mm 7mm; }
+@media print {
+  html, body { background: #fff !important; margin: 0 !important; padding: 0 !important; }
+  .toolbar { display: none !important; }
+  .doc { box-shadow: none !important; margin: 0 !important; padding: 0 !important; width: 100% !important; min-height: 0 !important; }
+  .p2 { page-break-before: always !important; break-before: page !important; border-top: none !important; margin-top: 0 !important; padding-top: 0 !important; }
+  .section-card { break-inside: avoid; page-break-inside: avoid; }
+  .narrative.xtall { min-height: 18px !important; }
+  .add-row-btn { display: none !important; }
+  .page-hdr { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  .kern-zone.active { fill: var(--navy) !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  [contenteditable="true"]:focus { background: transparent !important; }
+}
+</style></head><body>
 
 <div class="toolbar">
-  <span>Historia Clínica Quirúrgica · MUNAY · ${patientName}</span>
-  <button onclick="window.print()">Imprimir / PDF</button>
-  <button onclick="compactPrint()" style="background:#4a6fa5">Vista compacta</button>
-  <button onclick="resetForm()">Limpiar</button>
+  <div class="toolbar-brand">MUNAY <span>· Historia Clínica Quirúrgica</span></div>
+  <button class="btn-print" onclick="window.print()">🖨 Imprimir / PDF</button>
+  <button class="btn-clear" onclick="resetForm()">✕ Limpiar</button>
 </div>
 
-<!-- ═══════════════ PÁGINA 1 ═══════════════ -->
-<div class="page">
-  ${hdrBlock}
-    <div class="doc-id">
-      HC-QX&nbsp;<span contenteditable="true" style="display:inline-block;min-width:50px">${hcCode}</span>
-      &nbsp;·&nbsp;Folio&nbsp;<span contenteditable="true" style="display:inline-block;min-width:35px"></span>&nbsp;·&nbsp;Hoja&nbsp;1/2
-    </div>
-  </div>
-
-  <div class="main-title">Historia Clínica Quirúrgica</div>
+<div class="doc">
+  ${hdr('1', '')}
 
   <!-- ── IDENTIFICACIÓN ── -->
-  <h3 class="section">Identificación <span class="req obl">OBL</span>
-    <span class="legend-inline"><span class="req obl">OBL</span> Obligatorio &nbsp;<span class="req opt-edad">EDAD</span> Por edad &nbsp;<span class="req crit">CRIT</span> Crítico</span>
-  </h3>
-  <div class="sec-body">
-    <div class="id-row r1">
-      <span class="inline"><span class="lbl">N.º HC:</span><span class="val" contenteditable="true">${hcCode}</span></span>
-      <span class="inline"><span class="lbl">Fecha:</span><span class="val" contenteditable="true">${surgDateFmt}</span></span>
-      <span class="inline"><span class="lbl">Hora:</span><span class="val" contenteditable="true">${surgery?.admissionTime || ''}</span></span>
-      <span class="inline"><span class="lbl">Servicio:</span><span class="val" contenteditable="true">Qx FLAP/FLP</span></span>
-      <span class="inline"><span class="lbl">Médico:</span><span class="val xwide" contenteditable="true">${surgeon}</span></span>
-    </div>
-    <div class="id-row r2">
-      <span class="inline"><span class="lbl">Nombre:</span><span class="val xwide" contenteditable="true">${patientName}</span></span>
-      <span class="inline"><span class="lbl">Edad:</span><span class="val" style="min-width:52px" contenteditable="true">${ageStr}</span></span>
-      <span class="inline"><span class="lbl">Sexo:</span><span class="val" style="min-width:24px" contenteditable="true">${sex}</span></span>
-      <span class="inline"><span class="lbl">Procedencia:</span><span class="val wide" contenteditable="true">${address}</span></span>
-      <span class="inline"><span class="lbl">Responsable:</span><span class="val wide" contenteditable="true">${guardian}</span></span>
-      <span class="inline"><span class="lbl">Tel.:</span><span class="val" contenteditable="true">${guardianPhone}</span></span>
+  <div class="section-card">
+    <h3 class="section">Identificación <span class="badge badge-obl">OBL</span>
+      <span style="font-size:6pt;font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-3);margin-left:4px">
+        <span class="badge badge-obl">OBL</span> Obligatorio &nbsp;
+        <span class="badge badge-edad">EDAD</span> Por edad &nbsp;
+        <span class="badge badge-crit">CRIT</span> Crítico
+      </span>
+    </h3>
+    <div class="section-body">
+      <div class="fg-5" style="margin-bottom:4px">
+        <div class="field-row"><span class="lbl">N.º HC:</span><span class="val" contenteditable="true">${hcCode}</span></div>
+        <div class="field-row"><span class="lbl">Fecha:</span><span class="val" contenteditable="true">${surgDateFmt || todayStr}</span></div>
+        <div class="field-row"><span class="lbl">Hora:</span><span class="val" contenteditable="true">${surgery?.admissionTime || ''}</span></div>
+        <div class="field-row"><span class="lbl">Servicio:</span><span class="val" contenteditable="true">Qx FLAP/FLP</span></div>
+        <div class="field-row"><span class="lbl">Médico:</span><span class="val xwide" contenteditable="true">${surgeon}</span></div>
+      </div>
+      <div class="fg-3" style="margin-bottom:4px">
+        <div class="field-row"><span class="lbl">Nombre:</span><span class="val xwide" contenteditable="true">${patientName}</span></div>
+        <div class="field-row"><span class="lbl">Edad:</span><span class="val" contenteditable="true">${ageStr}</span></div>
+        <div class="field-row"><span class="lbl">Sexo:</span><span class="val sm" contenteditable="true">${sex}</span></div>
+      </div>
+      <div class="fg-3" style="margin-bottom:4px">
+        <div class="field-row"><span class="lbl">Procedencia:</span><span class="val wide" contenteditable="true">${address}</span></div>
+        <div class="field-row"><span class="lbl">Responsable:</span><span class="val wide" contenteditable="true">${guardian}</span></div>
+        <div class="field-row"><span class="lbl">Tel.:</span><span class="val" contenteditable="true">${guardianPhone}</span></div>
+      </div>
     </div>
   </div>
 
   <!-- ── 1 · CIRUGÍA ACTUAL ── -->
-  <h3 class="section">1 · Cirugía Actual <span class="req obl">OBL</span></h3>
-  <div class="sec-body">
-    <div class="g3a">
-      <!-- Procedimiento programado -->
-      <div class="gcol">
-        <div class="slbl">Procedimiento programado</div>
-        <div class="gcol2">
-          <div class="cv">
-            <div class="chk${cx(isQueilPrim)}"><span class="box"></span>Queiloplastia prim.</div>
-            <div class="chk${cx(isQueilSec)}"><span class="box"></span>Queiloplastia sec.</div>
-            <div class="chk${cx(isPalatQx)}"><span class="box"></span>Palatoplastia</div>
-            <div class="chk"><span class="box"></span>Rinoplastia prim.</div>
-            <div class="chk"><span class="box"></span>Rinoplastia sec.</div>
+  <div class="section-card">
+    <h3 class="section">1 · Cirugía Actual <span class="badge badge-obl">OBL</span></h3>
+    <div class="section-body">
+      <div class="three-col-asym">
+        <!-- Procedimiento programado -->
+        <div>
+          <h4 class="sub">Procedimiento programado</h4>
+          <div class="two-col" style="gap:1px 8px">
+            <div style="display:flex;flex-direction:column;gap:1px">
+              <div class="chk${cx(isQueilPrim)}"><span class="box"></span>Queiloplastia prim.</div>
+              <div class="chk${cx(isQueilSec)}"><span class="box"></span>Queiloplastia sec.</div>
+              <div class="chk${cx(isPalatQx)}"><span class="box"></span>Palatoplastia</div>
+              <div class="chk"><span class="box"></span>Rinoplastia prim.</div>
+              <div class="chk"><span class="box"></span>Rinoplastia sec.</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:1px">
+              <div class="chk"><span class="box"></span>Gingivoperioplastia</div>
+              <div class="chk"><span class="box"></span>Injerto alveolar</div>
+              <div class="chk"><span class="box"></span>Fistulorrafia</div>
+              <div class="chk"><span class="box"></span>Revisión cicatricial</div>
+              <div class="chk"><span class="box"></span>Colgajo faríngeo</div>
+            </div>
           </div>
-          <div class="cv">
-            <div class="chk"><span class="box"></span>Gingivoperioplastia</div>
-            <div class="chk"><span class="box"></span>Injerto alveolar</div>
-            <div class="chk"><span class="box"></span>Fistulorrafia</div>
-            <div class="chk"><span class="box"></span>Revisión cicatricial</div>
-            <div class="chk"><span class="box"></span>Colgajo faríngeo</div>
+          <div class="chk" style="margin-top:3px"><span class="box"></span>Otro:&nbsp;<span class="other-line" contenteditable="true">${otroSurg}</span></div>
+        </div>
+        <!-- Lado + Tipo -->
+        <div>
+          <h4 class="sub">Lado afectado</h4>
+          <div style="display:flex;flex-direction:column;gap:1px">
+            <div class="chk${cx(isUnilateral)}"><span class="box"></span>Derecho</div>
+            <div class="chk"><span class="box"></span>Izquierdo</div>
+            <div class="chk${cx(isBilateral)}"><span class="box"></span>Bilateral</div>
+            <div class="chk${cx(!isUnilateral && !isBilateral)}"><span class="box"></span>No aplica</div>
+          </div>
+          <h4 class="sub" style="margin-top:4px">Tipo de cirugía</h4>
+          <div style="display:flex;flex-direction:column;gap:1px">
+            <div class="chk${cx(isQueilPrim || (isPalatQx && !isQueilSec))}"><span class="box"></span>Primaria</div>
+            <div class="chk${cx(isQueilSec)}"><span class="box"></span>Secundaria</div>
+            <div class="chk"><span class="box"></span>Reconstructiva</div>
+            <div class="chk"><span class="box"></span>Correctiva</div>
           </div>
         </div>
-        <div class="chk" style="margin-top:2px"><span class="box"></span>Otro:&nbsp;<span class="other-line" contenteditable="true">${otroSurg}</span></div>
-      </div>
-      <!-- Lado + Tipo -->
-      <div class="gcol">
-        <div class="slbl">Lado afectado</div>
-        <div class="cv">
-          <div class="chk${cx(isUnilateral)}"><span class="box"></span>Derecho</div>
-          <div class="chk"><span class="box"></span>Izquierdo</div>
-          <div class="chk${cx(isBilateral)}"><span class="box"></span>Bilateral</div>
-          <div class="chk${cx(!isUnilateral && !isBilateral)}"><span class="box"></span>No aplica</div>
-        </div>
-        <div class="slbl">Tipo de cirugía</div>
-        <div class="cv">
-          <div class="chk${cx(isQueilPrim || (isPalatQx && !isQueilSec))}"><span class="box"></span>Primaria</div>
-          <div class="chk${cx(isQueilSec)}"><span class="box"></span>Secundaria</div>
-          <div class="chk"><span class="box"></span>Reconstructiva</div>
-          <div class="chk"><span class="box"></span>Correctiva</div>
-          <div class="chk"><span class="box"></span>Reintervención</div>
-        </div>
-      </div>
-      <!-- Motivo -->
-      <div class="gcol">
-        <div class="slbl">Motivo quirúrgico actual</div>
-        <div class="narrative" style="flex:1;min-height:55px" contenteditable="true">${diagDisplay}</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ── 2 · EVOLUCIÓN PREVIA (colapsable) ── -->
-  <h3 class="section collapsible" data-body="sec2">2 · Evolución Quirúrgica Previa
-    <span style="font-weight:normal;font-size:6.8pt;text-transform:none;letter-spacing:0"><button type="button" class="add-row-btn" onclick="addRow('tbl-evol-qx',4);event.stopPropagation()">+ fila</button></span>
-    <span class="toggle-icon">▾</span>
-  </h3>
-  <div id="sec2" class="sec-body collapsed">
-    <table class="clinical" id="tbl-evol-qx">
-      <thead><tr><th style="width:13%">Fecha</th><th style="width:36%">Procedimiento</th><th style="width:22%">Centro</th><th>Complicaciones</th></tr></thead>
-      <tbody>
-        <tr><td class="fillable" contenteditable="true"></td><td class="fillable" contenteditable="true"></td><td class="fillable" contenteditable="true"></td><td class="fillable" contenteditable="true"></td></tr>
-        <tr><td class="fillable" contenteditable="true"></td><td class="fillable" contenteditable="true"></td><td class="fillable" contenteditable="true"></td><td class="fillable" contenteditable="true"></td></tr>
-        <tr><td class="fillable" contenteditable="true"></td><td class="fillable" contenteditable="true"></td><td class="fillable" contenteditable="true"></td><td class="fillable" contenteditable="true"></td></tr>
-      </tbody>
-    </table>
-    <div class="row" style="margin-top:1px">
-      <span class="f">Complicaciones previas:</span>
-      <div class="chk"><span class="box"></span>Ninguna</div>
-      <div class="chk"><span class="box"></span>Dehiscencia</div>
-      <div class="chk"><span class="box"></span>Fístula</div>
-      <div class="chk"><span class="box"></span>Sangrado</div>
-      <div class="chk"><span class="box"></span>Infección</div>
-      <div class="chk"><span class="box"></span>Mala cicatrización</div>
-      <div class="chk"><span class="box"></span>C. anestésicas</div>
-      <div class="chk"><span class="box"></span>Reintervención</div>
-      <div class="chk"><span class="box"></span>Otro:&nbsp;<span class="other-line" contenteditable="true"></span></div>
-    </div>
-  </div>
-
-  <!-- ── 3 · PREANESTÉSICA (CRIT) ── -->
-  <h3 class="section crit">3 · Evaluación Preanestésica Rápida <span class="req crit">CRIT</span></h3>
-  <div class="sec-body">
-    <div class="crit-box">
-      <div class="g3">
-        <div class="gcol">
-          <div class="slbl" style="margin-top:0">Estado actual</div>
-          <div class="cv">
-            <div class="chk"><span class="box"></span>Afebril</div>
-            <div class="chk"><span class="box"></span>IRA reciente</div>
-            <div class="chk"><span class="box"></span>Tos activa</div>
-            <div class="chk"><span class="box"></span>Rinorrea</div>
-            <div class="chk"><span class="box"></span>Fiebre</div>
-            <div class="chk"><span class="box"></span>Dif. respiratoria</div>
-          </div>
-        </div>
-        <div class="gcol">
-          <div class="slbl" style="margin-top:0">Antecedentes anestésicos</div>
-          <div class="cv">
-            <div class="chk"><span class="box"></span>Sin complicaciones</div>
-            <div class="chk"><span class="box"></span>Intubación difícil</div>
-            <div class="chk"><span class="box"></span>Reacción anestésica</div>
-            <div class="chk"><span class="box"></span>Náuseas/vómitos severos</div>
-            <div class="chk"><span class="box"></span>Otro:&nbsp;<span class="other-line" contenteditable="true"></span></div>
-          </div>
-        </div>
-        <div class="gcol">
-          <div class="slbl" style="margin-top:0">Ayuno</div>
-          <div class="row"><span class="f" style="min-width:58px">Líq. claros:</span><span class="inline"><span class="val" style="min-width:26px" contenteditable="true">${fastingInfo}</span></span></div>
-          <div class="row"><span class="f" style="min-width:58px">Lactancia:</span><span class="inline"><span class="val" style="min-width:26px" contenteditable="true"></span></span></div>
-          <div class="row"><span class="f" style="min-width:58px">Fórmula:</span><span class="inline"><span class="val" style="min-width:26px" contenteditable="true"></span></span></div>
-          <div class="row"><span class="f" style="min-width:58px">Sólidos:</span><span class="inline"><span class="val" style="min-width:26px" contenteditable="true"></span></span></div>
-          <div class="slbl">ASA</div>
-          <div class="row">
-            <div class="chk"><span class="box"></span>I</div>
-            <div class="chk"><span class="box"></span>II</div>
-            <div class="chk"><span class="box"></span>III</div>
-            <div class="chk"><span class="box"></span>IV</div>
-          </div>
-          <div class="slbl">Riesgo anestésico</div>
-          <div class="row">
-            <div class="chk"><span class="box"></span>Bajo</div>
-            <div class="chk"><span class="box"></span>Moderado</div>
-            <div class="chk"><span class="box"></span>Alto</div>
-          </div>
+        <!-- Motivo quirúrgico -->
+        <div style="display:flex;flex-direction:column">
+          <h4 class="sub">Motivo quirúrgico actual</h4>
+          <div class="narrative xtall" contenteditable="true">${diagDisplay}</div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- ── 4 · NUTRICIÓN ── -->
-  <h3 class="section">4 · Evaluación Nutricional Prequirúrgica <span class="req obl">OBL</span></h3>
-  <div class="sec-body">
-    <div class="g2">
-      <div class="gcol">
-        <div class="metrics-inline">
-          <span class="m"><span class="lbl">Peso:</span><input type="number" step="0.1" min="0" class="val-input" id="peso-nut" value="${pesoVal}" oninput="calcIMC()"><span style="font-size:6.5pt">kg</span></span>
-          <span class="m"><span class="lbl">Talla:</span><input type="number" step="0.1" min="0" class="val-input" id="talla-nut" value="${tallaVal}" oninput="calcIMC()"><span style="font-size:6.5pt">cm</span></span>
-          <span class="m"><span class="lbl">IMC:</span><input type="text" class="val-input imc-auto" id="imc-nut" readonly><span style="font-size:6.5pt">kg/m²</span></span>
-          <span class="m"><span class="lbl">Percentil:</span><span class="val" contenteditable="true" style="min-width:28px"></span></span>
-          <span class="m"><span class="lbl">Z-score:</span><span class="val" contenteditable="true" style="min-width:28px"></span></span>
-        </div>
-        <div class="row" style="margin-top:1px">
-          <span class="f">Estado:</span>
-          <div class="chk"><span class="box"></span>Adecuado</div>
-          <div class="chk"><span class="box"></span>Riesgo leve</div>
-          <div class="chk"><span class="box"></span>Desnutrición mod.</div>
-          <div class="chk"><span class="box"></span>Desnutrición sev.</div>
-          <div class="chk"><span class="box"></span>Sobrepeso</div>
-          <div class="chk"><span class="box"></span>Obesidad</div>
-        </div>
+  <!-- ── 2 · EVOLUCIÓN PREVIA ── -->
+  <div class="section-card">
+    <h3 class="section">2 · Evolución Quirúrgica Previa
+      <button type="button" class="add-row-btn" onclick="addRow('tbl-evol-qx',4)">+ fila</button>
+    </h3>
+    <div class="section-body" id="sec2">
+      <table class="clinical" id="tbl-evol-qx">
+        <thead><tr><th style="width:13%">Fecha</th><th style="width:36%">Procedimiento</th><th style="width:22%">Centro</th><th>Complicaciones</th></tr></thead>
+        <tbody>
+          <tr><td class="fillable" contenteditable="true"></td><td class="fillable" contenteditable="true"></td><td class="fillable" contenteditable="true"></td><td class="fillable" contenteditable="true"></td></tr>
+          <tr><td class="fillable" contenteditable="true"></td><td class="fillable" contenteditable="true"></td><td class="fillable" contenteditable="true"></td><td class="fillable" contenteditable="true"></td></tr>
+          <tr><td class="fillable" contenteditable="true"></td><td class="fillable" contenteditable="true"></td><td class="fillable" contenteditable="true"></td><td class="fillable" contenteditable="true"></td></tr>
+        </tbody>
+      </table>
+      <div class="cl-inline" style="margin-top:3px">
+        <span class="lbl">Complicaciones previas:</span>
+        <div class="chk"><span class="box"></span>Ninguna</div>
+        <div class="chk"><span class="box"></span>Dehiscencia</div>
+        <div class="chk"><span class="box"></span>Fístula</div>
+        <div class="chk"><span class="box"></span>Sangrado</div>
+        <div class="chk"><span class="box"></span>Infección</div>
+        <div class="chk"><span class="box"></span>Mala cicatrización</div>
+        <div class="chk"><span class="box"></span>C. anestésicas</div>
+        <div class="chk"><span class="box"></span>Reintervención</div>
+        <div class="chk"><span class="box"></span>Otro:&nbsp;<span class="other-line" contenteditable="true"></span></div>
       </div>
-      <div class="gcol">
-        <div class="row">
-          <span class="f">Signos alarma:</span>
-          <div class="chk"><span class="box"></span>Palidez</div>
-          <div class="chk"><span class="box"></span>Edema</div>
-          <div class="chk"><span class="box"></span>Pérdida musc.</div>
-          <div class="chk"><span class="box"></span>Deshidratación</div>
-          <div class="chk"><span class="box"></span>Mala alimentación</div>
+    </div>
+  </div>
+
+  <!-- ── 3 · NUTRICIÓN ── -->
+  <div class="section-card">
+    <h3 class="section">3 · Evaluación Nutricional Prequirúrgica <span class="badge badge-obl">OBL</span></h3>
+    <div class="section-body">
+      <div class="two-col">
+        <div>
+          <div class="metrics-strip">
+            <div class="metric"><span class="lbl">Peso:</span><input type="number" step="0.1" min="0" class="val-input" id="peso-nut" value="${pesoVal}" oninput="calcIMC()"/><span class="unit">kg</span></div>
+            <div class="metric"><span class="lbl">Talla:</span><input type="number" step="0.1" min="0" class="val-input" id="talla-nut" value="${tallaVal}" oninput="calcIMC()"/><span class="unit">cm</span></div>
+            <div class="metric"><span class="lbl">IMC:</span><input type="text" class="val-input imc-auto" id="imc-nut" readonly/><span class="unit">kg/m²</span></div>
+          </div>
+          <div class="cl-inline" style="margin-top:3px">
+            <span class="lbl">Estado:</span>
+            <div class="chk"><span class="box"></span>Adecuado</div>
+            <div class="chk"><span class="box"></span>Riesgo leve</div>
+            <div class="chk"><span class="box"></span>Desnutrición mod.</div>
+            <div class="chk"><span class="box"></span>Desnutrición sev.</div>
+            <div class="chk"><span class="box"></span>Sobrepeso</div>
+            <div class="chk"><span class="box"></span>Obesidad</div>
+          </div>
         </div>
-        <div class="row">
-          <span class="f">Hb disponible:</span>
-          <div class="chk"><span class="box"></span>Sí</div>
-          <div class="chk"><span class="box"></span>No</div>
-          <span class="inline"><span class="lbl">Resultado:</span><span class="val" style="min-width:50px" contenteditable="true"></span></span>
-        </div>
-        <div class="row">
-          <span class="f">Apto nutricionalmente:</span>
-          <div class="chk"><span class="box"></span>Sí</div>
-          <div class="chk"><span class="box"></span>Requiere optimización</div>
-          <div class="chk"><span class="box"></span>No apto</div>
+        <div>
+          <div class="cl-inline" style="margin-bottom:3px">
+            <span class="lbl">Signos alarma:</span>
+            <div class="chk"><span class="box"></span>Palidez</div>
+            <div class="chk"><span class="box"></span>Edema</div>
+            <div class="chk"><span class="box"></span>Pérdida musc.</div>
+            <div class="chk"><span class="box"></span>Deshidratación</div>
+            <div class="chk"><span class="box"></span>Mala alimentación</div>
+          </div>
+          <div class="cl-inline" style="margin-bottom:3px">
+            <span class="lbl">Hb disponible:</span>
+            <div class="chk"><span class="box"></span>Sí</div>
+            <div class="chk"><span class="box"></span>No</div>
+            <div class="field-row" style="margin-left:6px"><span class="lbl">Resultado:</span><span class="val wide" contenteditable="true"></span></div>
+          </div>
+          <div class="cl-inline">
+            <span class="lbl">Apto nutricionalmente:</span>
+            <div class="chk"><span class="box"></span>Sí</div>
+            <div class="chk"><span class="box"></span>Requiere optimización</div>
+            <div class="chk"><span class="box"></span>No apto</div>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- ── 5 · INFECCIÓN ── -->
-  <h3 class="section">5 · Evaluación Infecciosa</h3>
-  <div class="sec-body">
-    <div class="row">
-      <span class="f">Infecciones actuales:</span>
-      <div class="chk"><span class="box"></span>Ninguna</div>
-      <div class="chk"><span class="box"></span>IRA</div>
-      <div class="chk"><span class="box"></span>Otitis</div>
-      <div class="chk"><span class="box"></span>Faringitis</div>
-      <div class="chk"><span class="box"></span>Lesiones cutáneas</div>
-      <div class="chk"><span class="box"></span>GI</div>
-      <div class="chk"><span class="box"></span>Otro:&nbsp;<span class="other-line" contenteditable="true"></span></div>
-      <span class="f" style="margin-left:10px">Antibióticos recientes:</span>
-      <div class="chk"><span class="box"></span>Sí</div>
-      <div class="chk"><span class="box"></span>No</div>
-      <span class="f" style="margin-left:10px">Vacunación al día:</span>
-      <div class="chk"><span class="box"></span>Sí</div>
-      <div class="chk"><span class="box"></span>No</div>
-      <div class="chk"><span class="box"></span>Desconoce</div>
+  <!-- ── 4 · INFECCIÓN ── -->
+  <div class="section-card">
+    <h3 class="section">4 · Evaluación Infecciosa</h3>
+    <div class="section-body">
+      <div class="cl-inline">
+        <span class="lbl">Infecciones actuales:</span>
+        <div class="chk"><span class="box"></span>Ninguna</div>
+        <div class="chk"><span class="box"></span>IRA</div>
+        <div class="chk"><span class="box"></span>Otitis</div>
+        <div class="chk"><span class="box"></span>Faringitis</div>
+        <div class="chk"><span class="box"></span>Lesiones cutáneas</div>
+        <div class="chk"><span class="box"></span>GI</div>
+        <div class="chk"><span class="box"></span>Otro:&nbsp;<span class="other-line" contenteditable="true"></span></div>
+        <span class="lbl" style="margin-left:10px">Antibióticos recientes:</span>
+        <div class="chk" id="chk-antibio-si"><span class="box"></span>Sí</div>
+        <div class="chk"><span class="box"></span>No</div>
+        <span class="lbl" style="margin-left:10px">Vacunación al día:</span>
+        <div class="chk"><span class="box"></span>Sí</div>
+        <div class="chk"><span class="box"></span>No</div>
+        <div class="chk"><span class="box"></span>Desconoce</div>
+      </div>
+      <div id="antibio-desc" style="display:none;margin-top:3px">
+        <div class="field-row"><span class="lbl">Describir antibiótico:</span><span class="val full" contenteditable="true"></span></div>
+      </div>
     </div>
   </div>
 
-  <!-- ── 6 · EVALUACIÓN FLAP ── -->
-  <h3 class="section">6 · Evaluación Específica FLAP <span class="req obl">OBL</span></h3>
-  <div class="sec-body">
-    <div class="g3">
-      <!-- LABIO + ALVÉOLO -->
-      <div class="gcol">
-        <div class="slbl" style="margin-top:0">Labio</div>
-        <div class="ch">
-          <div class="chk${cx(isUnilateral)}"><span class="box"></span>Unilateral</div>
-          <div class="chk${cx(isBilateral)}"><span class="box"></span>Bilateral</div>
-          <div class="chk${cx(isFLAP)}"><span class="box"></span>Completa</div>
-          <div class="chk${cx(!isFLAP && isUnilateral)}"><span class="box"></span>Incompleta</div>
+  <!-- ── 5 · EVALUACIÓN FLAP ── -->
+  <div class="section-card">
+    <h3 class="section">5 · Evaluación Específica FLAP <span class="badge badge-obl">OBL</span></h3>
+    <div class="section-body">
+      <div class="three-col">
+        <!-- LABIO + ALVÉOLO -->
+        <div>
+          <h4 class="sub" style="margin-top:0">Labio</h4>
+          <div class="cl-inline" style="margin-bottom:3px">
+            <div class="chk${cx(isUnilateral)}"><span class="box"></span>Unilateral</div>
+            <div class="chk${cx(isBilateral)}"><span class="box"></span>Bilateral</div>
+            <div class="chk${cx(isFLAP)}"><span class="box"></span>Completa</div>
+            <div class="chk${cx(!isFLAP && isUnilateral)}"><span class="box"></span>Incompleta</div>
+          </div>
+          <h4 class="sub">Hallazgos labio</h4>
+          <div style="display:flex;flex-direction:column;gap:1px">
+            <div class="chk"><span class="box"></span>Cicatriz hipertrófica</div>
+            <div class="chk"><span class="box"></span>Asimetría nasal</div>
+            <div class="chk"><span class="box"></span>Retracción</div>
+            <div class="chk"><span class="box"></span>Dehiscencia</div>
+            <div class="chk"><span class="box"></span>Adherencias</div>
+            <div class="chk"><span class="box"></span>Buena evolución</div>
+          </div>
+          <h4 class="sub" style="margin-top:4px">Alvéolo</h4>
+          <div class="cl-inline">
+            <div class="chk"><span class="box"></span>Comprometido</div>
+            <div class="chk"><span class="box"></span>No comprometido</div>
+          </div>
         </div>
-        <div class="slbl">Hallazgos labio</div>
-        <div class="cv">
-          <div class="chk"><span class="box"></span>Cicatriz hipertrófica</div>
-          <div class="chk"><span class="box"></span>Asimetría nasal</div>
-          <div class="chk"><span class="box"></span>Retracción</div>
-          <div class="chk"><span class="box"></span>Dehiscencia</div>
-          <div class="chk"><span class="box"></span>Adherencias</div>
-          <div class="chk"><span class="box"></span>Buena evolución</div>
+        <!-- PALADAR + NARIZ -->
+        <div>
+          <h4 class="sub" style="margin-top:0">Paladar</h4>
+          <div style="display:flex;flex-direction:column;gap:1px">
+            <div class="chk${cx(isPaladar)}"><span class="box"></span>Fisura residual</div>
+            <div class="chk"><span class="box"></span>Fístula</div>
+            <div class="chk"><span class="box"></span>Paladar corto</div>
+            <div class="chk"><span class="box"></span>Insuf. velofaríngea</div>
+            <div class="chk"><span class="box"></span>Cicatriz tensa</div>
+          </div>
+          <h4 class="sub" style="margin-top:4px">Nariz</h4>
+          <div style="display:flex;flex-direction:column;gap:1px">
+            <div class="chk"><span class="box"></span>Colapso nasal</div>
+            <div class="chk"><span class="box"></span>Asimetría</div>
+            <div class="chk"><span class="box"></span>Punta deprimida</div>
+            <div class="chk"><span class="box"></span>Desviación septal</div>
+          </div>
         </div>
-        <div class="slbl">Alvéolo</div>
-        <div class="ch">
-          <div class="chk"><span class="box"></span>Comprometido</div>
-          <div class="chk"><span class="box"></span>No comprometido</div>
-        </div>
-      </div>
-      <!-- PALADAR + NARIZ -->
-      <div class="gcol">
-        <div class="slbl" style="margin-top:0">Paladar</div>
-        <div class="cv">
-          <div class="chk${cx(isPaladar)}"><span class="box"></span>Fisura residual</div>
-          <div class="chk"><span class="box"></span>Fístula</div>
-          <div class="chk"><span class="box"></span>Paladar corto</div>
-          <div class="chk"><span class="box"></span>Insuf. velofaríngea</div>
-          <div class="chk"><span class="box"></span>Cicatriz tensa</div>
-        </div>
-        <div class="slbl">Nariz</div>
-        <div class="cv">
-          <div class="chk"><span class="box"></span>Colapso nasal</div>
-          <div class="chk"><span class="box"></span>Asimetría</div>
-          <div class="chk"><span class="box"></span>Punta deprimida</div>
-          <div class="chk"><span class="box"></span>Desviación septal</div>
-        </div>
-      </div>
-      <!-- DENTICIÓN -->
-      <div class="gcol">
-        <div class="slbl" style="margin-top:0">Dentición / Ortodoncia <span class="req opt-edad">EDAD</span></div>
-        <div class="cv">
-          <div class="chk"><span class="box"></span>Caries</div>
-          <div class="chk"><span class="box"></span>Mala higiene</div>
-          <div class="chk"><span class="box"></span>Apiñamiento</div>
-          <div class="chk"><span class="box"></span>Expansión maxilar</div>
-          <div class="chk"><span class="box"></span>Orto. en curso</div>
+        <!-- DENTICIÓN -->
+        <div>
+          <h4 class="sub" style="margin-top:0">Dentición / Ortodoncia <span class="badge badge-edad">EDAD</span></h4>
+          <div style="display:flex;flex-direction:column;gap:1px">
+            <div class="chk"><span class="box"></span>Caries</div>
+            <div class="chk"><span class="box"></span>Mala higiene</div>
+            <div class="chk"><span class="box"></span>Apiñamiento</div>
+            <div class="chk"><span class="box"></span>Expansión maxilar</div>
+            <div class="chk"><span class="box"></span>Orto. en curso</div>
+          </div>
         </div>
       </div>
     </div>
@@ -536,180 +542,162 @@ table.edu td.cell-chk .chk{justify-content:center}
     <span>Historia Clínica Quirúrgica · Centro Médico Quirúrgico MUNAY · La Paz, Bolivia</span>
     <span>Pág. 1 de 2</span>
   </div>
-</div>
 
-<!-- ═══════════════ PÁGINA 2 ═══════════════ -->
-<div class="page">
-  ${hdrBlock}
-    <div class="doc-id">
-      HC-QX&nbsp;<span contenteditable="true" style="display:inline-block;min-width:50px">${hcCode}</span>
-      &nbsp;·&nbsp;${patientName}&nbsp;·&nbsp;Hoja&nbsp;2/2
-    </div>
+  <!-- ═══════════════ PÁGINA 2 ═══════════════ -->
+  <div class="p2">
+    ${hdr('2', patientName)}
   </div>
 
-  <div class="main-title">Continuación · Examen Físico y Plan Quirúrgico</div>
-
-  <!-- ── 7 · EXAMEN FÍSICO (colapsable) ── -->
-  <h3 class="section collapsible" data-body="sec7">7 · Examen Físico Quirúrgico <span class="req obl">OBL</span> <span class="toggle-icon">▾</span></h3>
-  <div id="sec7" class="sec-body collapsed">
-    <div class="row" style="margin:1px 0">
-      <span class="f">Estado general:</span>
-      <div class="chk"><span class="box"></span>Bueno</div>
-      <div class="chk"><span class="box"></span>Regular</div>
-      <div class="chk"><span class="box"></span>Malo</div>
-      <span style="flex:1"></span>
-      <div class="metrics-inline" style="flex:none">
-        <span class="m"><span class="lbl">FC:</span><span class="val" contenteditable="true" style="min-width:26px"></span><span style="font-size:6.5pt">lpm</span></span>
-        <span class="m"><span class="lbl">FR:</span><span class="val" contenteditable="true" style="min-width:26px"></span><span style="font-size:6.5pt">rpm</span></span>
-        <span class="m"><span class="lbl">SatO₂:</span><span class="val" contenteditable="true" style="min-width:26px"></span><span style="font-size:6.5pt">%</span></span>
-        <span class="m"><span class="lbl">Temp:</span><span class="val" contenteditable="true" style="min-width:26px"></span><span style="font-size:6.5pt">°C</span></span>
-        <span class="m"><span class="lbl">PA:</span><span class="val" contenteditable="true" style="min-width:36px"></span><span style="font-size:6.5pt">mmHg</span></span>
-      </div>
-    </div>
-    <table class="clinical">
-      <thead><tr><th style="width:28%">Sistema</th><th>Hallazgos</th></tr></thead>
-      <tbody>
-        <tr><td style="font-weight:bold;font-size:7pt">Cabeza y cuello</td><td class="fillable" contenteditable="true"></td></tr>
-        <tr><td style="font-weight:bold;font-size:7pt">Cardiovascular</td><td class="fillable" contenteditable="true"></td></tr>
-        <tr><td style="font-weight:bold;font-size:7pt">Respiratorio</td><td class="fillable" contenteditable="true"></td></tr>
-        <tr><td style="font-weight:bold;font-size:7pt">Abdomen</td><td class="fillable" contenteditable="true"></td></tr>
-        <tr><td style="font-weight:bold;font-size:7pt">Genitourinario</td><td class="fillable" contenteditable="true"></td></tr>
-        <tr><td style="font-weight:bold;font-size:7pt">Extremidades</td><td class="fillable" contenteditable="true"></td></tr>
-        <tr><td style="font-weight:bold;font-size:7pt">Neurológico</td><td class="fillable" contenteditable="true"></td></tr>
-      </tbody>
-    </table>
-  </div>
-
-  <!-- ── 8 · POR EDAD (colapsable) ── -->
-  <h3 class="section collapsible" data-body="sec8">8 · Evaluación según Edad <span class="req opt-edad">EDAD</span> <span class="toggle-icon">▾</span></h3>
-  <div id="sec8" class="sec-body collapsed">
-    <div class="age-row">
-      <span class="age-label">RN / Lactantes</span>
-      <span class="f">Alimentación:</span>
-      <div class="chk" style="display:inline-flex"><span class="box"></span>L. materna</div>
-      <div class="chk" style="display:inline-flex"><span class="box"></span>Fórmula especial</div>
-      <div class="chk" style="display:inline-flex"><span class="box"></span>Dif. succión</div>
-      <div class="chk" style="display:inline-flex"><span class="box"></span>Regurg. nasal</div>
-      <span class="f" style="margin-left:8px">Peso apto para Qx:</span>
-      <div class="chk" style="display:inline-flex"><span class="box"></span>Sí</div>
-      <div class="chk" style="display:inline-flex"><span class="box"></span>No</div>
-    </div>
-    <div class="age-row">
-      <span class="age-label">Preescolar / Escolar</span>
-      <span class="f">Lenguaje:</span>
-      <div class="chk" style="display:inline-flex"><span class="box"></span>Adecuado</div>
-      <div class="chk" style="display:inline-flex"><span class="box"></span>Hipernasalidad</div>
-      <div class="chk" style="display:inline-flex"><span class="box"></span>Dif. articulatoria</div>
-      <span class="f" style="margin-left:8px">Conducta:</span>
-      <div class="chk" style="display:inline-flex"><span class="box"></span>Colaborador</div>
-      <div class="chk" style="display:inline-flex"><span class="box"></span>Ansioso</div>
-      <div class="chk" style="display:inline-flex"><span class="box"></span>Poco colaborador</div>
-    </div>
-    <div class="age-row">
-      <span class="age-label">Adolescentes</span>
-      <span class="f">Aspecto psicosocial:</span>
-      <div class="chk" style="display:inline-flex"><span class="box"></span>Buena adaptación</div>
-      <div class="chk" style="display:inline-flex"><span class="box"></span>Ansiedad estética</div>
-      <div class="chk" style="display:inline-flex"><span class="box"></span>Baja autoestima</div>
-      <div class="chk" style="display:inline-flex"><span class="box"></span>Bullying</div>
-    </div>
-  </div>
-
-  <!-- ── 9 · 10 · 11 — dos columnas ── -->
-  <div class="g2">
-    <div>
-      <h3 class="section">9 · Educación y Comprensión Familiar</h3>
-      <div class="sec-body">
-        <table class="edu">
-          <thead><tr><th class="tema">La familia comprende:</th><th>Sí</th><th>Parcial</th><th>No</th></tr></thead>
-          <tbody>
-            <tr><td class="tema">Objetivo de la cirugía</td><td class="cell-chk"><div class="chk"><span class="box"></span></div></td><td class="cell-chk"><div class="chk"><span class="box"></span></div></td><td class="cell-chk"><div class="chk"><span class="box"></span></div></td></tr>
-            <tr><td class="tema">Riesgos</td><td class="cell-chk"><div class="chk"><span class="box"></span></div></td><td class="cell-chk"><div class="chk"><span class="box"></span></div></td><td class="cell-chk"><div class="chk"><span class="box"></span></div></td></tr>
-            <tr><td class="tema">Cuidados postoperatorios</td><td class="cell-chk"><div class="chk"><span class="box"></span></div></td><td class="cell-chk"><div class="chk"><span class="box"></span></div></td><td class="cell-chk"><div class="chk"><span class="box"></span></div></td></tr>
-            <tr><td class="tema">Alimentación posterior</td><td class="cell-chk"><div class="chk"><span class="box"></span></div></td><td class="cell-chk"><div class="chk"><span class="box"></span></div></td><td class="cell-chk"><div class="chk"><span class="box"></span></div></td></tr>
-            <tr><td class="tema">Necesidad de seguimiento</td><td class="cell-chk"><div class="chk"><span class="box"></span></div></td><td class="cell-chk"><div class="chk"><span class="box"></span></div></td><td class="cell-chk"><div class="chk"><span class="box"></span></div></td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-    <div>
-      <h3 class="section">10 · Doc. Clínica &nbsp;·&nbsp; 11 · Impresión Diagnóstica <span class="req obl">OBL</span></h3>
-      <div class="sec-body">
-        <div class="row">
-          <span class="f">Adjuntos:</span>
-          <div class="chk"><span class="box"></span>Labs.</div>
-          <div class="chk"><span class="box"></span>Rx</div>
-          <div class="chk"><span class="box"></span>TC</div>
-          <div class="chk"><span class="box"></span>Audiometría</div>
-          <div class="chk"><span class="box"></span>Interconsultas</div>
+  <!-- ── 6 · EXAMEN FÍSICO ── -->
+  <div class="section-card" id="sec6">
+    <h3 class="section">6 · Examen Físico Quirúrgico <span class="badge badge-obl">OBL</span></h3>
+    <div class="section-body">
+      <div class="cl-inline" style="margin-bottom:3px">
+        <span class="lbl">Estado general:</span>
+        <div class="chk"><span class="box"></span>Bueno</div>
+        <div class="chk"><span class="box"></span>Regular</div>
+        <div class="chk"><span class="box"></span>Malo</div>
+        <div class="metrics-strip" style="margin-left:10px;flex:none">
+          <div class="metric"><span class="lbl">FC:</span><span class="val sm" contenteditable="true"></span><span class="unit">lpm</span></div>
+          <div class="metric"><span class="lbl">FR:</span><span class="val sm" contenteditable="true"></span><span class="unit">rpm</span></div>
+          <div class="metric"><span class="lbl">SatO₂:</span><span class="val sm" contenteditable="true"></span><span class="unit">%</span></div>
+          <div class="metric"><span class="lbl">Temp:</span><span class="val sm" contenteditable="true"></span><span class="unit">°C</span></div>
+          <div class="metric"><span class="lbl">PA:</span><span class="val" contenteditable="true"></span><span class="unit">mmHg</span></div>
         </div>
-        <div class="slbl">Diagnóstico principal</div>
-        <div class="narrative" contenteditable="true">${diagDisplay}</div>
-        <div class="slbl">Diagnósticos asociados</div>
-        <div class="narrative" contenteditable="true"></div>
+      </div>
+      <div class="narrative xtall" contenteditable="true"></div>
+    </div>
+  </div>
+
+  <!-- ── 7 · POR EDAD ── -->
+  <div class="section-card" id="sec7">
+    <h3 class="section">7 · Evaluación según Edad <span class="badge badge-edad">EDAD</span></h3>
+    <div class="section-body">
+      ${showRN ? `<div class="age-block">
+        <span class="age-label">RN / Lactantes</span>
+        <span class="lbl">Alimentación:</span>
+        <div class="chk"><span class="box"></span>L. materna</div>
+        <div class="chk"><span class="box"></span>Fórmula especial</div>
+        <div class="chk"><span class="box"></span>Dif. succión</div>
+        <div class="chk"><span class="box"></span>Regurg. nasal</div>
+        <span class="lbl" style="margin-left:8px">Peso apto para Qx:</span>
+        <div class="chk"><span class="box"></span>Sí</div>
+        <div class="chk"><span class="box"></span>No</div>
+      </div>` : ''}
+      ${showPreescolar ? `<div class="age-block">
+        <span class="age-label">Preescolar / Escolar</span>
+        <span class="lbl">Lenguaje:</span>
+        <div class="chk"><span class="box"></span>Adecuado</div>
+        <div class="chk"><span class="box"></span>Hipernasalidad</div>
+        <div class="chk"><span class="box"></span>Dif. articulatoria</div>
+        <span class="lbl" style="margin-left:8px">Conducta:</span>
+        <div class="chk"><span class="box"></span>Colaborador</div>
+        <div class="chk"><span class="box"></span>Ansioso</div>
+        <div class="chk"><span class="box"></span>Poco colaborador</div>
+      </div>` : ''}
+      ${showAdolescente ? `<div class="age-block">
+        <span class="age-label">Adolescentes</span>
+        <span class="lbl">Aspecto psicosocial:</span>
+        <div class="chk"><span class="box"></span>Buena adaptación</div>
+        <div class="chk"><span class="box"></span>Ansiedad estética</div>
+        <div class="chk"><span class="box"></span>Baja autoestima</div>
+        <div class="chk"><span class="box"></span>Bullying</div>
+      </div>` : ''}
+    </div>
+  </div>
+
+  <!-- ── 8 · DOC. CLÍNICA + IMPRESIÓN DIAGNÓSTICA ── -->
+  <div class="section-card">
+    <h3 class="section">8 · Doc. Clínica &nbsp;·&nbsp; Impresión Diagnóstica <span class="badge badge-obl">OBL</span></h3>
+    <div class="section-body">
+      <div class="two-col" style="gap:4px 12px">
+        <div>
+          <div class="cl-inline" style="margin-bottom:3px">
+            <span class="lbl">Adjuntos:</span>
+            <div class="chk"><span class="box"></span>Labs.</div>
+            <div class="chk"><span class="box"></span>Rx</div>
+            <div class="chk"><span class="box"></span>TC</div>
+            <div class="chk"><span class="box"></span>Audiometría</div>
+            <div class="chk"><span class="box"></span>Interconsultas</div>
+          </div>
+          <h4 class="sub">Diagnóstico principal</h4>
+          <div class="narrative" contenteditable="true">${diagDisplay}</div>
+        </div>
+        <div>
+          <h4 class="sub">Diagnósticos asociados</h4>
+          <div class="narrative tall" contenteditable="true"></div>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- ── 12 · CONDUCTA ── -->
-  <h3 class="section">12 · Conducta <span class="req obl">OBL</span></h3>
-  <div class="sec-body">
-    <div class="row">
-      <div class="chk"><span class="box"></span>Apto para cirugía</div>
-      <div class="chk"><span class="box"></span>Requiere optim. nutricional</div>
-      <div class="chk"><span class="box"></span>Requiere valoración anestésica adicional</div>
-      <div class="chk"><span class="box"></span>Reprogramar cirugía</div>
-      <div class="chk"><span class="box"></span>Suspender temporalmente</div>
+  <!-- ── 9 · CONDUCTA ── -->
+  <div class="section-card">
+    <h3 class="section">9 · Conducta <span class="badge badge-obl">OBL</span></h3>
+    <div class="section-body">
+      <div class="cl-inline">
+        <div class="chk"><span class="box"></span>Apto para cirugía</div>
+        <div class="chk"><span class="box"></span>Requiere optim. nutricional</div>
+        <div class="chk"><span class="box"></span>Requiere valoración anestésica adicional</div>
+        <div class="chk"><span class="box"></span>Reprogramar cirugía</div>
+        <div class="chk"><span class="box"></span>Suspender temporalmente</div>
+      </div>
     </div>
   </div>
 
   <!-- ── KERNAHAN ── -->
-  <h3 class="section">Anexo 1 · Clasificación de Kernahan — Esquema Anatómico FLAP</h3>
-  <div class="sec-body">
-    <div class="kernahan-container">
-      <div class="kernahan-legend left">
-        <strong>1:</strong> Fosa nasal derecha<br>
-        <strong>2.1:</strong> Labio 1/3 &nbsp;<strong>2.2:</strong> 2/3 &nbsp;<strong>2.3:</strong> 3/3<br>
-        <strong>3:</strong> Alvéolo derecho<br>
-        <strong>4:</strong> Paladar óseo ant. derecho
-      </div>
-      <svg class="kernahan-svg" viewBox="0 0 220 280" width="148" height="188" xmlns="http://www.w3.org/2000/svg">
-        <polygon class="kern-zone" data-zone="1" points="55,5 95,5 92,35 60,35"/><text class="kern-num" x="75" y="22">1</text>
-        <rect class="kern-zone" data-zone="2.1" x="60" y="35" width="32" height="28"/><text class="kern-num" x="76" y="51">2.1</text>
-        <rect class="kern-zone" data-zone="2.2" x="60" y="63" width="32" height="28"/><text class="kern-num" x="76" y="79">2.2</text>
-        <rect class="kern-zone" data-zone="2.3" x="60" y="91" width="32" height="28"/><text class="kern-num" x="76" y="107">2.3</text>
-        <polygon class="kern-zone" data-zone="3" points="60,119 92,119 90,142 70,142"/><text class="kern-num" x="76" y="132">3</text>
-        <polygon class="kern-zone" data-zone="4" points="70,142 105,142 105,165 80,165"/><text class="kern-num" x="88" y="155">4</text>
-        <polygon class="kern-zone" data-zone="5" points="125,5 165,5 160,35 128,35"/><text class="kern-num" x="145" y="22">5</text>
-        <rect class="kern-zone" data-zone="6.1" x="128" y="35" width="32" height="28"/><text class="kern-num" x="144" y="51">6.1</text>
-        <rect class="kern-zone" data-zone="6.2" x="128" y="63" width="32" height="28"/><text class="kern-num" x="144" y="79">6.2</text>
-        <rect class="kern-zone" data-zone="6.3" x="128" y="91" width="32" height="28"/><text class="kern-num" x="144" y="107">6.3</text>
-        <polygon class="kern-zone" data-zone="7" points="128,119 160,119 150,142 130,142"/><text class="kern-num" x="144" y="132">7</text>
-        <polygon class="kern-zone" data-zone="8" points="115,142 150,142 140,165 115,165"/><text class="kern-num" x="132" y="155">8</text>
-        <rect class="kern-zone" data-zone="9" x="80" y="165" width="60" height="32"/><text class="kern-num" x="110" y="183">9</text>
-        <rect class="kern-zone" data-zone="10" x="80" y="197" width="60" height="32"/><text class="kern-num" x="110" y="215">10</text>
-        <rect class="kern-zone" data-zone="11" x="80" y="229" width="60" height="32"/><text class="kern-num" x="110" y="247">11</text>
-      </svg>
-      <div class="kernahan-legend right">
-        <strong>5:</strong> Fosa nasal izquierda<br>
-        <strong>6.1:</strong> Labio 1/3 &nbsp;<strong>6.2:</strong> 2/3 &nbsp;<strong>6.3:</strong> 3/3<br>
-        <strong>7:</strong> Alvéolo izquierdo<br>
-        <strong>8:</strong> Paladar óseo ant. izquierdo
-      </div>
-      <div class="kernahan-extra">
-        <strong>9:</strong> Paladar óseo post. parcial &nbsp;·&nbsp; <strong>9+10:</strong> total &nbsp;·&nbsp; <strong>11:</strong> Paladar blando / fisura submucosa
-        <span style="display:block;margin-top:1px;font-size:5.8pt;color:var(--soft)">Haga clic en cada zona para marcar las áreas comprometidas</span>
+  <div class="section-card">
+    <h3 class="section">Anexo 1 · Clasificación de Kernahan — Esquema Anatómico FLAP</h3>
+    <div class="section-body">
+      <div class="kernahan-container">
+        <div class="kernahan-legend left">
+          <strong>1:</strong> Fosa nasal derecha<br>
+          <strong>2.1:</strong> Labio 1/3 &nbsp;<strong>2.2:</strong> 2/3 &nbsp;<strong>2.3:</strong> 3/3<br>
+          <strong>3:</strong> Alvéolo derecho<br>
+          <strong>4:</strong> Paladar óseo ant. derecho
+        </div>
+        <svg class="kernahan-svg" viewBox="0 0 220 280" width="148" height="188" xmlns="http://www.w3.org/2000/svg">
+          <polygon class="kern-zone" data-zone="1" points="55,5 95,5 92,35 60,35"/><text class="kern-num" x="75" y="22">1</text>
+          <rect class="kern-zone" data-zone="2.1" x="60" y="35" width="32" height="28"/><text class="kern-num" x="76" y="51">2.1</text>
+          <rect class="kern-zone" data-zone="2.2" x="60" y="63" width="32" height="28"/><text class="kern-num" x="76" y="79">2.2</text>
+          <rect class="kern-zone" data-zone="2.3" x="60" y="91" width="32" height="28"/><text class="kern-num" x="76" y="107">2.3</text>
+          <polygon class="kern-zone" data-zone="3" points="60,119 92,119 90,142 70,142"/><text class="kern-num" x="76" y="132">3</text>
+          <polygon class="kern-zone" data-zone="4" points="70,142 105,142 105,165 80,165"/><text class="kern-num" x="88" y="155">4</text>
+          <polygon class="kern-zone" data-zone="5" points="125,5 165,5 160,35 128,35"/><text class="kern-num" x="145" y="22">5</text>
+          <rect class="kern-zone" data-zone="6.1" x="128" y="35" width="32" height="28"/><text class="kern-num" x="144" y="51">6.1</text>
+          <rect class="kern-zone" data-zone="6.2" x="128" y="63" width="32" height="28"/><text class="kern-num" x="144" y="79">6.2</text>
+          <rect class="kern-zone" data-zone="6.3" x="128" y="91" width="32" height="28"/><text class="kern-num" x="144" y="107">6.3</text>
+          <polygon class="kern-zone" data-zone="7" points="128,119 160,119 150,142 130,142"/><text class="kern-num" x="144" y="132">7</text>
+          <polygon class="kern-zone" data-zone="8" points="115,142 150,142 140,165 115,165"/><text class="kern-num" x="132" y="155">8</text>
+          <rect class="kern-zone" data-zone="9" x="80" y="165" width="60" height="32"/><text class="kern-num" x="110" y="183">9</text>
+          <rect class="kern-zone" data-zone="10" x="80" y="197" width="60" height="32"/><text class="kern-num" x="110" y="215">10</text>
+          <rect class="kern-zone" data-zone="11" x="80" y="229" width="60" height="32"/><text class="kern-num" x="110" y="247">11</text>
+        </svg>
+        <div class="kernahan-legend right">
+          <strong>5:</strong> Fosa nasal izquierda<br>
+          <strong>6.1:</strong> Labio 1/3 &nbsp;<strong>6.2:</strong> 2/3 &nbsp;<strong>6.3:</strong> 3/3<br>
+          <strong>7:</strong> Alvéolo izquierdo<br>
+          <strong>8:</strong> Paladar óseo ant. izquierdo
+        </div>
+        <div class="kernahan-extra">
+          <strong>9:</strong> Paladar óseo post. parcial &nbsp;·&nbsp; <strong>9+10:</strong> total &nbsp;·&nbsp; <strong>11:</strong> Paladar blando / fisura submucosa
+          <span style="display:block;margin-top:1px;font-size:5.8pt;color:var(--ink-3)">Haga clic en cada zona para marcar las áreas comprometidas</span>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- ── 13 · FIRMA ── -->
-  <h3 class="section">13 · Firma y Validación</h3>
-  <div class="sec-body">
-    <div class="firma-box">
-      <div class="firma-line"></div>
-      <div class="firma-label" contenteditable="true">${surgeon}</div>
-      <div style="font-size:6.5pt;color:var(--soft);margin-top:1px">Firma y Sello del Médico &nbsp;·&nbsp; Matrícula:&nbsp;<span contenteditable="true" style="display:inline-block;min-width:26mm;border-bottom:1px solid var(--soft)"></span></div>
+  <!-- ── 10 · FIRMA ── -->
+  <div class="section-card">
+    <h3 class="section">10 · Firma y Validación</h3>
+    <div class="section-body">
+      <div class="firma-section" style="grid-template-columns:1fr;max-width:260px">
+        <div class="firma-box">
+          <div class="firma-line"></div>
+          <div class="firma-label" contenteditable="true">${surgeon}</div>
+          <div style="font-size:6.5pt;color:var(--ink-3);margin-top:2px">Firma y Sello del Médico &nbsp;·&nbsp; Matrícula:&nbsp;<span contenteditable="true" style="display:inline-block;min-width:26mm;border-bottom:1px solid var(--rule)"></span></div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -732,17 +720,16 @@ document.querySelectorAll('.chk').forEach(function(chk) {
   });
 });
 
-/* ── COLLAPSIBLE SECTIONS ── */
-document.querySelectorAll('h3.section.collapsible').forEach(function(h3) {
-  var icon = h3.querySelector('.toggle-icon');
-  h3.addEventListener('click', function(e) {
-    if (e.target.classList.contains('add-row-btn')) return;
-    var bodyEl = document.getElementById(h3.dataset.body);
-    if (!bodyEl) return;
-    bodyEl.classList.toggle('collapsed');
-    if (icon) icon.textContent = bodyEl.classList.contains('collapsed') ? '▾' : '▴';
-  });
-});
+/* ── Antibióticos recientes: mostrar descripción si Sí ── */
+(function() {
+  var antibioSi = document.getElementById('chk-antibio-si');
+  var antibioDesc = document.getElementById('antibio-desc');
+  if (antibioSi && antibioDesc) {
+    antibioSi.addEventListener('click', function() {
+      antibioDesc.style.display = antibioSi.classList.contains('checked') ? 'block' : 'none';
+    });
+  }
+})();
 
 /* ── KERNAHAN ── */
 document.querySelectorAll('.kern-zone').forEach(function(zone) {
@@ -755,17 +742,19 @@ document.querySelectorAll('.kern-zone').forEach(function(zone) {
   });
 });
 
-/* ── PRINT: expand all collapsed sections ── */
+/* ── PRINT: expand all section bodies ── */
 window.onbeforeprint = function() {
-  document.querySelectorAll('.sec-body.collapsed').forEach(function(b) {
-    b.classList.remove('collapsed');
-    b.dataset.wasCollapsed = '1';
+  document.querySelectorAll('.section-body').forEach(function(b) {
+    if (b.style.display === 'none') {
+      b.style.display = '';
+      b.dataset.wasHidden = '1';
+    }
   });
 };
 window.onafterprint = function() {
-  document.querySelectorAll('.sec-body[data-was-collapsed]').forEach(function(b) {
-    b.classList.add('collapsed');
-    delete b.dataset.wasCollapsed;
+  document.querySelectorAll('.section-body[data-was-hidden]').forEach(function(b) {
+    b.style.display = 'none';
+    delete b.dataset.wasHidden;
   });
 };
 
@@ -826,8 +815,6 @@ function resetForm() {
     var num = z.nextElementSibling;
     if (num && num.classList.contains('kern-num')) num.style.fill = '';
   });
-  document.querySelectorAll('.sec-body').forEach(function(b) { b.classList.add('collapsed'); });
-  document.querySelectorAll('h3.section.collapsible .toggle-icon').forEach(function(i) { i.textContent = '▾'; });
 }
 
 /* ── COMPACT PRINT ── */
@@ -842,27 +829,29 @@ function compactPrint() {
       if (otherTxt) txt += ' ' + otherTxt;
       if (txt) items.push({type:'check', text: txt});
     });
-    root.querySelectorAll('.inline').forEach(function(inl) {
-      var lbl = inl.querySelector('.lbl');
-      var val = inl.querySelector('[contenteditable="true"]');
+    root.querySelectorAll('.field-row').forEach(function(row) {
+      var lbl = row.querySelector('.lbl');
+      var val = row.querySelector('[contenteditable="true"]');
       if (lbl && val && val.textContent.trim()) {
         items.push({type:'field', label: lbl.textContent.replace(/:$/, '').trim(), value: val.textContent.trim()});
       }
     });
-    root.querySelectorAll('.m').forEach(function(m) {
+    root.querySelectorAll('.metric').forEach(function(m) {
       var lbl = m.querySelector('.lbl');
       var inp = m.querySelector('input.val-input');
-      if (lbl && inp && inp.value.trim()) {
-        var unitEl = inp.nextElementSibling;
-        var unit = unitEl ? ' ' + unitEl.textContent.trim() : '';
+      var ve  = m.querySelector('[contenteditable="true"]');
+      var unitEl = m.querySelector('.unit');
+      var unit = unitEl ? ' ' + unitEl.textContent.trim() : '';
+      if (lbl && inp && inp.value.trim())
         items.push({type:'field', label: lbl.textContent.replace(/:$/, '').trim(), value: inp.value + unit});
-      }
+      if (lbl && ve && ve.textContent.trim())
+        items.push({type:'field', label: lbl.textContent.replace(/:$/, '').trim(), value: ve.textContent.trim() + unit});
     });
-    if (root.classList && root.classList.contains('narrative')) {
-      var txt = root.textContent.trim();
+    root.querySelectorAll('.narrative').forEach(function(n) {
+      var txt = n.textContent.trim();
       if (txt && txt.length > 5) items.push({type:'narrative', text: txt});
-    }
-    var tbls = (root.tagName === 'TABLE') ? [root] : Array.from(root.querySelectorAll('table:not(svg table)'));
+    });
+    var tbls = Array.from(root.querySelectorAll('table:not(svg table)'));
     tbls.forEach(function(tbl) {
       if (tbl.closest('svg')) return;
       var hdrs = Array.from(tbl.querySelectorAll('thead th')).map(function(th) { return th.textContent.trim(); });
@@ -880,13 +869,15 @@ function compactPrint() {
   if (activeZones.length) {
     sections.push({title: 'Diagrama de Kernahan', items: [{type:'field', label: 'Zonas activas', value: activeZones.join(', ')}]});
   }
-  document.querySelectorAll('h3.section').forEach(function(h3) {
+  document.querySelectorAll('.section-card').forEach(function(card) {
+    var h3 = card.querySelector('h3.section');
+    if (!h3) return;
     var cl = h3.cloneNode(true);
     cl.querySelectorAll('span,button').forEach(function(s) { s.remove(); });
     var title = cl.textContent.trim();
     var items = [];
-    var node = h3.nextElementSibling;
-    while (node && node.tagName !== 'H3') { collectItems(node, items); node = node.nextElementSibling; }
+    var body = card.querySelector('.section-body') || card;
+    collectItems(body, items);
     if (items.length) sections.push({title: title, items: items});
   });
 
@@ -912,16 +903,16 @@ function compactPrint() {
   });
 
   var css = 'body{font-family:Arial,sans-serif;font-size:9pt;color:#1a1a2e;background:#f0f2f5;margin:0;padding:14px}' +
-    '.hdr{background:#1F3A5F;color:#fff;padding:8px 16px;border-radius:5px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}' +
+    '.hdr{background:#163A5F;color:#fff;padding:8px 16px;border-radius:5px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}' +
     '.hdr h1{margin:0;font-size:10.5pt;letter-spacing:.2px}.hdr p{margin:0;font-size:7.5pt;opacity:.75;white-space:nowrap}' +
-    '.tb{text-align:center;margin-bottom:10px}.tb button{background:#F4B73C;color:#1F3A5F;border:none;padding:5px 16px;font-size:9pt;font-weight:700;cursor:pointer;border-radius:3px}' +
-    '.sh{background:#1F3A5F;color:#fff;padding:3px 10px;font-size:8pt;font-weight:700;letter-spacing:.3px;border-left:4px solid #F4B73C;margin-top:9px;border-radius:0 3px 3px 0}' +
+    '.tb{text-align:center;margin-bottom:10px}.tb button{background:#B7791F;color:#fff;border:none;padding:5px 16px;font-size:9pt;font-weight:700;cursor:pointer;border-radius:3px}' +
+    '.sh{background:#163A5F;color:#fff;padding:3px 10px;font-size:8pt;font-weight:700;letter-spacing:.3px;border-left:4px solid #B7791F;margin-top:9px;border-radius:0 3px 3px 0}' +
     '.sb{padding:4px 8px 5px;background:#fff;border:1px solid #e2e4e8;border-top:none;border-radius:0 0 3px 3px}' +
     '.it{padding:2px 0;display:flex;align-items:baseline;gap:5px;border-bottom:1px solid #f3f4f6}.it:last-child{border-bottom:none}' +
-    '.ck .tk{color:#F4B73C;font-weight:900;font-size:10pt;flex-shrink:0;line-height:1}' +
-    '.fd .fl{font-size:7pt;font-weight:700;color:#1F3A5F;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap;flex-shrink:0}' +
+    '.ck .tk{color:#B7791F;font-weight:900;font-size:10pt;flex-shrink:0;line-height:1}' +
+    '.fd .fl{font-size:7pt;font-weight:700;color:#163A5F;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap;flex-shrink:0}' +
     '.fd .fv{font-family:"Courier New",monospace;font-size:9pt;color:#111;font-weight:600}' +
-    '.nv{border-left:3px solid #20b2aa;padding:2px 0 2px 8px;font-style:italic;color:#374151;font-size:8.5pt;width:100%;box-sizing:border-box}' +
+    '.nv{border-left:3px solid #2F5D8A;padding:2px 0 2px 8px;font-style:italic;color:#374151;font-size:8.5pt;width:100%;box-sizing:border-box}' +
     '.ct{width:100%;border-collapse:collapse;font-size:7.5pt;margin:3px 0}.ct th{background:#e5e7eb;font-weight:700;text-align:left;padding:2px 5px;border:1px solid #d1d5db}.ct td{padding:2px 5px;border:1px solid #e5e7eb}' +
     '@media print{body{background:#fff;padding:0}.tb{display:none}.sh{-webkit-print-color-adjust:exact;print-color-adjust:exact}}';
 
@@ -941,8 +932,7 @@ function compactPrint() {
   w.focus();
 }
 </script>
-</body>
-</html>`;
+</body></html>`;
 
   const win = window.open('', '_blank', 'width=960,height=920');
   win.document.write(html);

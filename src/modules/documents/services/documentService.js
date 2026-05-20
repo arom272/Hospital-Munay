@@ -4,6 +4,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../../firebase';
 import { deleteFile } from '../../../services/uploadService';
+import { sanitizeFirestoreData } from '../../../utils/sanitizeFirestoreData';
 
 /* ── collection references ─────────────────────────── */
 const docsCol = (patientId) =>
@@ -13,8 +14,8 @@ const docRef = (patientId, documentId) =>
   doc(db, 'patients', patientId, 'documents', documentId);
 
 /* ── CRUD ───────────────────────────────────────────── */
-export const createDocument = (patientId, data) =>
-  addDoc(docsCol(patientId), {
+export const createDocument = (patientId, data) => {
+  const payload = sanitizeFirestoreData({
     patientId,
     documentType: data.documentType ?? 'historia_clinica',
     specialty:    data.specialty    ?? 'medicina',
@@ -27,17 +28,24 @@ export const createDocument = (patientId, data) =>
       ...data.metadata,
     },
     clinicalData: data.clinicalData ?? {},
+    attachments:  data.attachments  ?? [],
     createdBy:    data.createdBy    ?? { uid: '', name: '' },
     updatedBy:    data.updatedBy    ?? { uid: '', name: '' },
-    createdAt:    serverTimestamp(),
-    updatedAt:    serverTimestamp(),
   });
-
-export const updateDocument = (patientId, documentId, data) =>
-  updateDoc(docRef(patientId, documentId), {
-    ...data,
+  return addDoc(docsCol(patientId), {
+    ...payload,
+    createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
+};
+
+export const updateDocument = (patientId, documentId, data) => {
+  const safe = sanitizeFirestoreData(data);
+  return updateDoc(docRef(patientId, documentId), {
+    ...safe,
+    updatedAt: serverTimestamp(),
+  });
+};
 
 export const getDocument = async (patientId, documentId) => {
   const snap = await getDoc(docRef(patientId, documentId));
