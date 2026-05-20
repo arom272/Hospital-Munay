@@ -70,7 +70,7 @@ export default defineConfig({
       output: {
         manualChunks: {
           'react-vendor':    ['react', 'react-dom', 'react-router-dom'],
-          'firebase-vendor': ['firebase/app', 'firebase/auth', 'firebase/firestore'],
+          'firebase-vendor': ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/storage'],
           'calendar-vendor': ['@fullcalendar/react', '@fullcalendar/daygrid', '@fullcalendar/timegrid', '@fullcalendar/interaction', '@fullcalendar/list'],
           'pdf-vendor':      ['jspdf', 'jspdf-autotable'],
           'ui-vendor':       ['lucide-react', 'react-hot-toast', 'zustand'],

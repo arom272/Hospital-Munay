@@ -1,0 +1,48 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isValidFileType() {
+      return request.resource.contentType.matches('application/pdf') ||
+             request.resource.contentType.matches('image/jpeg')      ||
+             request.resource.contentType.matches('image/png')       ||
+             request.resource.contentType.matches('image/webp');
+    }
+
+    function isUnderSizeLimit() {
+      // 10 MB
+      return request.resource.size <= 10 * 1024 * 1024;
+    }
+
+    // ── Patient clinical files ────────────────────────────────────────────────
+    // Structure: patients/{patientId}/{category}/{filename}
+    match /patients/{patientId}/{category}/{filename} {
+      // Any authenticated user can read (download) clinical files
+      allow read: if isAuthenticated();
+
+      // Upload: authenticated + valid type + within size limit
+      allow create: if isAuthenticated()
+                    && isValidFileType()
+                    && isUnderSizeLimit();
+
+      // Replace existing file: same constraints as create
+      allow update: if isAuthenticated()
+                    && isValidFileType()
+                    && isUnderSizeLimit();
+
+      // Delete: authenticated users only (role enforcement handled in the app layer)
+      allow delete: if isAuthenticated();
+    }
+
+    // ── Deny everything else ─────────────────────────────────────────────────
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

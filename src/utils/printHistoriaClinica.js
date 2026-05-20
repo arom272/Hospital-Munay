@@ -157,7 +157,7 @@ table.edu td.cell-chk .chk{justify-content:center}
 <div class="toolbar">
   <span>Historia Clínica Integral · Centro Médico Quirúrgico MUNAY</span>
   <button onclick="window.print()">Imprimir / Guardar PDF</button>
-  <button onclick="compactPrint()" style="background:#4a6fa5">Vista compacta</button>
+  <button id="btn-guardar" onclick="saveToFirestore(this)" style="background:#16a34a">💾 Guardar en sistema</button>
   <button onclick="resetForm()">Limpiar</button>
 </div>
 
@@ -609,6 +609,7 @@ table.edu td.cell-chk .chk{justify-content:center}
   var DIAG = ${JSON.stringify(diagUp)};
   var PATIENT_NAME = ${JSON.stringify(patientName)};
   var HC_CODE = ${JSON.stringify(hcCode)};
+  var PATIENT_ID = ${JSON.stringify(patient?.id || '')};
 
   document.querySelectorAll('.chk').forEach(function(chk) {
     chk.addEventListener('click', function(e) {
@@ -660,36 +661,35 @@ table.edu td.cell-chk .chk{justify-content:center}
     document.getElementById('cesarea-motivo-parto').style.display = 'none';
   }
 
-  function compactPrint() {
-    function collectItems(root, items) {
+  function collectFormData() {
+    function gatherItems(root, items) {
       root.querySelectorAll('.chk.checked').forEach(function(chk) {
         var cl = chk.cloneNode(true);
-        var other = cl.querySelector('.other-line');
-        var otherTxt = other ? other.textContent.trim() : '';
+        var otherEl = cl.querySelector('.other-line');
+        var otherTxt = otherEl ? otherEl.textContent.trim() : '';
         cl.querySelectorAll('.box,.other-line').forEach(function(s) { s.remove(); });
         var txt = cl.textContent.trim();
-        if (otherTxt) txt += ' ' + otherTxt;
-        if (txt) items.push({type:'check', text: txt});
+        if (otherTxt) txt += ' – ' + otherTxt;
+        if (txt) items.push({ tipo: 'check', texto: txt });
       });
       root.querySelectorAll('.inline').forEach(function(inl) {
         var lbl = inl.querySelector('.lbl');
         var val = inl.querySelector('[contenteditable="true"]');
-        if (lbl && val && val.textContent.trim()) {
-          items.push({type:'field', label: lbl.textContent.replace(/:$/, '').trim(), value: val.textContent.trim()});
-        }
+        if (lbl && val && val.textContent.trim())
+          items.push({ tipo: 'campo', etiqueta: lbl.textContent.replace(/:$/, '').trim(), valor: val.textContent.trim() });
       });
       root.querySelectorAll('.m').forEach(function(m) {
         var lbl = m.querySelector('.lbl');
         var inp = m.querySelector('input.val-input');
         if (lbl && inp && inp.value.trim()) {
-          var unitEl = inp.nextElementSibling;
-          var unit = unitEl ? ' ' + unitEl.textContent.trim() : '';
-          items.push({type:'field', label: lbl.textContent.replace(/:$/, '').trim(), value: inp.value + unit});
+          var unit = inp.nextElementSibling ? ' ' + inp.nextElementSibling.textContent.trim() : '';
+          items.push({ tipo: 'campo', etiqueta: lbl.textContent.replace(/:$/, '').trim(), valor: inp.value + unit });
         }
       });
       if (root.classList && root.classList.contains('narrative')) {
         var txt = root.textContent.trim();
-        if (txt && txt.indexOf('relato de la madre') === -1) items.push({type:'narrative', text: txt});
+        if (txt && txt.indexOf('relato de la madre') === -1)
+          items.push({ tipo: 'narrativa', texto: txt });
       }
       var tbls = (root.tagName === 'TABLE') ? [root] : Array.from(root.querySelectorAll('table'));
       tbls.forEach(function(tbl) {
@@ -699,75 +699,43 @@ table.edu td.cell-chk .chk{justify-content:center}
           var cells = Array.from(tr.querySelectorAll('td')).map(function(td) { return td.textContent.trim(); });
           if (cells.some(function(c) { return c; })) rows.push(cells);
         });
-        if (rows.length) items.push({type:'table', headers: hdrs, rows: rows});
+        if (rows.length) items.push({ tipo: 'tabla', encabezados: hdrs, filas: rows });
       });
     }
 
-    var sections = [];
+    var data = {};
     document.querySelectorAll('h3.section').forEach(function(h3) {
       var cl = h3.cloneNode(true);
       cl.querySelectorAll('span').forEach(function(s) { s.remove(); });
       var title = cl.textContent.trim();
       var items = [];
       var node = h3.nextElementSibling;
-      while (node && node.tagName !== 'H3') { collectItems(node, items); node = node.nextElementSibling; }
-      if (items.length) sections.push({title: title, items: items});
+      while (node && node.tagName !== 'H3') { gatherItems(node, items); node = node.nextElementSibling; }
+      if (items.length) data[title] = items;
     });
+    return data;
+  }
 
-    if (!sections.length) { alert('No hay datos positivos registrados.'); return; }
-
-    var body = '';
-    sections.forEach(function(sec) {
-      body += '<div class="sh">' + sec.title + '</div><div class="sb">';
-      sec.items.forEach(function(it) {
-        if (it.type === 'check') {
-          body += '<div class="it ck"><span class="tk">&#10003;</span><span>' + it.text + '</span></div>';
-        } else if (it.type === 'field') {
-          body += '<div class="it fd"><span class="fl">' + it.label + '</span><span class="fv">' + it.value + '</span></div>';
-        } else if (it.type === 'narrative') {
-          body += '<div class="it nv">' + it.text + '</div>';
-        } else if (it.type === 'table') {
-          body += '<table class="ct"><thead><tr>' + it.headers.map(function(h) { return '<th>' + h + '</th>'; }).join('') + '</tr></thead><tbody>';
-          it.rows.forEach(function(r) { body += '<tr>' + r.map(function(c) { return '<td>' + c + '</td>'; }).join('') + '</tr>'; });
-          body += '</tbody></table>';
-        }
-      });
-      body += '</div>';
-    });
-
-    var css = 'body{font-family:Arial,sans-serif;font-size:9pt;color:#1a1a2e;background:#f0f2f5;margin:0;padding:14px}' +
-      '.hdr{background:#1a1a2e;color:#fff;padding:8px 16px;border-radius:5px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}' +
-      '.hdr h1{margin:0;font-size:10.5pt;letter-spacing:.2px}' +
-      '.hdr p{margin:0;font-size:7.5pt;opacity:.75;white-space:nowrap}' +
-      '.tb{text-align:center;margin-bottom:10px}' +
-      '.tb button{background:#e8a317;color:#fff;border:none;padding:5px 16px;font-size:9pt;font-weight:700;cursor:pointer;border-radius:3px}' +
-      '.sh{background:#1a1a2e;color:#fff;padding:3px 10px;font-size:8pt;font-weight:700;letter-spacing:.3px;border-left:4px solid #e8a317;margin-top:9px;border-radius:0 3px 3px 0}' +
-      '.sb{padding:4px 8px 5px;background:#fff;border:1px solid #e2e4e8;border-top:none;border-radius:0 0 3px 3px}' +
-      '.it{padding:2px 0;display:flex;align-items:baseline;gap:5px;border-bottom:1px solid #f3f4f6}' +
-      '.it:last-child{border-bottom:none}' +
-      '.ck .tk{color:#e8a317;font-weight:900;font-size:10pt;flex-shrink:0;line-height:1}' +
-      '.fd .fl{font-size:7pt;font-weight:700;color:#4a6fa5;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap;flex-shrink:0}' +
-      '.fd .fv{font-family:"Courier New",monospace;font-size:9pt;color:#111;font-weight:600}' +
-      '.nv{border-left:3px solid #20b2aa;padding:2px 0 2px 8px;font-style:italic;color:#374151;font-size:8.5pt;width:100%;box-sizing:border-box}' +
-      '.ct{width:100%;border-collapse:collapse;font-size:7.5pt;margin:3px 0}' +
-      '.ct th{background:#e5e7eb;font-weight:700;text-align:left;padding:2px 5px;border:1px solid #d1d5db}' +
-      '.ct td{padding:2px 5px;border:1px solid #e5e7eb}' +
-      '@media print{body{background:#fff;padding:0}.tb{display:none}.sh{-webkit-print-color-adjust:exact;print-color-adjust:exact}}';
-
-    var pName = (typeof PATIENT_NAME !== 'undefined') ? PATIENT_NAME : '';
-    var pCode = (typeof HC_CODE !== 'undefined') ? HC_CODE : '';
-    var dateStr = new Date().toLocaleDateString('es-BO');
-    var title = 'Historia Cl&#237;nica Integral &#8212; Vista Compacta' + (pName ? ' &middot; ' + pName : '') + (pCode ? ' (' + pCode + ')' : '');
-
-    var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>HC Compacta</title><style>' + css + '</style></head><body>' +
-      '<div class="hdr"><h1>' + title + '</h1><p>MUNAY &middot; ' + dateStr + '</p></div>' +
-      '<div class="tb"><button onclick="window.print()">Imprimir / Guardar PDF</button></div>' +
-      body + '</body></html>';
-
-    var w = window.open('', '_blank', 'width=900,height=850');
-    w.document.write(html);
-    w.document.close();
-    w.focus();
+  function saveToFirestore(btn) {
+    var formData = collectFormData();
+    if (!Object.keys(formData).length) {
+      alert('No hay datos registrados para guardar. Complete al menos un campo del formulario.');
+      return;
+    }
+    if (!window.opener || window.opener.closed) {
+      alert('La ventana principal ya no está disponible. Imprima el formulario para conservarlo.');
+      return;
+    }
+    window.opener.postMessage({
+      type:         'MUNAY_SAVE_HC',
+      patientId:    PATIENT_ID,
+      patientName:  PATIENT_NAME,
+      clinicalData: formData,
+      savedAt:      new Date().toISOString(),
+    }, '*');
+    btn.textContent = '✓ Guardado';
+    btn.style.background = '#15803d';
+    btn.disabled = true;
   }
 </script>
 </body></html>`;

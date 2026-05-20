@@ -69,6 +69,29 @@ export default function PatientsPage() {
     return () => { u1(); u2(); u3(); };
   }, []);
 
+  /* ── Historia Clínica: recibe datos guardados desde la ventana de impresión ── */
+  useEffect(() => {
+    const handleMessage = async (e) => {
+      if (e.data?.type !== 'MUNAY_SAVE_HC') return;
+      const { patientId, clinicalData } = e.data;
+      if (!patientId || !clinicalData) return;
+      try {
+        await saveDocumentSnapshot({
+          patientId,
+          documentType: 'historia_clinica',
+          specialty:    'Medicina',
+          clinicalData,
+          user,
+        });
+        toast.success('Historia clínica guardada en el sistema');
+      } catch (err) {
+        toast.error('Error al guardar historia clínica: ' + err.message);
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [user]);
+
   const filtered = useMemo(() => {
     let list = patients;
     if (filter !== 'all') {

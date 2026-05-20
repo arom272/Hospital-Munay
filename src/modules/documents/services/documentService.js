@@ -1,8 +1,9 @@
 import {
   collection, doc, addDoc, updateDoc, deleteDoc,
-  getDoc, query, orderBy, serverTimestamp, onSnapshot,
+  getDoc, query, orderBy, serverTimestamp, onSnapshot, arrayUnion,
 } from 'firebase/firestore';
 import { db } from '../../../firebase';
+import { deleteFile } from '../../../services/uploadService';
 
 /* ── collection references ─────────────────────────── */
 const docsCol = (patientId) =>
@@ -52,4 +53,29 @@ export const subscribePatientDocuments = (patientId, callback) => {
   return onSnapshot(q, (snap) =>
     callback(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
   );
+};
+
+/* ── Attachment management ──────────────────────────── */
+
+/**
+ * Appends a file attachment record to a clinical document's attachments array.
+ * The record must be the object returned by buildAttachmentRecord() from uploadService.
+ */
+export const attachFileToDocument = (patientId, documentId, attachmentRecord) =>
+  updateDoc(docRef(patientId, documentId), {
+    attachments: arrayUnion(attachmentRecord),
+    updatedAt:   serverTimestamp(),
+  });
+
+/**
+ * Removes one attachment from a document's array and deletes the file from Storage.
+ * Filters by storagePath since arrayRemove needs an exact match.
+ */
+export const removeFileFromDocument = async (patientId, documentId, attachmentRecord, currentAttachments) => {
+  const next = (currentAttachments ?? []).filter(a => a.storagePath !== attachmentRecord.storagePath);
+  await updateDoc(docRef(patientId, documentId), {
+    attachments: next,
+    updatedAt:   serverTimestamp(),
+  });
+  await deleteFile(attachmentRecord.storagePath);
 };
