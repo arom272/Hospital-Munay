@@ -134,6 +134,8 @@ html, body { background: var(--bg); font-family: 'Inter', 'Segoe UI', 'Helvetica
 .toolbar-brand span { font-weight: 400; color: var(--ink-2); font-size: 8.5pt; }
 .toolbar button { border: none; padding: 5px 13px; font-family: inherit; font-size: 8.5pt; font-weight: 600; cursor: pointer; border-radius: 5px; transition: opacity .15s; }
 .btn-print { background: var(--navy); color: #fff; }
+.btn-save { background: #276749; color: #fff; }
+.btn-save:disabled { background: #888; cursor: not-allowed; }
 .btn-clear { background: transparent; color: var(--ink-2); border: 1px solid var(--rule) !important; }
 
 /* ── Page Header ── */
@@ -267,11 +269,11 @@ table.edu td.cell-chk .chk { justify-content: center; }
 .footer { margin-top: 6px; padding-top: 4px; border-top: 1px solid var(--rule-light); font-size: 6.5pt; color: var(--ink-3); display: flex; justify-content: space-between; font-style: italic; }
 
 /* ── Print ── */
-@page { size: letter; margin: 8mm 9mm 7mm; }
+@page { size: letter; margin: 5mm 7mm; }
 @media print {
   html, body { background: #fff !important; margin: 0 !important; padding: 0 !important; }
   .toolbar { display: none !important; }
-  .doc { box-shadow: none !important; margin: 0 !important; padding: 0 !important; width: 100% !important; min-height: 0 !important; }
+  .doc { box-shadow: none !important; margin: 0 !important; padding: 5mm 7mm !important; width: 100% !important; min-height: 0 !important; }
   .p2 { page-break-before: always !important; break-before: page !important; border-top: none !important; margin-top: 0 !important; padding-top: 0 !important; }
   .section-card { break-inside: avoid; page-break-inside: avoid; }
   .narrative.xtall { min-height: 18px !important; }
@@ -280,10 +282,46 @@ table.edu td.cell-chk .chk { justify-content: center; }
   .kern-zone.active { fill: var(--navy) !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
   [contenteditable="true"]:focus { background: transparent !important; }
 }
-</style></head><body>
+
+/* ── PDF capture mode ── */
+body.pdf-mode .toolbar { display: none !important; }
+body.pdf-mode { font-size: 7.8pt !important; }
+body.pdf-mode .doc { box-shadow: none !important; margin: 0 auto !important; padding: 5mm 7mm !important; width: 215.9mm !important; min-height: 0 !important; }
+body.pdf-mode .p2 { border-top: none !important; margin-top: 0 !important; padding-top: 0 !important; }
+body.pdf-mode .section-card { margin: 2px 0 !important; }
+body.pdf-mode .section-card + .section-card { margin-top: 2px !important; }
+body.pdf-mode .section-body { padding: 3px 8px !important; }
+body.pdf-mode h3.section { padding: 3px 10px 3px 12px !important; font-size: 7pt !important; }
+body.pdf-mode h4.sub { margin: 2px 0 1px !important; font-size: 7pt !important; }
+body.pdf-mode .page-hdr { padding: 5px 10px !important; margin-bottom: 4px !important; }
+body.pdf-mode .hdr-logo img { height: 32px !important; }
+body.pdf-mode .hdr-center .inst-name { font-size: 11pt !important; }
+body.pdf-mode .metrics-strip { padding: 2px 6px !important; margin: 1px 0 !important; gap: 2px 10px !important; }
+body.pdf-mode .age-block { padding: 1px 6px !important; margin: 1px 0 !important; }
+body.pdf-mode .fg-3, body.pdf-mode .fg-2, body.pdf-mode .fg-4, body.pdf-mode .fg-5 { gap: 2px 6px !important; }
+body.pdf-mode .two-col, body.pdf-mode .three-col, body.pdf-mode .three-col-asym { gap: 3px 10px !important; }
+body.pdf-mode .cl-inline { gap: 1px 8px !important; }
+body.pdf-mode .checklist { gap: 1px 6px !important; }
+body.pdf-mode .chk { padding: 0 !important; font-size: 7.3pt !important; }
+body.pdf-mode .field-row { gap: 3px !important; }
+body.pdf-mode .narrative.xtall { min-height: 14px !important; }
+body.pdf-mode .narrative.tall  { min-height: 11px !important; }
+body.pdf-mode .narrative       { min-height: 8px !important; padding: 2px 5px !important; }
+body.pdf-mode .firma-section { margin-top: 4px !important; }
+body.pdf-mode .firma-line { min-height: 22px !important; }
+body.pdf-mode .add-row-btn { display: none !important; }
+body.pdf-mode .footer { margin-top: 3px !important; padding-top: 2px !important; font-size: 6pt !important; }
+body.pdf-mode table.clinical { font-size: 7pt !important; }
+body.pdf-mode table.clinical td, body.pdf-mode table.clinical th { padding: 2px 5px !important; }
+body.pdf-mode .kernahan-container { padding: 2px !important; }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head><body>
 
 <div class="toolbar">
   <div class="toolbar-brand">MUNAY <span>· Historia Clínica Quirúrgica</span></div>
+  <button class="btn-save" onclick="guardarEnSistema(this)">&#128190; Guardar en sistema</button>
   <button class="btn-print" onclick="window.print()">🖨 Imprimir / PDF</button>
   <button class="btn-clear" onclick="resetForm()">✕ Limpiar</button>
 </div>
@@ -325,7 +363,7 @@ table.edu td.cell-chk .chk { justify-content: center; }
   <div class="section-card">
     <h3 class="section">1 · Cirugía Actual <span class="badge badge-obl">OBL</span></h3>
     <div class="section-body">
-      <div class="three-col-asym">
+      <div class="three-col">
         <!-- Procedimiento programado -->
         <div>
           <h4 class="sub">Procedimiento programado</h4>
@@ -347,7 +385,7 @@ table.edu td.cell-chk .chk { justify-content: center; }
           </div>
           <div class="chk" style="margin-top:3px"><span class="box"></span>Otro:&nbsp;<span class="other-line" contenteditable="true">${otroSurg}</span></div>
         </div>
-        <!-- Lado + Tipo -->
+        <!-- Lado afectado -->
         <div>
           <h4 class="sub">Lado afectado</h4>
           <div style="display:flex;flex-direction:column;gap:1px">
@@ -356,18 +394,16 @@ table.edu td.cell-chk .chk { justify-content: center; }
             <div class="chk${cx(isBilateral)}"><span class="box"></span>Bilateral</div>
             <div class="chk${cx(!isUnilateral && !isBilateral)}"><span class="box"></span>No aplica</div>
           </div>
-          <h4 class="sub" style="margin-top:4px">Tipo de cirugía</h4>
+        </div>
+        <!-- Tipo de cirugía -->
+        <div>
+          <h4 class="sub">Tipo de cirugía</h4>
           <div style="display:flex;flex-direction:column;gap:1px">
             <div class="chk${cx(isQueilPrim || (isPalatQx && !isQueilSec))}"><span class="box"></span>Primaria</div>
             <div class="chk${cx(isQueilSec)}"><span class="box"></span>Secundaria</div>
             <div class="chk"><span class="box"></span>Reconstructiva</div>
             <div class="chk"><span class="box"></span>Correctiva</div>
           </div>
-        </div>
-        <!-- Motivo quirúrgico -->
-        <div style="display:flex;flex-direction:column">
-          <h4 class="sub">Motivo quirúrgico actual</h4>
-          <div class="narrative xtall" contenteditable="true">${diagDisplay}</div>
         </div>
       </div>
     </div>
@@ -710,6 +746,62 @@ table.edu td.cell-chk .chk { justify-content: center; }
 <script>
 var PATIENT_NAME = ${JSON.stringify(patientName)};
 var HC_CODE = ${JSON.stringify(hcCode)};
+var SURGERY_ID = '${surgery?.id ?? ''}';
+var PATIENT_ID = '${surgery?.patientId ?? ''}';
+
+/* ── SAVE TO SYSTEM ── */
+async function guardarEnSistema(btn) {
+  if (!window.opener || window.opener.closed) {
+    alert('La ventana principal ya no está disponible. Imprima el formulario para conservarlo.');
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = '⏳ Generando PDF...';
+  try {
+    document.body.classList.add('pdf-mode');
+    await new Promise(function(r) { requestAnimationFrame(function() { setTimeout(r, 80); }); });
+    var SCALE = 1.5;
+    var docEl = document.querySelector('.doc');
+    var p2El  = docEl.querySelector('.p2');
+    var canvas = await html2canvas(docEl, {
+      scale: SCALE, useCORS: true, allowTaint: true, backgroundColor: '#ffffff', logging: false,
+    });
+    var docRect = docEl.getBoundingClientRect();
+    var splitPx = p2El
+      ? Math.round((p2El.getBoundingClientRect().top - docRect.top) * SCALE)
+      : Math.round(canvas.height / 2);
+    splitPx = Math.max(10, Math.min(splitPx, canvas.height - 10));
+    var PDF    = window.jspdf.jsPDF;
+    var pdfDoc = new PDF({ unit: 'mm', format: 'letter', orientation: 'portrait' });
+    var pW     = pdfDoc.internal.pageSize.getWidth();
+    function makeSlice(startPx, endPx) {
+      var h   = endPx - startPx;
+      var tmp = document.createElement('canvas');
+      tmp.width  = canvas.width;
+      tmp.height = h;
+      tmp.getContext('2d').drawImage(canvas, 0, startPx, canvas.width, h, 0, 0, canvas.width, h);
+      return { dataUrl: tmp.toDataURL('image/jpeg', 0.92), h: h };
+    }
+    var p1 = makeSlice(0, splitPx);
+    pdfDoc.addImage(p1.dataUrl, 'JPEG', 0, 0, pW, pW * (p1.h / canvas.width), '', 'FAST');
+    pdfDoc.addPage();
+    var p2 = makeSlice(splitPx, canvas.height);
+    pdfDoc.addImage(p2.dataUrl, 'JPEG', 0, 0, pW, pW * (p2.h / canvas.width), '', 'FAST');
+    window.opener.postMessage({
+      type: 'MUNAY_SAVE_SURGERY_DOC', docType: 'historia_quirurgica',
+      surgeryId: SURGERY_ID, patientId: PATIENT_ID, savedAt: new Date().toISOString(),
+      pdfBase64: pdfDoc.output('datauristring'),
+    }, '*');
+    btn.textContent = '✓ Guardado';
+    btn.style.background = '#276749';
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = '💾 Guardar en sistema';
+    alert('Error al generar el PDF: ' + (err.message || String(err)));
+  } finally {
+    document.body.classList.remove('pdf-mode');
+  }
+}
 
 /* ── CHECKBOXES ── */
 document.querySelectorAll('.chk').forEach(function(chk) {
@@ -930,6 +1022,7 @@ function compactPrint() {
   w.document.write(html);
   w.document.close();
   w.focus();
+
 }
 </script>
 </body></html>`;

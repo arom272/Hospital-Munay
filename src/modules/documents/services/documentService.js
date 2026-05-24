@@ -29,6 +29,11 @@ export const createDocument = (patientId, data) => {
     },
     clinicalData: data.clinicalData ?? {},
     attachments:  data.attachments  ?? [],
+    pdf:          data.pdf          ?? null,
+    // relaciones con otros módulos
+    surgeryId:    data.surgeryId    ?? null,
+    therapyId:    data.therapyId    ?? null,
+    eventDate:    data.eventDate    ?? null,
     createdBy:    data.createdBy    ?? { uid: '', name: '' },
     updatedBy:    data.updatedBy    ?? { uid: '', name: '' },
   });

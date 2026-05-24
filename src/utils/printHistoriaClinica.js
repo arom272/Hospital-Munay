@@ -249,11 +249,10 @@ table.edu td.cell-chk .chk { justify-content: center; }
 .footer { margin-top: 6px; padding-top: 4px; border-top: 1px solid var(--rule-light); font-size: 6.5pt; color: var(--ink-3); display: flex; justify-content: space-between; font-style: italic; }
 
 /* ── Print ── */
-@page { size: letter; margin: 8mm 9mm 7mm; }
+@page { size: letter; margin: 5mm 7mm; }
 @media print {
-  html, body { background: #fff !important; margin: 0 !important; padding: 0 !important; }
+  html, body { background: #fff !important; margin: 0 !important; padding: 0 !important; font-size: 7.8pt !important; }
   .toolbar { display: none !important; }
-  /* Single wrapper: no fixed height, let content flow naturally */
   .doc {
     box-shadow: none !important;
     margin: 0 !important;
@@ -261,7 +260,6 @@ table.edu td.cell-chk .chk { justify-content: center; }
     width: 100% !important;
     min-height: 0 !important;
   }
-  /* Page 2 marker: force physical page break, hide visual separator */
   .p2 {
     page-break-before: always !important;
     break-before: page !important;
@@ -269,16 +267,68 @@ table.edu td.cell-chk .chk { justify-content: center; }
     margin-top: 0 !important;
     padding-top: 0 !important;
   }
-  .section-card { break-inside: avoid; page-break-inside: avoid; }
-  .narrative.xtall { min-height: 18px !important; }
-  .narrative.tall  { min-height: 14px !important; }
-  .narrative       { min-height: 10px !important; }
+  .section-card { break-inside: avoid; page-break-inside: avoid; margin: 2px 0 !important; }
+  .section-card + .section-card { margin-top: 2px !important; }
+  .section-body { padding: 3px 8px !important; }
+  h3.section { padding: 3px 10px 3px 12px !important; font-size: 7pt !important; }
+  h4.sub { margin: 2px 0 1px !important; font-size: 7pt !important; }
+  .page-hdr { padding: 5px 10px !important; margin-bottom: 4px !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  .hdr-logo img { height: 32px !important; }
+  .hdr-center .inst-name { font-size: 11pt !important; }
+  .metrics-strip { padding: 2px 6px !important; margin: 1px 0 !important; gap: 2px 10px !important; }
+  .age-block { padding: 1px 6px !important; margin: 1px 0 !important; }
+  .fg-3, .fg-2, .fg-4 { gap: 2px 6px !important; }
+  .two-col, .two-col-3-2 { gap: 3px 10px !important; }
+  .cl-inline { gap: 1px 8px !important; }
+  .checklist { gap: 1px 6px !important; }
+  .chk { padding: 0 !important; font-size: 7.3pt !important; }
+  .field-row { gap: 3px !important; }
+  .narrative.xtall { min-height: 14px !important; }
+  .narrative.tall  { min-height: 11px !important; }
+  .narrative       { min-height: 8px !important; padding: 2px 5px !important; }
+  .firma-section { margin-top: 4px !important; }
+  .firma-line { min-height: 22px !important; }
   [contenteditable="true"]:focus { background: transparent !important; }
   .add-row-btn { display: none !important; }
-  .page-hdr { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-  .footer { margin-top: 4px !important; }
+  .footer { margin-top: 3px !important; padding-top: 2px !important; font-size: 6pt !important; }
+  table.clinical { font-size: 7pt !important; }
+  table.clinical td, table.clinical th { padding: 2px 5px !important; }
 }
-</style></head><body>
+
+/* ── PDF capture mode (toggled by JS via body class) ── */
+body.pdf-mode .toolbar { display: none !important; }
+body.pdf-mode { font-size: 7.8pt !important; }
+body.pdf-mode .doc { box-shadow: none !important; margin: 0 auto !important; padding: 5mm 7mm !important; width: 215.9mm !important; min-height: 0 !important; }
+body.pdf-mode .p2 { border-top: none !important; margin-top: 0 !important; padding-top: 0 !important; }
+body.pdf-mode .section-card { margin: 2px 0 !important; }
+body.pdf-mode .section-card + .section-card { margin-top: 2px !important; }
+body.pdf-mode .section-body { padding: 3px 8px !important; }
+body.pdf-mode h3.section { padding: 3px 10px 3px 12px !important; font-size: 7pt !important; }
+body.pdf-mode h4.sub { margin: 2px 0 1px !important; font-size: 7pt !important; }
+body.pdf-mode .page-hdr { padding: 5px 10px !important; margin-bottom: 4px !important; }
+body.pdf-mode .hdr-logo img { height: 32px !important; }
+body.pdf-mode .hdr-center .inst-name { font-size: 11pt !important; }
+body.pdf-mode .metrics-strip { padding: 2px 6px !important; margin: 1px 0 !important; gap: 2px 10px !important; }
+body.pdf-mode .age-block { padding: 1px 6px !important; margin: 1px 0 !important; }
+body.pdf-mode .fg-3, body.pdf-mode .fg-2, body.pdf-mode .fg-4 { gap: 2px 6px !important; }
+body.pdf-mode .two-col, body.pdf-mode .two-col-3-2 { gap: 3px 10px !important; }
+body.pdf-mode .cl-inline { gap: 1px 8px !important; }
+body.pdf-mode .checklist { gap: 1px 6px !important; }
+body.pdf-mode .chk { padding: 0 !important; font-size: 7.3pt !important; }
+body.pdf-mode .field-row { gap: 3px !important; }
+body.pdf-mode .narrative.xtall { min-height: 14px !important; }
+body.pdf-mode .narrative.tall  { min-height: 11px !important; }
+body.pdf-mode .narrative       { min-height: 8px !important; padding: 2px 5px !important; }
+body.pdf-mode .firma-section { margin-top: 4px !important; }
+body.pdf-mode .firma-line { min-height: 22px !important; }
+body.pdf-mode .add-row-btn { display: none !important; }
+body.pdf-mode .footer { margin-top: 3px !important; padding-top: 2px !important; font-size: 6pt !important; }
+body.pdf-mode table.clinical { font-size: 7pt !important; }
+body.pdf-mode table.clinical td, body.pdf-mode table.clinical th { padding: 2px 5px !important; }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+</head><body>
 
 <div class="toolbar">
   <div class="toolbar-brand">MUNAY <span>· Historia Clínica Integral FLAP</span></div>
@@ -313,15 +363,13 @@ table.edu td.cell-chk .chk { justify-content: center; }
           <div class="field-row"><span class="lbl">Lugar de nac.:</span><span class="val" contenteditable="true"></span></div>
         </div>
       </div>
-      <div class="fg-3" style="margin-bottom:4px">
+      <div class="fg-2" style="margin-bottom:4px">
         <div class="field-row"><span class="lbl">Dirección:</span><span class="val wide" contenteditable="true">${address}</span></div>
-        <div class="field-row"><span class="lbl">Procedencia:</span><span class="val" contenteditable="true"></span></div>
-        <div class="field-row"><span class="lbl">Tel. principal:</span><span class="val" contenteditable="true">${guardianPhone}</span></div>
+        <div class="field-row"><span class="lbl">Telf.:</span><span class="val" contenteditable="true">${guardianPhone}</span></div>
       </div>
-      <div class="fg-4" style="margin-bottom:4px">
+      <div class="fg-3" style="margin-bottom:4px">
         <div class="field-row"><span class="lbl">Persona responsable:</span><span class="val wide" contenteditable="true">${guardian}</span></div>
         <div class="field-row"><span class="lbl">Parentesco:</span><span class="val" contenteditable="true"></span></div>
-        <div class="field-row"><span class="lbl">Tel. alternativo:</span><span class="val" contenteditable="true"></span></div>
         <div class="field-row"><span class="lbl">Código CI:</span><span class="val" contenteditable="true"></span></div>
       </div>
       <div class="cl-inline">
@@ -898,7 +946,7 @@ table.edu td.cell-chk .chk { justify-content: center; }
     return data;
   }
 
-  function saveToFirestore(btn) {
+  async function saveToFirestore(btn) {
     var formData = collectFormData();
     if (!Object.keys(formData).length) {
       alert('No hay datos registrados para guardar. Complete al menos un campo del formulario.');
@@ -908,17 +956,70 @@ table.edu td.cell-chk .chk { justify-content: center; }
       alert('La ventana principal ya no está disponible. Imprima el formulario para conservarlo.');
       return;
     }
-    window.opener.postMessage({
-      type:         'MUNAY_SAVE_HC',
-      patientId:    PATIENT_ID,
-      patientName:  PATIENT_NAME,
-      patientCode:  HC_CODE,
-      clinicalData: formData,
-      savedAt:      new Date().toISOString(),
-    }, '*');
-    btn.textContent = '✓ Guardado';
-    btn.style.background = '#276749';
     btn.disabled = true;
+    btn.textContent = '⏳ Generando PDF...';
+    try {
+      // Apply compact print-like layout via CSS class, wait for reflow
+      document.body.classList.add('pdf-mode');
+      await new Promise(function(r) { requestAnimationFrame(function() { setTimeout(r, 80); }); });
+
+      var SCALE = 1.5;
+      var docEl = document.querySelector('.doc');
+      var p2El  = docEl.querySelector('.p2');
+
+      var canvas = await html2canvas(docEl, {
+        scale: SCALE,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+      });
+
+      // Determine slice point: where .p2 starts inside .doc (in canvas pixels)
+      var docRect = docEl.getBoundingClientRect();
+      var splitPx = p2El
+        ? Math.round((p2El.getBoundingClientRect().top - docRect.top) * SCALE)
+        : Math.round(canvas.height / 2);
+      splitPx = Math.max(10, Math.min(splitPx, canvas.height - 10));
+
+      var PDF    = window.jspdf.jsPDF;
+      var pdfDoc = new PDF({ unit: 'mm', format: 'letter', orientation: 'portrait' });
+      var pW     = pdfDoc.internal.pageSize.getWidth();
+
+      function makeSlice(startPx, endPx) {
+        var h   = endPx - startPx;
+        var tmp = document.createElement('canvas');
+        tmp.width  = canvas.width;
+        tmp.height = h;
+        tmp.getContext('2d').drawImage(canvas, 0, startPx, canvas.width, h, 0, 0, canvas.width, h);
+        return { dataUrl: tmp.toDataURL('image/jpeg', 0.92), h: h };
+      }
+
+      var p1 = makeSlice(0, splitPx);
+      pdfDoc.addImage(p1.dataUrl, 'JPEG', 0, 0, pW, pW * (p1.h / canvas.width), '', 'FAST');
+
+      pdfDoc.addPage();
+      var p2 = makeSlice(splitPx, canvas.height);
+      pdfDoc.addImage(p2.dataUrl, 'JPEG', 0, 0, pW, pW * (p2.h / canvas.width), '', 'FAST');
+
+      window.opener.postMessage({
+        type:         'MUNAY_SAVE_HC',
+        patientId:    PATIENT_ID,
+        patientName:  PATIENT_NAME,
+        patientCode:  HC_CODE,
+        clinicalData: formData,
+        savedAt:      new Date().toISOString(),
+        pdfBase64:    pdfDoc.output('datauristring'),
+      }, '*');
+      btn.textContent = '✓ Guardado';
+      btn.style.background = '#276749';
+    } catch (err) {
+      btn.disabled = false;
+      btn.textContent = '💾 Guardar en sistema';
+      alert('Error al generar el PDF: ' + (err.message || String(err)));
+    } finally {
+      document.body.classList.remove('pdf-mode');
+    }
   }
 </script>
 </body></html>`;

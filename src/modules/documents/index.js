@@ -7,7 +7,9 @@ export * from './services/documentService';
 export { saveDocumentSnapshot } from './services/documentSave';
 
 /* Hooks */
-export { usePatientDocuments } from './hooks/usePatientDocuments';
+export { usePatientDocuments }   from './hooks/usePatientDocuments';
+export { useSurgeryDocuments }   from './hooks/useSurgeryDocuments';
+export { useTherapyDocuments }   from './hooks/useTherapyDocuments';
 export { useAutoSave, SAVE_STATUS } from './hooks/useAutoSave';
 
 /* Utils */

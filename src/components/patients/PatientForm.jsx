@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { Loader2 } from 'lucide-react';
 import { differenceInYears, differenceInMonths, differenceInDays, isValid, parseISO } from 'date-fns';
 import { getTypeInfo } from '../../utils/patientTypes';
+import useStore from '../../store/useStore';
 
 const DIAGNOSIS_OPTIONS = [
   'FLAP Izquierdo',
@@ -40,14 +41,36 @@ function fmtAge({ years, months, days }) {
   return parts.join(', ');
 }
 
+const NEXT_NEW_CODE = 1077;
+
+function getNextCode(patients, patientType) {
+  const nums = patients
+    .filter(p => p.patientType === patientType)
+    .map(p => parseInt(p.patientCode, 10))
+    .filter(n => !isNaN(n));
+  const max = nums.length ? Math.max(...nums) : NEXT_NEW_CODE - 1;
+  return String(Math.max(max + 1, NEXT_NEW_CODE));
+}
+
 export default function PatientForm({ initial, onSubmit, onCancel, busy }) {
-  const { register, handleSubmit, reset, watch, formState: { errors } } = useForm({
+  const { patients } = useStore();
+  const isEditing = !!initial?.id;
+
+  const { register, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm({
     defaultValues: initial ?? {
       patientCode: '', fullName: '', birthDate: '', diagnosis: '', idNumber: '',
       sex: '', address: '', guardian: '', guardianIdNumber: '', guardianPhone: '',
-      allergies: '', clinicalHistory: '', patientType: 'mny',
+      allergies: '', patientType: 'mny',
     },
   });
+
+  const [patientMode, setPatientMode] = useState('nuevo');
+
+  const birthDate   = watch('birthDate');
+  const patientType = watch('patientType');
+  const age         = calcAge(birthDate);
+  const typeInfo    = getTypeInfo(patientType);
+  const isMunay     = patientType === 'mny';
 
   useEffect(() => {
     if (initial) {
@@ -57,10 +80,13 @@ export default function PatientForm({ initial, onSubmit, onCancel, busy }) {
     }
   }, [initial]);
 
-  const birthDate  = watch('birthDate');
-  const patientType = watch('patientType');
-  const age        = calcAge(birthDate);
-  const typeInfo   = getTypeInfo(patientType);
+  useEffect(() => {
+    if (!isEditing && isMunay && patientMode === 'nuevo') {
+      setValue('patientCode', getNextCode(patients, patientType));
+    } else if (!isEditing && (!isMunay || patientMode === 'antiguo')) {
+      setValue('patientCode', '');
+    }
+  }, [patientMode, patients, isEditing, patientType, isMunay]);
 
   const [diagSelect, setDiagSelect] = useState(initDiagSelect(initial?.diagnosis));
   const [diagOther,  setDiagOther]  = useState(
@@ -77,6 +103,34 @@ export default function PatientForm({ initial, onSubmit, onCancel, busy }) {
 
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
+
+      {/* Nuevo / Antiguo — solo para pacientes Munay (MNY) */}
+      {!isEditing && isMunay && (
+        <div className="form-group mb-0">
+          <label className="label">Tipo de registro</label>
+          <div className="flex gap-2">
+            {['nuevo', 'antiguo'].map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setPatientMode(mode)}
+                className={`flex-1 py-2 rounded-lg border text-sm font-semibold capitalize transition-colors
+                  ${patientMode === mode
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300'}`}
+              >
+                Paciente {mode}
+              </button>
+            ))}
+          </div>
+          {patientMode === 'nuevo' && (
+            <p className="text-xs text-blue-600 mt-1 font-medium">
+              Código asignado automáticamente desde #{NEXT_NEW_CODE}
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Name + type + code — top row */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="sm:col-span-2 form-group mb-0">
@@ -110,12 +164,17 @@ export default function PatientForm({ initial, onSubmit, onCancel, busy }) {
             {typeInfo.label} -
           </span>
           <input
-            className="input rounded-l-none flex-1"
-            placeholder="ej: 001"
+            className={`input rounded-l-none flex-1 ${!isEditing && isMunay && patientMode === 'nuevo' ? 'bg-blue-50 font-semibold text-blue-800' : ''}`}
+            placeholder={!isEditing && isMunay && patientMode === 'antiguo' ? 'Código existente' : 'ej: 001'}
+            readOnly={!isEditing && isMunay && patientMode === 'nuevo'}
             {...register('patientCode')}
           />
         </div>
-        <p className="text-xs text-gray-400 mt-1">Número correlativo para buscar al paciente por código.</p>
+        <p className="text-xs text-gray-400 mt-1">
+          {!isEditing && isMunay && patientMode === 'nuevo'
+            ? 'Asignado automáticamente. Editar solo si es necesario.'
+            : 'Número correlativo para buscar al paciente por código.'}
+        </p>
       </div>
 
       {/* Birth date + sex + CI */}
@@ -206,17 +265,6 @@ export default function PatientForm({ initial, onSubmit, onCancel, busy }) {
           className="input resize-none"
           placeholder="Alergias conocidas, medicamentos actuales..."
           {...register('allergies')}
-        />
-      </div>
-
-      {/* Clinical history */}
-      <div className="form-group mb-0">
-        <label className="label">Historial clínico</label>
-        <textarea
-          rows={3}
-          className="input resize-none"
-          placeholder="Antecedentes, cirugías previas, observaciones..."
-          {...register('clinicalHistory')}
         />
       </div>
 

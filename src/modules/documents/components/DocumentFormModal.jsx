@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Loader2, Save, Clock } from 'lucide-react';
+import { Loader2, Save, Clock, FileDown } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import Modal from '../../../components/ui/Modal';
 import { createDocument, updateDocument } from '../services/documentService';
 import { useAutoSave, SAVE_STATUS } from '../hooks/useAutoSave';
+import { usePDFGeneration } from '../hooks/usePDFGeneration';
 import { buildAuditUser } from '../utils/documentUtils';
 import { DOCUMENT_TYPE_OPTIONS } from '../types/documentTypes';
 import { DOCUMENT_STATUS_OPTIONS } from '../types/documentStatus';
@@ -32,12 +33,16 @@ function SaveIndicator({ status, lastSaved }) {
 
 /* ── Main component ─────────────────────────────────── */
 export default function DocumentFormModal({
-  open, onClose, patientId, document: initialDoc,
+  open, onClose, patientId, document: initialDoc, patient,
+  surgeryId = null, therapyId = null, eventDate = null,
 }) {
-  const { user }  = useAuth();
+  const { user } = useAuth();
   const isEditing = !!initialDoc?.id;
 
-  const { register, handleSubmit, watch, reset, getValues, formState: { errors } } = useForm({
+  const {
+    register, handleSubmit, watch, reset, getValues, trigger,
+    formState: { errors },
+  } = useForm({
     defaultValues: initialDoc ?? {
       documentType: 'historia_clinica',
       status:       'draft',
@@ -49,14 +54,20 @@ export default function DocumentFormModal({
     reset(initialDoc ?? { documentType: 'historia_clinica', status: 'draft', clinicalData: {} });
   }, [initialDoc, reset]);
 
-  const [busy,      setBusy]      = useState(false);
+  const [busy,       setBusy]       = useState(false);
   const [savedDocId, setSavedDocId] = useState(initialDoc?.id ?? null);
   const docType = watch('documentType');
 
+  const {
+    generateAndSave,
+    isLoading: pdfLoading,
+    stateLabel: pdfLabel,
+  } = usePDFGeneration();
+
   /* ── autosave for editing mode ─ */
   const { status: saveStatus, lastSaved } = useAutoSave({
-    data:    null,
-    onSave:  async () => {
+    data:   null,
+    onSave: async () => {
       if (!savedDocId) return;
       const vals = getValues();
       await updateDocument(patientId, savedDocId, {
@@ -69,21 +80,23 @@ export default function DocumentFormModal({
     enabled:  isEditing || !!savedDocId,
   });
 
+  /* ── Regular save (no PDF) ──────────────────────────── */
   const onSubmit = async (data) => {
     setBusy(true);
     try {
       const audit = buildAuditUser(user);
       if (isEditing || savedDocId) {
-        const id = savedDocId ?? initialDoc.id;
-        await updateDocument(patientId, id, {
+        await updateDocument(patientId, savedDocId ?? initialDoc.id, {
           ...data,
-          status:    data.status,
           updatedBy: audit,
         });
         toast.success('Documento actualizado');
       } else {
         const ref = await createDocument(patientId, {
           ...data,
+          surgeryId,
+          therapyId,
+          eventDate,
           createdBy: audit,
           updatedBy: audit,
         });
@@ -98,9 +111,34 @@ export default function DocumentFormModal({
     }
   };
 
-  const title = isEditing
-    ? 'Editar documento clínico'
-    : 'Nuevo documento clínico';
+  /* ── Save + generate PDF ────────────────────────────── */
+  const handleGeneratePDF = async () => {
+    const valid = await trigger();
+    if (!valid) return;
+
+    const values = getValues();
+    try {
+      const result = await generateAndSave({
+        patient,
+        clinicalData: values.clinicalData ?? {},
+        documentType: values.documentType,
+        documentId:   savedDocId ?? initialDoc?.id ?? null,
+        patientId,
+        surgeryId,
+        therapyId,
+        eventDate,
+      });
+      if (result?.documentId && !savedDocId) {
+        setSavedDocId(result.documentId);
+      }
+      onClose();
+    } catch {
+      /* already toasted by hook */
+    }
+  };
+
+  const title = isEditing ? 'Editar documento clínico' : 'Nuevo documento clínico';
+  const anyBusy = busy || pdfLoading;
 
   return (
     <Modal open={open} onClose={onClose} title={title} size="xl">
@@ -110,13 +148,13 @@ export default function DocumentFormModal({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="form-group mb-0">
             <label className="label">Tipo de documento *</label>
-            <select className={`input ${errors.documentType ? 'input-error' : ''}`}
+            <select
+              className={`input ${errors.documentType ? 'input-error' : ''}`}
               {...register('documentType', { required: true })}
-              disabled={isEditing}>
+              disabled={isEditing}
+            >
               {DOCUMENT_TYPE_OPTIONS.map(o => (
-                <option key={o.value} value={o.value}>
-                  {o.icon} {o.label}
-                </option>
+                <option key={o.value} value={o.value}>{o.icon} {o.label}</option>
               ))}
             </select>
           </div>
@@ -130,10 +168,9 @@ export default function DocumentFormModal({
           </div>
         </div>
 
-        {/* Divider */}
         <div className="border-t border-gray-100" />
 
-        {/* Clinical data form — varies by type */}
+        {/* Clinical data */}
         <div className="space-y-4">
           <ClinicalDataForm documentType={docType} register={register} />
         </div>
@@ -141,15 +178,30 @@ export default function DocumentFormModal({
         {/* Footer */}
         <div className="flex items-center gap-3 pt-3 border-t border-gray-100">
           <SaveIndicator status={saveStatus} lastSaved={lastSaved} />
-          <div className="flex gap-2 ml-auto">
-            <button type="button" onClick={onClose} className="btn btn-secondary">
+          <div className="flex gap-2 ml-auto flex-wrap justify-end">
+            <button type="button" onClick={onClose} className="btn btn-secondary" disabled={anyBusy}>
               Cancelar
             </button>
-            <button type="submit" disabled={busy} className="btn btn-primary gap-1.5">
+
+            {/* Save draft only */}
+            <button type="submit" disabled={anyBusy} className="btn btn-secondary gap-1.5">
               {busy
                 ? <Loader2 className="w-4 h-4 animate-spin" />
                 : <Save className="w-4 h-4" />}
-              {isEditing ? 'Guardar cambios' : 'Crear documento'}
+              {isEditing ? 'Guardar cambios' : 'Guardar borrador'}
+            </button>
+
+            {/* Save + generate PDF */}
+            <button
+              type="button"
+              onClick={handleGeneratePDF}
+              disabled={anyBusy}
+              className="btn btn-primary gap-1.5"
+            >
+              {pdfLoading
+                ? <Loader2 className="w-4 h-4 animate-spin" />
+                : <FileDown className="w-4 h-4" />}
+              {pdfLoading ? (pdfLabel ?? 'Procesando…') : 'Guardar y generar PDF'}
             </button>
           </div>
         </div>

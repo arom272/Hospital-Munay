@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { UserPlus, Pencil, Trash2, Eye, FileDown, FileText, ClipboardList, Camera, Stethoscope } from 'lucide-react';
-import { differenceInYears, differenceInMonths, differenceInDays, parseISO, isValid, format } from 'date-fns';
+import { differenceInYears, differenceInMonths, differenceInDays, parseISO, isValid } from 'date-fns';
 import toast from 'react-hot-toast';
 import useStore from '../store/useStore';
 import { subscribePatients, addPatient, updatePatient, deletePatient } from '../services/patientService';
@@ -19,9 +19,9 @@ import { exportPatientsPDF } from '../utils/pdfExport';
 import { printFichaSocial }  from '../utils/printFichaSocial';
 import { printConsentFotos }    from '../utils/printConsentFotos';
 import { printHistoriaClinica } from '../utils/printHistoriaClinica';
+import jsPDF from 'jspdf';
 import { saveDocumentSnapshot } from '../modules/documents/services/documentSave';
-import { generateHCPdf }        from '../utils/generateHCPdf';
-import { uploadFile, buildAttachmentRecord } from '../services/uploadService';
+import { uploadFile } from '../services/uploadService';
 import { createDocument } from '../modules/documents/services/documentService';
 
 function calcAge(birthDate) {
@@ -72,12 +72,12 @@ export default function PatientsPage() {
     return () => { u1(); u2(); u3(); };
   }, []);
 
-  /* ── Historia Clínica: recibe datos desde la ventana de impresión ─────────── */
+  /* ── Historia Clínica: recibe datos + PDF capturado desde la ventana ──────── */
   useEffect(() => {
     const handleMessage = async (e) => {
       if (e.data?.type !== 'MUNAY_SAVE_HC') return;
-      const { patientId, patientName, patientCode, clinicalData, savedAt } = e.data;
-      if (!patientId || !clinicalData) return;
+      const { patientId, patientName, clinicalData, savedAt, pdfBase64 } = e.data;
+      if (!patientId) return;
 
       const tid = toast.loading('Guardando historia clínica…');
       try {
@@ -85,8 +85,24 @@ export default function PatientsPage() {
           ? { uid: user.uid, name: user.displayName ?? user.email ?? 'Sistema' }
           : { uid: '', name: 'Sistema' };
 
-        /* 1 — generar PDF */
-        const pdfBlob = generateHCPdf({ clinicalData, patientName, patientCode, savedAt });
+        /* 1 — convertir base64 a Blob PDF */
+        let pdfBlob;
+        if (pdfBase64) {
+          const base64Data = pdfBase64.includes(',') ? pdfBase64.split(',')[1] : pdfBase64;
+          const bytes = atob(base64Data);
+          const arr   = new Uint8Array(bytes.length);
+          for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+          pdfBlob = new Blob([arr], { type: 'application/pdf' });
+        } else {
+          /* fallback: PDF básico con jsPDF si el navegador no soportó html2canvas */
+          const doc = new jsPDF({ unit: 'mm', format: 'letter' });
+          doc.setFontSize(12);
+          doc.text('Historia Clínica — ' + (patientName || ''), 15, 20);
+          doc.setFontSize(8);
+          doc.text('Guardado: ' + new Date(savedAt || Date.now()).toLocaleString('es-BO'), 15, 30);
+          pdfBlob = doc.output('blob');
+        }
+
         const pdfFile = new File(
           [pdfBlob],
           `HC_${(patientName || 'paciente').replace(/\s+/g, '_')}_${Date.now()}.pdf`,
@@ -94,22 +110,28 @@ export default function PatientsPage() {
         );
 
         /* 2 — subir a Firebase Storage */
-        const uploaded   = await uploadFile(patientId, 'documents', pdfFile);
-        const attachment = buildAttachmentRecord(uploaded, 'Historia Clínica', 'documents');
+        const uploaded = await uploadFile(patientId, 'documents', pdfFile);
 
-        /* 3 — guardar en Firestore con referencia al PDF */
+        /* 3 — guardar en Firestore con pdf.url (visible en Historial/Timeline) */
         await createDocument(patientId, {
           documentType: 'historia_clinica',
           specialty:    'Medicina',
           status:       'completed',
           clinicalData,
-          attachments:  [attachment],
-          createdBy:    auditUser,
-          updatedBy:    auditUser,
-          metadata:     { printable: true, signed: false, locked: false },
+          pdf: {
+            url:         uploaded.url,
+            storagePath: uploaded.path,
+            sizeBytes:   uploaded.size,
+            version:     1,
+            generatedAt: new Date().toISOString(),
+            generatedBy: auditUser,
+          },
+          createdBy: auditUser,
+          updatedBy: auditUser,
+          metadata:  { printable: true, signed: false, locked: false },
         });
 
-        toast.success('Historia clínica guardada y PDF subido', { id: tid });
+        toast.success('Historia clínica guardada', { id: tid });
       } catch (err) {
         console.error('[HC save]', err);
         toast.error('Error al guardar: ' + err.message, { id: tid });
@@ -268,7 +290,7 @@ export default function PatientsPage() {
                           <button onClick={() => { printFichaSocial(p); saveDocumentSnapshot({ patientId: p.id, documentType: 'ficha_social', specialty: 'Social', clinicalData: { nombre: p.name, ci: p.idNumber, responsable: p.guardian, ciResponsable: p.guardianIdNumber, telefono: p.guardianPhone, direccion: p.address, diagnostico: p.diagnosis }, user }); }} className="btn-ghost btn btn-sm p-1.5 text-teal-600 hover:bg-teal-50" title="Ficha social">
                             <ClipboardList className="w-4 h-4" />
                           </button>
-                          <button onClick={() => printConsentFotos(p)} className="btn-ghost btn btn-sm p-1.5 text-amber-600 hover:bg-amber-50" title="Consentimiento fotos">
+                          <button onClick={() => { printConsentFotos(p); saveDocumentSnapshot({ patientId: p.id, documentType: 'consentimiento', specialty: 'Medicina', clinicalData: { consentType: 'fotos', nombre: p.fullName, ci: p.idNumber, responsable: p.guardian, diagnostico: p.diagnosis }, user }); }} className="btn-ghost btn btn-sm p-1.5 text-amber-600 hover:bg-amber-50" title="Consentimiento fotos">
                             <Camera className="w-4 h-4" />
                           </button>
                           <button onClick={() => printHistoriaClinica(p)} className="btn-ghost btn btn-sm p-1.5 text-indigo-600 hover:bg-indigo-50" title="Historia clínica integral">
@@ -325,7 +347,7 @@ export default function PatientsPage() {
                     <button onClick={() => { printFichaSocial(p); saveDocumentSnapshot({ patientId: p.id, documentType: 'ficha_social', specialty: 'Social', clinicalData: { nombre: p.name, ci: p.idNumber, responsable: p.guardian, ciResponsable: p.guardianIdNumber, telefono: p.guardianPhone, direccion: p.address, diagnostico: p.diagnosis }, user }); }} className="btn btn-sm px-2.5 text-teal-600 border border-teal-200 hover:bg-teal-50" title="Ficha social">
                       <ClipboardList className="w-3.5 h-3.5" />
                     </button>
-                    <button onClick={() => printConsentFotos(p)} className="btn btn-sm px-2.5 text-amber-600 border border-amber-200 hover:bg-amber-50" title="Consentimiento fotos">
+                    <button onClick={() => { printConsentFotos(p); saveDocumentSnapshot({ patientId: p.id, documentType: 'consentimiento', specialty: 'Medicina', clinicalData: { consentType: 'fotos', nombre: p.fullName, ci: p.idNumber, responsable: p.guardian, diagnostico: p.diagnosis }, user }); }} className="btn btn-sm px-2.5 text-amber-600 border border-amber-200 hover:bg-amber-50" title="Consentimiento fotos">
                       <Camera className="w-3.5 h-3.5" />
                     </button>
                     <button onClick={() => printHistoriaClinica(p)} className="btn btn-sm px-2.5 text-indigo-600 border border-indigo-200 hover:bg-indigo-50" title="Historia clínica">

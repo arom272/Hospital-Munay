@@ -4,7 +4,18 @@ import dayGridPlugin     from '@fullcalendar/daygrid';
 import timeGridPlugin    from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import listPlugin        from '@fullcalendar/list';
-import esLocale from '@fullcalendar/core/locales/es';
+const esLocale = {
+  code: 'es',
+  week: { dow: 1, doy: 4 },
+  buttonText: {
+    prev: 'Ant', next: 'Sig', today: 'Hoy',
+    year: 'Año', month: 'Mes', week: 'Semana', day: 'Día', list: 'Agenda',
+  },
+  weekText: 'Sm',
+  allDayText: 'Todo el día',
+  moreLinkText: (n) => `+${n} más`,
+  noEventsText: 'No hay eventos',
+};
 import { Plus, Printer, FileDown } from 'lucide-react';
 import { format, startOfWeek, addDays } from 'date-fns';
 import toast from 'react-hot-toast';

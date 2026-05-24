@@ -4,7 +4,18 @@ import dayGridPlugin     from '@fullcalendar/daygrid';
 import timeGridPlugin    from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import listPlugin        from '@fullcalendar/list';
-import esLocale from '@fullcalendar/core/locales/es';
+const esLocale = {
+  code: 'es',
+  week: { dow: 1, doy: 4 },
+  buttonText: {
+    prev: 'Ant', next: 'Sig', today: 'Hoy',
+    year: 'Año', month: 'Mes', week: 'Semana', day: 'Día', list: 'Agenda',
+  },
+  weekText: 'Sm',
+  allDayText: 'Todo el día',
+  moreLinkText: (n) => `+${n} más`,
+  noEventsText: 'No hay eventos',
+};
 import {
   Plus, Search, ChevronLeft, ChevronRight,
   LayoutGrid, Calendar, Table2,
@@ -306,16 +317,9 @@ export default function TherapiesPage() {
           <div className="flex-1" />
 
           {isAdmin && (
-            <>
-              <button onClick={() => setCleanConfirm(true)}
-                className="btn btn-sm border border-red-200 text-red-600 hover:bg-red-50 gap-1"
-                title="Eliminar todas las terapias programadas">
-                <XCircle className="w-3.5 h-3.5" /> Limpiar
-              </button>
-              <button onClick={() => { setSelected(null); setFormOpen(true); }} className="btn-primary btn btn-sm">
-                <Plus className="w-3.5 h-3.5" /> Nueva terapia
-              </button>
-            </>
+            <button onClick={() => { setSelected(null); setFormOpen(true); }} className="btn-primary btn btn-sm">
+              <Plus className="w-3.5 h-3.5" /> Nueva terapia
+            </button>
           )}
         </div>
 

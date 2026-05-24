@@ -2,12 +2,13 @@ import { useEffect, useState, useMemo } from 'react';
 import {
   DollarSign, TrendingUp, TrendingDown, AlertCircle,
   FileDown, FileText, CheckCircle, XCircle, HeartHandshake,
-  ChevronDown, ChevronUp
+  ChevronDown, ChevronUp, Stethoscope,
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
 import useStore from '../store/useStore';
 import { subscribeSurgeries } from '../services/surgeryService';
+import { subscribeTherapies } from '../services/therapyService';
 import SearchBar from '../components/ui/SearchBar';
 import Badge     from '../components/ui/Badge';
 
@@ -15,6 +16,30 @@ import Badge     from '../components/ui/Badge';
 
 function fmt(n) {
   return Number(n || 0).toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
+}
+
+function fmtBs(n) {
+  return `Bs. ${Number(n || 0).toLocaleString('es-BO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+const TIPO_LABELS = { sesion: 'Sesión', paquete: 'Paquete', evaluacion: 'Evaluación', otro: 'Otro' };
+
+function isoWeekRange(isoDate) {
+  const d = new Date(isoDate + 'T12:00');
+  const from = startOfWeek(d, { weekStartsOn: 1 });
+  const to   = endOfWeek(d,   { weekStartsOn: 1 });
+  return {
+    from: from.toISOString().slice(0, 10),
+    to:   to.toISOString().slice(0, 10),
+  };
+}
+
+function isoMonthRange(isoDate) {
+  const d = new Date(isoDate + 'T12:00');
+  return {
+    from: startOfMonth(d).toISOString().slice(0, 10),
+    to:   endOfMonth(d).toISOString().slice(0, 10),
+  };
 }
 
 function exportFinancesCSV(rows) {
@@ -102,7 +127,12 @@ const STATUS_FILTER_OPTIONS = [
 ];
 
 export default function FinancesPage() {
-  const { surgeries, setSurgeries } = useStore();
+  const { surgeries, setSurgeries, therapies, setTherapies } = useStore();
+
+  /* ── tab ── */
+  const [activeTab,    setActiveTab]    = useState('cirugias');
+
+  /* ── cirugías state ── */
   const [search,       setSearch]       = useState('');
   const [payFilter,    setPayFilter]    = useState('all');
   const [dateFrom,     setDateFrom]     = useState('');
@@ -110,9 +140,18 @@ export default function FinancesPage() {
   const [sortField,    setSortField]    = useState('date');
   const [sortDir,      setSortDir]      = useState('desc');
 
+  /* ── terapias state ── */
+  const TODAY = new Date().toISOString().slice(0, 10);
+  const [tPeriod,      setTPeriod]      = useState('mes');
+  const [tDateFrom,    setTDateFrom]    = useState('');
+  const [tDateTo,      setTDateTo]      = useState('');
+  const [tDebtFilter,  setTDebtFilter]  = useState('all');
+  const [tSearch,      setTSearch]      = useState('');
+
   useEffect(() => {
-    const unsub = subscribeSurgeries(setSurgeries);
-    return unsub;
+    const u1 = subscribeSurgeries(setSurgeries);
+    const u2 = subscribeTherapies(setTherapies);
+    return () => { u1(); u2(); };
   }, []);
 
   // Only surgeries with at least some financial data or any surgery
@@ -167,6 +206,47 @@ export default function FinancesPage() {
     };
   }, [filtered]);
 
+  /* ── terapias computed ──────────────────────────────── */
+  const tRange = useMemo(() => {
+    if (tPeriod === 'dia')    return { from: TODAY, to: TODAY };
+    if (tPeriod === 'semana') return isoWeekRange(TODAY);
+    if (tPeriod === 'mes')    return isoMonthRange(TODAY);
+    return { from: tDateFrom, to: tDateTo };
+  }, [tPeriod, tDateFrom, tDateTo]);
+
+  const tFiltered = useMemo(() => {
+    let list = therapies;
+    if (tRange.from) list = list.filter(t => t.date >= tRange.from);
+    if (tRange.to)   list = list.filter(t => t.date <= tRange.to);
+    if (tDebtFilter === 'deuda')    list = list.filter(t => Number(t.precio) > 0 && !t.pagado);
+    if (tDebtFilter === 'aldia')    list = list.filter(t => t.pagado);
+    if (tDebtFilter === 'sincobro') list = list.filter(t => !(Number(t.precio) > 0));
+    if (tSearch) {
+      const q = tSearch.toLowerCase();
+      list = list.filter(t =>
+        t.patientName?.toLowerCase().includes(q) ||
+        t.therapyType?.toLowerCase().includes(q) ||
+        t.therapist?.toLowerCase().includes(q)
+      );
+    }
+    return [...list].sort((a, b) => b.date.localeCompare(a.date));
+  }, [therapies, tRange, tDebtFilter, tSearch]);
+
+  const tTotals = useMemo(() => {
+    const billed = tFiltered.filter(t => Number(t.precio) > 0);
+    const facturado = billed.reduce((s, t) => s + Number(t.precio || 0), 0);
+    const cobrado   = billed.reduce((s, t) => s + Number(t.montoPagado || 0), 0);
+    return {
+      total:       tFiltered.length,
+      billed:      billed.length,
+      facturado,
+      cobrado,
+      pendiente:   Math.max(0, facturado - cobrado),
+      pagadoCount: billed.filter(t => t.pagado).length,
+      deudaCount:  billed.filter(t => !t.pagado).length,
+    };
+  }, [tFiltered]);
+
   const toggleSort = (field) => {
     if (sortField === field) setSortDir((d) => d === 'asc' ? 'desc' : 'asc');
     else { setSortField(field); setSortDir('desc'); }
@@ -179,6 +259,237 @@ export default function FinancesPage() {
 
   return (
     <div className="space-y-5">
+
+      {/* ── Tabs ── */}
+      <div className="flex gap-0 border-b border-gray-200">
+        {[
+          { k: 'cirugias', l: 'Cirugías' },
+          { k: 'terapias', l: 'Terapias' },
+        ].map(({ k, l }) => (
+          <button key={k} onClick={() => setActiveTab(k)}
+            className={`px-5 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors
+              ${activeTab === k
+                ? 'border-teal-600 text-teal-700'
+                : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
+            {l}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Terapias tab ── */}
+      {activeTab === 'terapias' && (
+        <div className="space-y-5">
+          {/* Period selector */}
+          <div className="card py-3">
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-wrap gap-2 items-center">
+                <span className="text-xs font-medium text-gray-500">Período:</span>
+                {[
+                  { v: 'dia',    l: 'Hoy'         },
+                  { v: 'semana', l: 'Esta semana'  },
+                  { v: 'mes',    l: 'Este mes'     },
+                  { v: 'custom', l: 'Personalizado'},
+                ].map(({ v, l }) => (
+                  <button key={v} onClick={() => setTPeriod(v)}
+                    className={`btn btn-sm ${tPeriod === v ? 'btn-primary' : 'btn-secondary'}`}>
+                    {l}
+                  </button>
+                ))}
+                {tPeriod === 'custom' && (
+                  <>
+                    <div className="flex gap-2 items-center">
+                      <label className="text-xs text-gray-500 shrink-0">Desde</label>
+                      <input type="date" value={tDateFrom} onChange={e => setTDateFrom(e.target.value)}
+                        className="input text-sm py-1.5 w-36" />
+                    </div>
+                    <div className="flex gap-2 items-center">
+                      <label className="text-xs text-gray-500 shrink-0">Hasta</label>
+                      <input type="date" value={tDateTo} onChange={e => setTDateTo(e.target.value)}
+                        className="input text-sm py-1.5 w-36" />
+                    </div>
+                  </>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-2 items-center justify-between">
+                <div className="flex gap-1.5 flex-wrap">
+                  {[
+                    { v: 'all',      l: 'Todos'       },
+                    { v: 'deuda',    l: 'Con deuda'   },
+                    { v: 'aldia',    l: 'Al día'      },
+                    { v: 'sincobro', l: 'Sin cobro'   },
+                  ].map(({ v, l }) => (
+                    <button key={v} onClick={() => setTDebtFilter(v)}
+                      className={`btn btn-sm ${tDebtFilter === v ? 'btn-primary' : 'btn-secondary'}`}>
+                      {l}
+                    </button>
+                  ))}
+                </div>
+                <SearchBar value={tSearch} onChange={setTSearch} placeholder="Buscar paciente, especialidad…" />
+              </div>
+            </div>
+          </div>
+
+          {/* KPI cards terapias */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <KpiCard icon={Stethoscope} label="Terapias periodo"
+              value={String(tTotals.total)}
+              sub={`${tTotals.billed} con cobro registrado`}
+              color="teal" />
+            <KpiCard icon={TrendingUp} label="Total facturado"
+              value={fmtBs(tTotals.facturado)}
+              sub={`${tTotals.pagadoCount} al día`}
+              color="green" />
+            <KpiCard icon={TrendingDown} label="Total cobrado"
+              value={fmtBs(tTotals.cobrado)}
+              sub={tTotals.facturado > 0
+                ? `${Math.round((tTotals.cobrado / tTotals.facturado) * 100)}% del total`
+                : '—'}
+              color="teal" />
+            <KpiCard icon={AlertCircle} label="Saldo pendiente"
+              value={fmtBs(tTotals.pendiente)}
+              sub={tTotals.deudaCount > 0 ? `${tTotals.deudaCount} con deuda` : 'Sin deudas'}
+              color={tTotals.pendiente > 0 ? 'red' : 'green'} />
+          </div>
+
+          {/* Resumen */}
+          <div className="flex gap-4 flex-wrap text-sm text-gray-600">
+            <span><strong className="text-gray-800">{tFiltered.length}</strong> registros</span>
+            <span className="text-gray-300">|</span>
+            <span>Facturado: <strong className="text-teal-700">{fmtBs(tTotals.facturado)}</strong></span>
+            <span>Cobrado: <strong className="text-green-700">{fmtBs(tTotals.cobrado)}</strong></span>
+            {tTotals.pendiente > 0 && (
+              <span>Pendiente: <strong className="text-red-600">{fmtBs(tTotals.pendiente)}</strong></span>
+            )}
+          </div>
+
+          {/* Tabla terapias */}
+          {tFiltered.length === 0 ? (
+            <div className="card flex flex-col items-center py-14 text-gray-400">
+              <AlertCircle className="w-10 h-10 mb-2 opacity-40" />
+              <p className="text-sm">No hay registros que coincidan.</p>
+            </div>
+          ) : (
+            <div className="card p-0 overflow-hidden">
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b border-gray-100">
+                    <tr>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Fecha</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Paciente</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Especialidad</th>
+                      <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Servicio</th>
+                      <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Precio</th>
+                      <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Pagado</th>
+                      <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Saldo</th>
+                      <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Estado pago</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {tFiltered.map(t => {
+                      const precio = Number(t.precio || 0);
+                      const pagado = Number(t.montoPagado || 0);
+                      const saldo  = Math.max(0, precio - pagado);
+                      return (
+                        <tr key={t.id} className={`hover:bg-gray-50 transition ${!t.pagado && precio > 0 ? 'bg-red-50/30' : ''}`}>
+                          <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
+                            {format(new Date(t.date + 'T12:00'), 'dd/MM/yyyy')}
+                          </td>
+                          <td className="px-4 py-3 font-medium text-gray-800">{t.patientName}</td>
+                          <td className="px-4 py-3 text-gray-600">{t.therapyType || '—'}</td>
+                          <td className="px-4 py-3 text-gray-600">
+                            {TIPO_LABELS[t.tipoServicio] || <span className="text-gray-300">—</span>}
+                          </td>
+                          <td className="px-4 py-3 text-right font-medium text-gray-800">
+                            {precio > 0 ? fmtBs(precio) : <span className="text-gray-300">—</span>}
+                          </td>
+                          <td className="px-4 py-3 text-right text-green-700 font-medium">
+                            {pagado > 0 ? fmtBs(pagado) : <span className="text-gray-300">—</span>}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            {saldo > 0
+                              ? <span className="text-red-600 font-semibold">{fmtBs(saldo)}</span>
+                              : <span className="text-gray-300">—</span>}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            {precio === 0
+                              ? <span className="text-xs text-gray-300">Sin cobro</span>
+                              : t.pagado
+                              ? <span className="inline-flex items-center gap-1 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
+                                  <CheckCircle className="w-3 h-3" /> Al día
+                                </span>
+                              : <span className="inline-flex items-center gap-1 text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-medium">
+                                  <XCircle className="w-3 h-3" /> Con deuda
+                                </span>}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot className="bg-gray-50 border-t-2 border-gray-200">
+                    <tr>
+                      <td colSpan={4} className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase">
+                        Totales ({tFiltered.length} registros)
+                      </td>
+                      <td className="px-4 py-3 text-right font-bold text-gray-800">{fmtBs(tTotals.facturado)}</td>
+                      <td className="px-4 py-3 text-right font-bold text-green-700">{fmtBs(tTotals.cobrado)}</td>
+                      <td className="px-4 py-3 text-right font-bold text-red-600">{tTotals.pendiente > 0 ? fmtBs(tTotals.pendiente) : '—'}</td>
+                      <td className="px-4 py-3 text-center text-xs text-gray-500">{tTotals.pagadoCount}/{tTotals.billed}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+
+              {/* Mobile cards */}
+              <ul className="md:hidden divide-y divide-gray-100">
+                {tFiltered.map(t => {
+                  const precio = Number(t.precio || 0);
+                  const saldo  = Math.max(0, precio - Number(t.montoPagado || 0));
+                  return (
+                    <li key={t.id} className="p-4 space-y-2">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="font-medium text-gray-800">{t.patientName}</p>
+                          <p className="text-xs text-gray-500">{t.therapyType}</p>
+                          <p className="text-xs text-gray-400">
+                            {format(new Date(t.date + 'T12:00'), "d MMM yyyy", { locale: es })}
+                            {t.therapist && ` · ${t.therapist}`}
+                          </p>
+                        </div>
+                        {precio > 0
+                          ? t.pagado
+                            ? <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">Al día</span>
+                            : <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-medium">Con deuda</span>
+                          : <span className="text-xs text-gray-300">Sin cobro</span>}
+                      </div>
+                      {precio > 0 && (
+                        <div className="grid grid-cols-3 gap-2 text-xs">
+                          <div className="bg-gray-50 rounded p-2">
+                            <p className="text-gray-400">{TIPO_LABELS[t.tipoServicio] || 'Servicio'}</p>
+                            <p className="font-semibold text-gray-800">{fmtBs(precio)}</p>
+                          </div>
+                          <div className="bg-gray-50 rounded p-2">
+                            <p className="text-gray-400">Pagado</p>
+                            <p className="font-semibold text-green-700">{fmtBs(t.montoPagado)}</p>
+                          </div>
+                          <div className={`rounded p-2 ${saldo > 0 ? 'bg-red-50' : 'bg-gray-50'}`}>
+                            <p className="text-gray-400">Saldo</p>
+                            <p className={`font-semibold ${saldo > 0 ? 'text-red-600' : 'text-gray-400'}`}>
+                              {saldo > 0 ? fmtBs(saldo) : '—'}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Cirugías tab ── */}
+      {activeTab === 'cirugias' && (<div className="space-y-5">
       {/* KPI cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KpiCard
@@ -423,6 +734,7 @@ export default function FinancesPage() {
           </ul>
         </div>
       )}
+      </div>)}
     </div>
   );
 }

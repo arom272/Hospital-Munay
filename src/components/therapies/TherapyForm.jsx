@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
-import { Loader2, Search, X, ChevronDown, UserPlus } from 'lucide-react';
+import { Loader2, Search, X, ChevronDown, UserPlus, DollarSign } from 'lucide-react';
 import toast from 'react-hot-toast';
 import useStore from '../../store/useStore';
 import Modal from '../ui/Modal';
@@ -240,7 +240,8 @@ export default function TherapyForm({ initial, onSubmit, onCancel, busy }) {
   const { register, handleSubmit, watch, reset, setValue, formState: { errors } } = useForm({
     defaultValues: initial ?? {
       patientId: '', therapyType: '', date: '', startTime: '',
-      durationMinutes: 45, therapist: '', status: 'programado', notes: '',
+      therapist: '', status: 'programado', notes: '',
+      tipoServicio: '', precio: '', montoPagado: '', fechaPago: '',
     },
   });
 
@@ -248,10 +249,12 @@ export default function TherapyForm({ initial, onSubmit, onCancel, busy }) {
     if (initial) reset(initial);
   }, [initial]);
 
-  const patientId   = watch('patientId');
-  const therapyType = watch('therapyType');
-  const therapist   = watch('therapist');
-  const watchDate   = watch('date');
+  const patientId      = watch('patientId');
+  const therapyType    = watch('therapyType');
+  const therapist      = watch('therapist');
+  const watchDate      = watch('date');
+  const watchPrecio    = watch('precio');
+  const watchMontoPago = watch('montoPagado');
 
   /* day of week (1=Mon … 5=Fri) from selected date */
   const dayOfWeek = useMemo(() => {
@@ -278,11 +281,16 @@ export default function TherapyForm({ initial, onSubmit, onCancel, busy }) {
   };
 
   const onFormSubmit = (data) => {
-    const patient = patients.find(p => p.id === data.patientId);
+    const patient    = patients.find(p => p.id === data.patientId);
+    const precio     = Number(data.precio)     || 0;
+    const montoPagado = Number(data.montoPagado) || 0;
     onSubmit({
       ...data,
-      patientName: patient?.fullName ?? '',
-      patientType: patient?.patientType ?? 'external',
+      patientName:  patient?.fullName   ?? '',
+      patientType:  patient?.patientType ?? 'external',
+      precio,
+      montoPagado,
+      pagado: precio > 0 && montoPagado >= precio,
     });
   };
 
@@ -313,6 +321,19 @@ export default function TherapyForm({ initial, onSubmit, onCancel, busy }) {
         {errors.patientId && <p className="error-msg mt-1">{errors.patientId.message}</p>}
       </div>
 
+      {/* ── Diagnóstico (auto-fill from patient) ── */}
+      {patientId && (() => {
+        const pat = patients.find(p => p.id === patientId);
+        return pat?.diagnosis ? (
+          <div className="form-group mb-0">
+            <label className="label">Diagnóstico</label>
+            <div className="input bg-gray-50 text-gray-700 cursor-default select-text">
+              {pat.diagnosis}
+            </div>
+          </div>
+        ) : null;
+      })()}
+
       {/* ── Especialidad + estado ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="form-group mb-0">
@@ -335,8 +356,8 @@ export default function TherapyForm({ initial, onSubmit, onCancel, busy }) {
         </div>
       </div>
 
-      {/* ── Fecha, hora, duración ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {/* ── Fecha y hora ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="form-group mb-0">
           <label className="label">Fecha *</label>
           <input type="date" className={`input ${errors.date ? 'input-error' : ''}`}
@@ -348,11 +369,6 @@ export default function TherapyForm({ initial, onSubmit, onCancel, busy }) {
           <input type="time" className={`input ${errors.startTime ? 'input-error' : ''}`}
             {...register('startTime', { required: 'Requerido' })} />
           {errors.startTime && <p className="error-msg">{errors.startTime.message}</p>}
-        </div>
-        <div className="form-group mb-0">
-          <label className="label">Duración (min)</label>
-          <input type="number" min="15" max="240" step="5" className="input"
-            {...register('durationMinutes')} />
         </div>
       </div>
 
@@ -374,6 +390,54 @@ export default function TherapyForm({ initial, onSubmit, onCancel, busy }) {
       <div className="form-group mb-0">
         <label className="label">Observaciones</label>
         <textarea rows={2} className="input resize-none" {...register('notes')} />
+      </div>
+
+      {/* ── Cobro ── */}
+      <div className="border-t border-gray-100 pt-4 space-y-3">
+        <p className="flex items-center gap-1.5 text-[11px] font-bold text-gray-400 uppercase tracking-widest">
+          <DollarSign className="w-3.5 h-3.5" /> Cobro
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="form-group mb-0">
+            <label className="label">Tipo de servicio</label>
+            <select className="input" {...register('tipoServicio')}>
+              <option value="">— Sin cobro —</option>
+              <option value="sesion">Sesión</option>
+              <option value="paquete">Paquete</option>
+              <option value="evaluacion">Evaluación</option>
+              <option value="otro">Otro</option>
+            </select>
+          </div>
+          <div className="form-group mb-0">
+            <label className="label">Precio (Bs.)</label>
+            <input type="number" min="0" step="0.5" className="input"
+              placeholder="0.00" {...register('precio')} />
+          </div>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="form-group mb-0">
+            <label className="label">Monto pagado (Bs.)</label>
+            <input type="number" min="0" step="0.5" className="input"
+              placeholder="0.00" {...register('montoPagado')} />
+          </div>
+          <div className="form-group mb-0">
+            <label className="label">Fecha de pago</label>
+            <input type="date" className="input" {...register('fechaPago')} />
+          </div>
+        </div>
+        {Number(watchPrecio) > 0 && (
+          <div className={`flex items-center justify-between rounded-lg px-3 py-2 text-xs font-medium border
+            ${Number(watchMontoPago) >= Number(watchPrecio)
+              ? 'bg-green-50 border-green-200 text-green-700'
+              : 'bg-red-50 border-red-200 text-red-600'}`}>
+            <span>
+              {Number(watchMontoPago) >= Number(watchPrecio)
+                ? '✓ Pagado completo'
+                : `Saldo pendiente: Bs. ${(Number(watchPrecio) - Number(watchMontoPago || 0)).toFixed(2)}`}
+            </span>
+            <span className="font-semibold">Total: Bs. {Number(watchPrecio).toFixed(2)}</span>
+          </div>
+        )}
       </div>
 
       <div className="flex gap-3 justify-end pt-2 border-t border-gray-100">

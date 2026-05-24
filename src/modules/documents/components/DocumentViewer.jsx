@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { X, Pencil, ChevronDown } from 'lucide-react';
+import { X, Pencil, ChevronDown, Eye, Download, FileDown, Loader2 } from 'lucide-react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { updateDocument } from '../services/documentService';
 import { getDocumentTypeConfig, formatTimestamp, fieldLabel } from '../utils/documentUtils';
-import { DOCUMENT_STATUS_OPTIONS, DOCUMENT_STATUS_CONFIG } from '../types/documentStatus';
+import { DOCUMENT_STATUS_OPTIONS } from '../types/documentStatus';
 import { buildAuditUser } from '../utils/documentUtils';
+import { usePDFGeneration } from '../hooks/usePDFGeneration';
 import DocumentStatusBadge from './DocumentStatusBadge';
 import toast from 'react-hot-toast';
 
@@ -98,26 +99,101 @@ function StatusChanger({ document, patientId, onUpdated }) {
   );
 }
 
+/* ── PDF actions ────────────────────────────────────── */
+function PDFSection({ doc, patientId, patient }) {
+  const { generateAndSave, isLoading, stateLabel } = usePDFGeneration();
+
+  const handleGenerate = async () => {
+    try {
+      await generateAndSave({
+        patient,
+        clinicalData: doc.clinicalData ?? {},
+        documentType: doc.documentType,
+        documentId:   doc.id,
+        patientId,
+      });
+    } catch {
+      /* already toasted */
+    }
+  };
+
+  if (doc.pdf?.url) {
+    return (
+      <div className="flex flex-wrap items-center gap-3">
+        <a
+          href={doc.pdf.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-800 bg-blue-50 border border-blue-200 rounded-lg px-3 py-1.5 transition-colors"
+        >
+          <Eye className="w-3.5 h-3.5" />
+          Ver PDF
+        </a>
+        <a
+          href={doc.pdf.url}
+          download
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1.5 text-xs font-medium text-gray-700 hover:text-gray-900 bg-gray-100 border border-gray-200 rounded-lg px-3 py-1.5 transition-colors"
+        >
+          <Download className="w-3.5 h-3.5" />
+          Descargar
+        </a>
+        <span className="text-[10px] text-gray-400">
+          v{doc.pdf.version} · {doc.pdf.sizeBytes ? `${(doc.pdf.sizeBytes / 1024).toFixed(0)} KB` : ''}
+        </span>
+        {/* Regenerate */}
+        <button
+          onClick={handleGenerate}
+          disabled={isLoading}
+          className="flex items-center gap-1 text-[10px] text-gray-400 hover:text-gray-600 disabled:opacity-50 ml-auto"
+          title="Regenerar PDF con datos actuales"
+        >
+          {isLoading
+            ? <Loader2 className="w-3 h-3 animate-spin" />
+            : <FileDown className="w-3 h-3" />}
+          {isLoading ? stateLabel : 'Regenerar'}
+        </button>
+      </div>
+    );
+  }
+
+  /* No PDF yet */
+  if (!patient) return (
+    <p className="text-[10px] text-gray-400 italic">Sin PDF generado.</p>
+  );
+
+  return (
+    <button
+      onClick={handleGenerate}
+      disabled={isLoading}
+      className="flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-800 bg-blue-50 border border-blue-200 rounded-lg px-3 py-1.5 transition-colors disabled:opacity-50"
+    >
+      {isLoading
+        ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+        : <FileDown className="w-3.5 h-3.5" />}
+      {isLoading ? (stateLabel ?? 'Procesando…') : 'Generar PDF'}
+    </button>
+  );
+}
+
 /* ── Main drawer ─────────────────────────────────────── */
 export default function DocumentViewer({
   document: doc,
   patientId,
+  patient,
   onClose,
   onEdit,
 }) {
   if (!doc) return null;
 
-  const cfg  = getDocumentTypeConfig(doc.documentType);
+  const cfg      = getDocumentTypeConfig(doc.documentType);
   const isLocked = doc.metadata?.locked;
 
   return (
-    /* Overlay */
     <div className="fixed inset-0 z-50 flex justify-end" onClick={onClose}>
-
-      {/* Semi-transparent backdrop */}
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
 
-      {/* Drawer panel */}
       <div
         className="relative z-10 flex flex-col bg-white shadow-2xl w-full max-w-xl h-full"
         onClick={e => e.stopPropagation()}>
@@ -140,7 +216,6 @@ export default function DocumentViewer({
             </button>
           </div>
 
-          {/* Metadata row */}
           <div className="flex flex-wrap items-center gap-3 mt-3">
             <StatusChanger document={doc} patientId={patientId} />
             {!isLocked && onEdit && (
@@ -153,13 +228,13 @@ export default function DocumentViewer({
             )}
             {isLocked && (
               <span className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full font-medium">
-                🔒 Documento bloqueado
+                🔒 Bloqueado
               </span>
             )}
           </div>
         </div>
 
-        {/* ── Audit info ──────────────────────────────── */}
+        {/* ── Audit ───────────────────────────────────── */}
         <div className="px-6 py-3 bg-gray-50 border-b border-gray-100 shrink-0">
           <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px] text-gray-500">
             <span>Creado: <strong className="text-gray-700">{formatTimestamp(doc.createdAt)}</strong></span>
@@ -177,8 +252,9 @@ export default function DocumentViewer({
           <ClinicalDataSection data={doc.clinicalData} />
         </div>
 
-        {/* ── Footer ──────────────────────────────────── */}
-        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 shrink-0">
+        {/* ── Footer with PDF actions ──────────────────── */}
+        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 shrink-0 space-y-3">
+          <PDFSection doc={doc} patientId={patientId} patient={patient} />
           <div className="flex items-center justify-between text-[10px] text-gray-400">
             <span>v{doc.version ?? 1} · ID: {doc.id?.slice(0, 8)}…</span>
             {doc.metadata?.printable && (

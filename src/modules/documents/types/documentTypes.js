@@ -1,10 +1,11 @@
 export const DOCUMENT_TYPES = {
-  HISTORIA_CLINICA:    'historia_clinica',
-  EPICRISIS:           'epicrisis',
-  FICHA_SOCIAL:        'ficha_social',
-  HISTORIA_QUIRURGICA: 'historia_quirurgica',
-  EVOLUCION:           'evolucion',
-  CONSENTIMIENTO:      'consentimiento',
+  HISTORIA_CLINICA:       'historia_clinica',
+  EPICRISIS:              'epicrisis',
+  FICHA_SOCIAL:           'ficha_social',
+  HISTORIA_QUIRURGICA:    'historia_quirurgica',
+  EVOLUCION:              'evolucion',
+  CONSENTIMIENTO:         'consentimiento',
+  CONTROL_POSTOPERATORIO: 'control_postoperatorio',
 };
 
 export const DOCUMENT_TYPE_CONFIG = {
@@ -49,6 +50,13 @@ export const DOCUMENT_TYPE_CONFIG = {
     icon:      '✍️',
     color:     '#d97706',
     light:     '#fef3c7',
+  },
+  control_postoperatorio: {
+    label:     'Control Postoperatorio',
+    specialty: 'Cirugía',
+    icon:      '🩹',
+    color:     '#0891b2',
+    light:     '#cffafe',
   },
 };
 

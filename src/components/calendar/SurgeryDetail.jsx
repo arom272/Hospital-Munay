@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useState, useRef, useMemo, useEffect } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { differenceInYears, differenceInMonths, differenceInDays, parseISO, isValid } from 'date-fns';
 import {
   User, Users, DollarSign, History,
   Printer, PauseCircle, XCircle, X, Pencil,
-  CheckCircle, AlertCircle, CalendarClock, Loader2, FileText, Stethoscope
+  CheckCircle, AlertCircle, CalendarClock, Loader2, FileText, Stethoscope,
+  Upload, ExternalLink, Paperclip, Trash2, Circle
 } from 'lucide-react';
 import useStore      from '../../store/useStore';
 import Badge         from '../ui/Badge';
@@ -15,6 +16,13 @@ import { getTypeInfo } from '../../utils/patientTypes';
 import { printHistoriaClinicaQx } from '../../utils/printHistoriaClinicaQx';
 import { useAuth }   from '../../contexts/AuthContext';
 import { saveDocumentSnapshot } from '../../modules/documents/services/documentSave';
+import { useSurgeryDocuments }   from '../../modules/documents/hooks/useSurgeryDocuments';
+import { usePDFGeneration }      from '../../modules/documents/hooks/usePDFGeneration';
+import { uploadSignedConsent }   from '../../services/signedConsentService';
+import { uploadFile } from '../../services/uploadService';
+import { createDocument, updateDocument } from '../../modules/documents/services/documentService';
+import { DocumentFormModal }           from '../../modules/documents/index';
+import { uploadAndLinkAttachment, removeAttachment } from '../../services/eventAttachmentService';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -230,7 +238,14 @@ async function printConsentForm(surgery, patient) {
   .sig-txt{font-size:9pt;line-height:1.6}
   .date-row{text-align:right;font-size:10pt;color:#1F3A5F;padding-right:2px}
   .bot{height:5px;background:#4FC3C2;flex-shrink:0}
-</style></head><body>
+</style>
+<style>.toolbar{position:sticky;top:0;z-index:100;background:#fff;border-bottom:2px solid #1F3A5F;padding:6px 14px;display:flex;align-items:center;gap:8px;box-shadow:0 2px 6px rgba(0,0,0,.1)}.toolbar-brand{font-size:9pt;font-weight:700;color:#1F3A5F;flex:1}.toolbar button{border:none;padding:5px 11px;font-family:inherit;font-size:8pt;font-weight:600;cursor:pointer;border-radius:4px}.btn-save{background:#276749;color:#fff}.btn-save:disabled{background:#888;cursor:not-allowed}.btn-pt{background:#1F3A5F;color:#fff}@media print{.toolbar{display:none!important}}</style>
+</head><body>
+<div class="toolbar">
+  <div class="toolbar-brand">MUNAY <span style="font-weight:400;color:#5A6B82">· Consentimiento Informado de Cirugía</span></div>
+  <button class="btn-save" onclick="guardarEnSistema(this)">&#128190; Guardar en sistema</button>
+  <button class="btn-pt" onclick="window.print()">&#128424; Imprimir / PDF</button>
+</div>
 <div class="hdr">
   ${logoBoxHtml}
   <div style="text-align:center;color:#FFF">
@@ -272,13 +287,21 @@ async function printConsentForm(surgery, patient) {
   </div>
 </div>
 <div class="bot"></div>
+<script>
+var SURGERY_ID = '${surgery.id}';
+var PATIENT_ID = '${surgery.patientId}';
+function guardarEnSistema(btn) {
+  if (!window.opener || window.opener.closed) { alert('La ventana principal no está disponible.'); return; }
+  window.opener.postMessage({ type: 'MUNAY_SAVE_SURGERY_DOC', docType: 'consentimiento_cirugia', surgeryId: SURGERY_ID, patientId: PATIENT_ID, savedAt: new Date().toISOString() }, '*');
+  btn.textContent = '\\u2713 Guardado'; btn.style.background = '#1a5c34'; btn.disabled = true;
+}
+</script>
 </body></html>`;
 
   const win = window.open('', '_blank', 'width=816,height=1056');
   win.document.write(html);
   win.document.close();
   win.focus();
-  setTimeout(() => { win.print(); }, 500);
 }
 
 async function printAnesthesiaConsentForm(surgery, patient) {
@@ -325,7 +348,14 @@ async function printAnesthesiaConsentForm(surgery, patient) {
   .sig-txt{font-size:9pt;line-height:1.6}
   .date-row{text-align:right;font-size:10pt;color:#1F3A5F;padding-right:2px}
   .bot{height:5px;background:#4FC3C2;flex-shrink:0}
-</style></head><body>
+</style>
+<style>.toolbar{position:sticky;top:0;z-index:100;background:#fff;border-bottom:2px solid #1F3A5F;padding:6px 14px;display:flex;align-items:center;gap:8px;box-shadow:0 2px 6px rgba(0,0,0,.1)}.toolbar-brand{font-size:9pt;font-weight:700;color:#1F3A5F;flex:1}.toolbar button{border:none;padding:5px 11px;font-family:inherit;font-size:8pt;font-weight:600;cursor:pointer;border-radius:4px}.btn-save{background:#276749;color:#fff}.btn-save:disabled{background:#888;cursor:not-allowed}.btn-pt{background:#1F3A5F;color:#fff}@media print{.toolbar{display:none!important}}</style>
+</head><body>
+<div class="toolbar">
+  <div class="toolbar-brand">MUNAY <span style="font-weight:400;color:#5A6B82">· Consentimiento Informado de Anestesia</span></div>
+  <button class="btn-save" onclick="guardarEnSistema(this)">&#128190; Guardar en sistema</button>
+  <button class="btn-pt" onclick="window.print()">&#128424; Imprimir / PDF</button>
+</div>
 <div class="hdr">
   ${logoBoxHtml}
   <div style="text-align:center;color:#FFF">
@@ -382,13 +412,21 @@ async function printAnesthesiaConsentForm(surgery, patient) {
   </div>
 </div>
 <div class="bot"></div>
+<script>
+var SURGERY_ID = '${surgery.id}';
+var PATIENT_ID = '${surgery.patientId}';
+function guardarEnSistema(btn) {
+  if (!window.opener || window.opener.closed) { alert('La ventana principal no está disponible.'); return; }
+  window.opener.postMessage({ type: 'MUNAY_SAVE_SURGERY_DOC', docType: 'consentimiento_anestesia', surgeryId: SURGERY_ID, patientId: PATIENT_ID, savedAt: new Date().toISOString() }, '*');
+  btn.textContent = '\\u2713 Guardado'; btn.style.background = '#1a5c34'; btn.disabled = true;
+}
+</script>
 </body></html>`;
 
   const win = window.open('', '_blank', 'width=816,height=1056');
   win.document.write(html);
   win.document.close();
   win.focus();
-  setTimeout(() => { win.print(); }, 500);
 }
 
 async function printPostOpControl(surgery, patient) {
@@ -428,8 +466,12 @@ async function printPostOpControl(surgery, patient) {
   @page{size:letter portrait;margin:0}
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{font-family:Arial,Helvetica,sans-serif;color:#000;font-size:9pt;background:#dde3ea}
-  .toolbar{max-width:8.5in;margin:0 auto;display:flex;gap:10px;justify-content:flex-end;padding:6px 20px;background:#dde3ea}
-  .toolbar button{background:#1F3A5F;color:#fff;border:none;padding:6px 18px;border-radius:4px;font-size:9.5pt;cursor:pointer;font-weight:bold}
+  .toolbar{max-width:8.5in;margin:0 auto;display:flex;align-items:center;gap:10px;padding:6px 20px;background:#dde3ea}
+  .toolbar-brand{font-size:9pt;font-weight:700;color:#1F3A5F;flex:1}
+  .toolbar button{border:none;padding:6px 14px;border-radius:4px;font-size:8.5pt;cursor:pointer;font-weight:bold}
+  .btn-print{background:#1F3A5F;color:#fff}
+  .btn-save{background:#276749;color:#fff}
+  .btn-save:disabled{background:#888;cursor:not-allowed}
   .hoja{width:8.5in;min-height:11in;margin:0 auto 16px;background:#fff}
   .hdr{background:#1F3A5F;padding:10px 22px;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:14px;border-bottom:4px solid #4FC3C2;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .content{padding:5mm 11mm 6mm}
@@ -493,7 +535,22 @@ async function printPostOpControl(surgery, patient) {
     .toolbar{display:none}
     .hoja{margin:0}
   }
+  body.pdf-mode .toolbar{display:none!important}
+  body.pdf-mode{background:#fff!important}
+  body.pdf-mode .hoja{box-shadow:none!important;margin:0 auto!important;min-height:0!important}
+  body.pdf-mode .content{padding:4mm 8mm 5mm!important}
+  body.pdf-mode .sec{margin-bottom:4px!important}
+  body.pdf-mode .sec-hdr{padding:2px 7px!important;font-size:7.5pt!important;margin-bottom:3px!important}
+  body.pdf-mode .eval-grid{gap:5px!important;margin-top:2px!important}
+  body.pdf-mode .dolor-wrap{padding:3px 7px!important;margin-top:3px!important}
+  body.pdf-mode .ind{gap:2px 10px!important}
+  body.pdf-mode .fir{margin-top:6px!important;gap:10px!important}
+  body.pdf-mode .stamp-box{height:36px!important}
+  body.pdf-mode .pie{margin-top:3px!important}
+  body.pdf-mode .bot{height:3px!important}
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
 function selDolor(n){
   document.querySelectorAll('.eva .n').forEach(function(el){el.className='n'});
@@ -507,7 +564,9 @@ function selDolor(n){
 </script>
 </head><body>
 <div class="toolbar">
-  <button onclick="window.print()">&#128424; Imprimir</button>
+  <div class="toolbar-brand">MUNAY <span>· Control Postoperatorio</span></div>
+  <button class="btn-save" onclick="guardarEnSistema(this)">&#128190; Guardar en sistema</button>
+  <button class="btn-print" onclick="window.print()">&#128424; Imprimir</button>
 </div>
 <div class="hoja">
 <div class="hdr">
@@ -640,6 +699,33 @@ function selDolor(n){
 </div>
 <div class="bot"></div>
 </div>
+<script>
+var SURGERY_ID = '${surgery.id}';
+var PATIENT_ID = '${surgery.patientId}';
+async function guardarEnSistema(btn) {
+  if (!window.opener || window.opener.closed) { alert('La ventana principal no está disponible.'); return; }
+  btn.disabled = true; btn.textContent = '⏳ Generando PDF...';
+  try {
+    document.body.classList.add('pdf-mode');
+    await new Promise(function(r){requestAnimationFrame(function(){setTimeout(r,80);});});
+    var SCALE = 1.5;
+    var hojaEl = document.querySelector('.hoja');
+    var canvas = await html2canvas(hojaEl, {scale:SCALE,useCORS:true,allowTaint:true,backgroundColor:'#ffffff',logging:false});
+    var PDF = window.jspdf.jsPDF;
+    var pdfDoc = new PDF({unit:'mm',format:'letter',orientation:'portrait'});
+    var pW = pdfDoc.internal.pageSize.getWidth();
+    var imgH = pW * (canvas.height / canvas.width);
+    pdfDoc.addImage(canvas.toDataURL('image/jpeg',0.92),'JPEG',0,0,pW,imgH,'','FAST');
+    window.opener.postMessage({type:'MUNAY_SAVE_SURGERY_DOC',docType:'control_postoperatorio',surgeryId:SURGERY_ID,patientId:PATIENT_ID,savedAt:new Date().toISOString(),pdfBase64:pdfDoc.output('datauristring')},'*');
+    btn.textContent = '\\u2713 Guardado'; btn.style.background = '#1a5c34';
+  } catch(err) {
+    btn.disabled = false; btn.textContent = '\\ud83d\\udcbe Guardar en sistema';
+    alert('Error al generar el PDF: ' + (err.message || String(err)));
+  } finally {
+    document.body.classList.remove('pdf-mode');
+  }
+}
+</script>
 </body></html>`;
 
   const win = window.open('', '_blank', 'width=820,height=1060');
@@ -674,76 +760,111 @@ async function printEpicrisis(surgery, patient) {
   const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/>
 <title>Epicrisis — ${patientName}</title>
 <style>
-  @page{size:letter portrait;margin:0}
-  *{box-sizing:border-box;margin:0;padding:0}
-  html,body{font-family:Arial,Helvetica,sans-serif;color:#000;font-size:9.5pt;background:#e8e8e8}
-  .hdr{background:#1F3A5F;padding:10px 22px;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:14px;border-bottom:4px solid #4FC3C2}
-  .toolbar{max-width:8.5in;margin:0 auto;display:flex;gap:10px;justify-content:flex-end;padding:7px 22px;background:#e8e8e8}
-  .toolbar button{background:#1F3A5F;color:#fff;border:none;padding:6px 13px;border-radius:4px;font-size:9.5pt;cursor:pointer;font-weight:bold}
-  .toolbar button.add{background:#2a8f3f}.toolbar button.sec{background:#666}
-  .hoja{width:8.5in;margin:0 auto 16px;background:#fff;padding:0.22in 0.38in}
-  .titulo{text-align:center;font-size:12pt;font-weight:bold;margin:6px 0;letter-spacing:1px;border-top:2px solid #1F3A5F;border-bottom:2px solid #1F3A5F;padding:4px 0;color:#1F3A5F}
-  .bloque{border:1px solid #ccc;border-radius:4px;margin-bottom:5px;overflow:hidden}
-  .bt{background:linear-gradient(90deg,#e8f4f4 0%,#f5f5f5 100%);padding:3px 8px;font-weight:bold;font-size:9pt;border-bottom:1px solid #ccc;border-left:4px solid #4FC3C2;text-transform:uppercase;color:#1F3A5F;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .bc{padding:4px 8px}
-  .g2{display:grid;grid-template-columns:1fr 1fr;gap:2px 12px}
-  .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:2px 12px}
-  .g4{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:2px 12px}
-  .f{display:flex;align-items:baseline;gap:4px;padding:2px 0}
-  .f .lbl{font-weight:bold;white-space:nowrap;font-size:8.5pt;color:#333}
-  .f input,.f select{flex:1;border:none;border-bottom:1px dotted #666;background:transparent;font-family:inherit;font-size:9.5pt;padding:1px 2px;outline:none;min-width:0}
-  .f input:focus,.f select:focus,textarea:focus{background:#fffae6}
-  .fv{display:flex;flex-direction:column;gap:1px;padding:2px 0}
-  .fv .lbl{font-weight:bold;font-size:8.5pt;color:#333}
-  .fv input{border:none;border-bottom:1px dotted #666;background:transparent;font-family:inherit;font-size:9.5pt;padding:1px 2px;outline:none;width:100%}
-  .fv input:focus{background:#fffae6}
-  textarea{width:100%;border:1px solid #bbb;background:transparent;font-family:inherit;font-size:9.5pt;line-height:1.4;padding:3px 5px;resize:vertical;outline:none;min-height:24px}
-  table.med{width:100%;border-collapse:collapse;font-size:8.5pt}
-  table.med th,table.med td{border:1px solid #000;padding:2px 4px;text-align:left;vertical-align:top}
-  table.med th{background:linear-gradient(90deg,#e8f4f4,#f0f0f0);font-weight:bold;text-align:center;-webkit-print-color-adjust:exact;print-color-adjust:exact;color:#1F3A5F}
-  table.med input{width:100%;border:none;background:transparent;font-family:inherit;font-size:8.5pt;outline:none;padding:1px}
-  table.med input:focus{background:#fffae6}
-  .chk-l{display:grid;grid-template-columns:1fr 1fr;gap:2px 14px}
-  .chk-i{display:flex;align-items:center;gap:5px;font-size:9.5pt}
-  .chk-i input[type="checkbox"]{width:12px;height:12px;margin:0}
-  .firmas{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:16px}
-  .firma{text-align:center;font-size:8.5pt}
-  .firma .esp{height:38px}
-  .firma .lin{border-top:1px solid #000;margin-bottom:3px}
-  .firma .nom{font-weight:bold}
-  .pie-v{text-align:center;font-size:7pt;color:#666;margin-top:8px;border-top:1px solid #ccc;padding-top:3px}
-  .bot{height:5px;background:#4FC3C2}
-  @media print{
-    body{background:#fff}
-    .toolbar{display:none}
-    .hoja{margin:0;width:100%;padding:0.22in 0.38in}
-    input,select,textarea{background:transparent!important}
-    .bt{background:linear-gradient(90deg,#e8f4f4 0%,#f5f5f5 100%)!important}
-    table.med th{background:linear-gradient(90deg,#e8f4f4,#f0f0f0)!important}
-  }
-</style></head><body>
-<div class="hdr">
-  ${logoBoxHtml}
-  <div style="text-align:center;color:#FFF">
-    <div style="font-size:12px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;opacity:.85">Centro Médico Quirúrgico</div>
-    <div style="font-size:22px;font-weight:900;letter-spacing:5px;color:#4FC3C2;margin-top:2px">MUNAY</div>
-  </div>
-  <div style="text-align:right;color:#FFF">
-    <div style="font-size:13px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase">Epicrisis</div>
-    <div style="font-size:9px;opacity:.9;margin-top:2px">Departamento Médico Quirúrgico</div>
-  </div>
-</div>
+:root{--navy:#163A5F;--navy-mid:#2F5D8A;--navy-soft:#EBF2FA;--rule:#CBD5E0;--rule-light:#E2E8F0;--ink:#1A202C;--ink-2:#4A5568;--ink-3:#718096;--white:#FFFFFF}
+@page{size:letter portrait;margin:8mm 9mm 7mm}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{font-family:'Inter','Segoe UI',Arial,sans-serif;color:var(--ink);font-size:8.5pt;line-height:1.35;background:#EDF2F7}
+.doc{width:215.9mm;min-height:279.4mm;margin:12px auto;padding:0 9mm 7mm;background:var(--white);box-shadow:0 2px 16px rgba(0,0,0,.10)}
+.toolbar{position:sticky;top:0;z-index:100;background:var(--white);border-bottom:2px solid var(--navy);padding:7px 16px;display:flex;align-items:center;gap:10px;box-shadow:0 2px 8px rgba(22,58,95,.10);print-color-adjust:exact}
+.toolbar-brand{font-size:9.5pt;font-weight:700;color:var(--navy);flex:1}
+.toolbar-brand span{font-weight:400;color:var(--ink-2);font-size:8.5pt}
+.toolbar button{border:none;padding:5px 13px;font-family:inherit;font-size:8.5pt;font-weight:600;cursor:pointer;border-radius:5px}
+.btn-print{background:var(--navy);color:#fff}
+.btn-add{background:#276749;color:#fff}
+.btn-save{background:#1a5c34;color:#fff}
+.btn-save:disabled{background:#888;cursor:not-allowed}
+.page-hdr{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;padding:8px 12px;margin-bottom:6px;border-radius:7px;background:linear-gradient(135deg,#0C1F35 0%,#163A5F 35%,#2F5D8A 70%,#3A7BBF 100%);print-color-adjust:exact;-webkit-print-color-adjust:exact}
+.hdr-logo{background:rgba(255,255,255,0.12);border-radius:5px;padding:3px}
+.hdr-logo img{height:40px;width:auto;display:block;border-radius:3px}
+.hdr-logo-text{font-size:14pt;font-weight:800;color:#fff;letter-spacing:3px}
+.hdr-center{text-align:center}
+.hdr-center .inst-name{font-size:13pt;font-weight:800;color:#fff;letter-spacing:2px;line-height:1}
+.hdr-center .inst-sub{font-size:7.5pt;color:rgba(255,255,255,0.80);margin-top:2px}
+.hdr-center .doc-title{font-size:8pt;font-weight:600;color:rgba(255,255,255,0.92);margin-top:3px;letter-spacing:.5px;text-transform:uppercase}
+.hdr-right{text-align:right;font-size:7.5pt;color:rgba(255,255,255,0.85);line-height:1.5}
+.hdr-right .hc-code{font-size:10pt;font-weight:700;color:#fff;font-family:'Courier New',monospace}
+.section-card{margin:4px 0;border:1px solid var(--rule-light);border-radius:6px;overflow:hidden}
+h3.section{background:var(--navy-soft);color:var(--navy);font-size:8pt;font-weight:700;letter-spacing:.4px;text-transform:uppercase;padding:4px 10px 4px 13px;border-left:4px solid var(--navy);display:flex;align-items:center;gap:6px}
+.section-body{padding:5px 10px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:2px 12px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:2px 12px}
+.g4{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:2px 12px}
+.f{display:flex;align-items:baseline;gap:4px;padding:2px 0}
+.f .lbl{font-size:6.8pt;font-weight:600;color:var(--ink-2);text-transform:uppercase;letter-spacing:.3px;white-space:nowrap}
+.f input,.f select{flex:1;border:none;border-bottom:1px solid var(--rule);background:transparent;font-family:'Calibri','Gill Sans MT','Trebuchet MS',Arial,sans-serif;font-size:8.5pt;font-weight:600;color:var(--navy);padding:1px 2px;outline:none;min-width:0}
+.f input:focus,.f select:focus,textarea:focus{background:#EBF8FF}
+.fv{display:flex;flex-direction:column;gap:1px;padding:2px 0}
+.fv .lbl{font-size:6.8pt;font-weight:600;color:var(--ink-2);text-transform:uppercase;letter-spacing:.3px}
+.fv input{border:none;border-bottom:1px solid var(--rule);background:transparent;font-family:'Calibri','Gill Sans MT','Trebuchet MS',Arial,sans-serif;font-size:8.5pt;font-weight:600;color:var(--navy);padding:1px 2px;outline:none;width:100%}
+.fv input:focus{background:#EBF8FF}
+textarea{width:100%;border:1px solid var(--rule-light);border-radius:4px;background:#FAFBFC;font-family:'Calibri','Gill Sans MT','Trebuchet MS',Arial,sans-serif;font-size:8.5pt;font-weight:500;color:var(--navy);line-height:1.35;padding:3px 6px;resize:vertical;outline:none;min-height:24px}
+textarea:focus{background:#EBF8FF}
+table.med{width:100%;border-collapse:collapse;font-size:7.5pt;border-radius:5px;overflow:hidden}
+table.med thead tr{background:var(--navy-soft);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+table.med th{padding:4px 7px;text-align:center;font-size:7pt;font-weight:700;color:var(--navy);border:1px solid var(--rule-light)}
+table.med td{border:1px solid var(--rule-light);padding:2px 6px;vertical-align:top}
+table.med input{width:100%;border:none;background:transparent;font-family:'Calibri','Gill Sans MT','Trebuchet MS',Arial,sans-serif;font-size:8.5pt;font-weight:600;color:var(--navy);outline:none;padding:1px}
+table.med input:focus{background:#EBF8FF}
+.chk-l{display:grid;grid-template-columns:1fr 1fr;gap:2px 14px}
+.chk-i{display:flex;align-items:center;gap:5px;font-size:8pt}
+.chk-i input[type="checkbox"]{width:11px;height:11px;margin:0;accent-color:var(--navy)}
+.firmas{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:8px}
+.firma{text-align:center;font-size:8pt}
+.firma .esp{height:34px}
+.firma .lin{border-top:1px solid var(--ink);margin-bottom:3px}
+.firma .nom{font-weight:700;color:var(--navy)}
+.footer{margin-top:6px;padding-top:4px;border-top:1px solid var(--rule-light);font-size:6.5pt;color:var(--ink-3);display:flex;justify-content:space-between;font-style:italic}
+@media print{
+  html,body{background:#fff!important}
+  .toolbar{display:none!important}
+  .doc{box-shadow:none!important;margin:0!important;padding:5mm 7mm!important;width:100%!important;min-height:0!important}
+  .page-hdr{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+  table.med thead tr{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+  input,select,textarea{background:transparent!important}
+}
+body.pdf-mode .toolbar{display:none!important}
+body.pdf-mode{background:#fff!important}
+body.pdf-mode .doc{box-shadow:none!important;margin:0 auto!important;padding:5mm 7mm!important;width:215.9mm!important;min-height:0!important}
+body.pdf-mode .section-card{margin:2px 0!important}
+body.pdf-mode .section-body{padding:3px 8px!important}
+body.pdf-mode h3.section{padding:3px 10px 3px 12px!important;font-size:7pt!important}
+body.pdf-mode .page-hdr{padding:5px 10px!important;margin-bottom:4px!important}
+body.pdf-mode .g2,body.pdf-mode .g3,body.pdf-mode .g4{gap:2px 8px!important}
+body.pdf-mode .f{padding:1px 0!important}
+body.pdf-mode .fv{gap:1px!important;padding:1px 0!important}
+body.pdf-mode textarea{min-height:16px!important;padding:2px 4px!important}
+body.pdf-mode table.med{font-size:7pt!important}
+body.pdf-mode table.med td,body.pdf-mode table.med th{padding:2px 4px!important}
+body.pdf-mode .firmas{margin-top:5px!important;gap:12px!important}
+body.pdf-mode .firma .esp{height:22px!important}
+body.pdf-mode .footer{margin-top:3px!important;padding-top:2px!important;font-size:6pt!important}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head><body>
 <div class="toolbar">
-  <button onclick="window.print()">Imprimir</button>
-  <button class="add" onclick="agregarMedicamento()">+ Medicamento</button>
-  <button class="sec" onclick="limpiarFormulario()">Limpiar</button>
+  <div class="toolbar-brand">MUNAY <span>· Epicrisis de Egreso Hospitalario</span></div>
+  <button class="btn-add" onclick="agregarMedicamento()">+ Medicamento</button>
+  <button class="btn-save" onclick="guardarEnSistema(this)">&#128190; Guardar en sistema</button>
+  <button class="btn-print" onclick="window.print()">🖨 Imprimir / PDF</button>
 </div>
-<div class="hoja">
-  <div class="titulo">EPICRISIS DE EGRESO HOSPITALARIO</div>
+<div class="doc">
+  <div class="page-hdr">
+    ${logoBoxHtml}
+    <div class="hdr-center">
+      <div class="inst-name">MUNAY</div>
+      <div class="inst-sub">Centro Médico Quirúrgico · Centro del Niño con Fisura · La Paz, Bolivia</div>
+      <div class="doc-title">Epicrisis de Egreso Hospitalario</div>
+    </div>
+    <div class="hdr-right">
+      ${patientName ? `<div style="font-size:8.5pt;font-weight:600;color:#fff">${patientName}</div>` : ''}
+      <div class="hc-code">${hcCode || '______'}</div>
+    </div>
+  </div>
 
-  <div class="bloque">
-    <div class="bt">1. Datos del paciente</div>
-    <div class="bc">
+  <div class="section-card">
+    <h3 class="section">1 · Datos del paciente</h3>
+    <div class="section-body">
       <div class="g2">
         <div class="f"><span class="lbl">Apellidos y nombres:</span><input value="${patientName}"/></div>
         <div class="f"><span class="lbl">N° HC:</span><input value="${hcCode}"/></div>
@@ -755,20 +876,16 @@ async function printEpicrisis(surgery, patient) {
         <div class="f"><span class="lbl">Edad:</span><input value="${ageStr}"/></div>
       </div>
       <div class="g3">
-        <div class="f"><span class="lbl">Peso (kg):</span><input value="${pesoStr}"/></div>
         <div class="f"><span class="lbl">Procedencia:</span><input placeholder="Ciudad / Comunidad"/></div>
-        <div class="f"><span class="lbl">Idioma:</span><input placeholder="Español / Aymara / Quechua"/></div>
-      </div>
-      <div class="g2">
         <div class="f"><span class="lbl">Responsable legal:</span><input value="${guardian}"/></div>
         <div class="f"><span class="lbl">Teléfono contacto:</span><input type="tel" value="${guardianPhone}"/></div>
       </div>
     </div>
   </div>
 
-  <div class="bloque">
-    <div class="bt">2. Datos de internación</div>
-    <div class="bc">
+  <div class="section-card">
+    <h3 class="section">2 · Datos de internación</h3>
+    <div class="section-body">
       <div class="g2">
         <div class="f"><span class="lbl">Fecha ingreso:</span><input type="date" id="fecha_ingreso" value="${surgeryDate}"/></div>
         <div class="f"><span class="lbl">Hora ingreso:</span><input type="time" value="${admissionTime}"/></div>
@@ -782,38 +899,36 @@ async function printEpicrisis(surgery, patient) {
     </div>
   </div>
 
-  <div class="bloque">
-    <div class="bt">3. Diagnósticos</div>
-    <div class="bc">
-      <div class="fv">
-        <span class="lbl">Diagnóstico pre-quirúrgico (CIE-10):</span>
-        <input value="${diagnosis}" placeholder="Ej: Q37.5 - Fisura labial bilateral con fisura palatina"/>
-      </div>
-      <div class="fv">
-        <span class="lbl">Diagnóstico post-quirúrgico (CIE-10):</span>
-        <input/>
+  <div class="section-card">
+    <h3 class="section">3 · Diagnósticos</h3>
+    <div class="section-body">
+      <div class="g2">
+        <div class="fv">
+          <span class="lbl">Diagnóstico pre-quirúrgico (CIE-10):</span>
+          <input value="${diagnosis}" placeholder="Ej: Q37.5 - Fisura labial bilateral con fisura palatina"/>
+        </div>
+        <div class="fv">
+          <span class="lbl">Diagnóstico post-quirúrgico (CIE-10):</span>
+          <input/>
+        </div>
       </div>
     </div>
   </div>
 
-  <div class="bloque">
-    <div class="bt">4. Procedimiento quirúrgico</div>
-    <div class="bc">
-      <div class="fv">
-        <span class="lbl">Cirugía realizada:</span>
-        <input value="${procedure}"/>
-      </div>
-      <div class="g3">
+  <div class="section-card">
+    <h3 class="section">4 · Procedimiento quirúrgico</h3>
+    <div class="section-body">
+      <div style="display:grid;grid-template-columns:2fr 1.4fr 0.9fr;gap:2px 12px">
+        <div class="f"><span class="lbl">Cirugía realizada:</span><input value="${procedure}"/></div>
         <div class="f"><span class="lbl">Tipo de anestesia:</span><select><option value=""></option><option>General</option><option>Local</option><option>Local + sedación</option><option>Regional</option></select></div>
         <div class="f"><span class="lbl">Duración (min):</span><input/></div>
-        <div class="f"><span class="lbl">Sangrado:</span><select><option value=""></option><option>Mínimo</option><option>Moderado</option><option>Abundante</option></select></div>
       </div>
     </div>
   </div>
 
-  <div class="bloque">
-    <div class="bt">5. Tratamiento al alta — Medicamentos</div>
-    <div class="bc">
+  <div class="section-card">
+    <h3 class="section">5 · Tratamiento al alta — Medicamentos</h3>
+    <div class="section-body">
       <table class="med" id="tabla_med">
         <thead><tr>
           <th style="width:22%">Fármaco</th>
@@ -830,9 +945,9 @@ async function printEpicrisis(surgery, patient) {
     </div>
   </div>
 
-  <div class="bloque">
-    <div class="bt">6. Indicaciones al alta</div>
-    <div class="bc">
+  <div class="section-card">
+    <h3 class="section">6 · Indicaciones al alta</h3>
+    <div class="section-body">
       <div class="fv"><span class="lbl">Alimentación:</span><textarea rows="2" placeholder="Tipo de dieta, consistencia, duración."></textarea></div>
       <div class="fv"><span class="lbl">Higiene oral y de herida:</span><textarea rows="2"></textarea></div>
       <div class="fv"><span class="lbl">Cuidados generales:</span><textarea rows="2"></textarea></div>
@@ -840,9 +955,9 @@ async function printEpicrisis(surgery, patient) {
     </div>
   </div>
 
-  <div class="bloque">
-    <div class="bt">7. Signos de alarma — Acudir inmediatamente</div>
-    <div class="bc">
+  <div class="section-card">
+    <h3 class="section">7 · Signos de alarma — Acudir inmediatamente</h3>
+    <div class="section-body">
       <div class="chk-l">
         <label class="chk-i"><input type="checkbox" checked> Fiebre que no calma con medicamentos (&gt;38.5°C)</label>
         <label class="chk-i"><input type="checkbox" checked> Sangrado abundante o persistente</label>
@@ -856,9 +971,9 @@ async function printEpicrisis(surgery, patient) {
     </div>
   </div>
 
-  <div class="bloque">
-    <div class="bt">8. Cita de control</div>
-    <div class="bc">
+  <div class="section-card">
+    <h3 class="section">8 · Cita de control</h3>
+    <div class="section-body">
       <div class="g3">
         <div class="f"><span class="lbl">Fecha:</span><input type="date"/></div>
         <div class="f"><span class="lbl">Hora:</span><input type="time"/></div>
@@ -872,9 +987,11 @@ async function printEpicrisis(surgery, patient) {
     <div class="firma"><div class="esp"></div><div class="lin"></div><div class="nom">Médico cirujano tratante</div><div>Firma y sello</div></div>
   </div>
 
-  <div class="pie-v">Epicrisis v2026.1 — Centro Médico Quirúrgico MUNAY · La Paz, Bolivia — Documento clínico oficial</div>
+  <div class="footer">
+    <span>Epicrisis · Centro Médico Quirúrgico MUNAY · La Paz, Bolivia</span>
+    <span>Documento clínico oficial</span>
+  </div>
 </div>
-<div class="bot"></div>
 <script>
   function crearFila() {
     return '<tr><td><input type="text"/></td><td><input type="text" placeholder="ej: 500mg"/></td><td><input type="text"/></td><td><input type="text" placeholder="ej: 3 ml"/></td><td><input type="text" placeholder="VO/IM/EV"/></td><td><input type="text" placeholder="c/8h"/></td><td><input type="text" placeholder="7 dias"/></td><td><input type="date"/></td></tr>';
@@ -882,18 +999,38 @@ async function printEpicrisis(surgery, patient) {
   function agregarMedicamento() {
     document.querySelector('#tabla_med tbody').insertAdjacentHTML('beforeend', crearFila());
   }
-  function limpiarFormulario() {
-    if (!confirm('Limpiar todos los campos?')) return;
-    document.querySelectorAll('input[type="text"],input[type="tel"],input[type="date"],input[type="time"],textarea,select').forEach(function(el){el.value='';});
-    document.querySelectorAll('input[type="checkbox"]').forEach(function(c){c.checked=false;});
-  }
   function calcularDias() {
     var i=document.getElementById('fecha_ingreso').value, e=document.getElementById('fecha_egreso').value;
     if(i&&e){var d=(new Date(e)-new Date(i))/86400000;if(d>=0)document.getElementById('dias_estancia').value=d;}
   }
   document.getElementById('fecha_ingreso').addEventListener('change',calcularDias);
   document.getElementById('fecha_egreso').addEventListener('change',calcularDias);
-  for(var i=0;i<3;i++) agregarMedicamento();
+  for(var i=0;i<2;i++) agregarMedicamento();
+  var SURGERY_ID = '${surgery.id}';
+  var PATIENT_ID = '${surgery.patientId}';
+  async function guardarEnSistema(btn) {
+    if (!window.opener || window.opener.closed) { alert('La ventana principal no está disponible.'); return; }
+    btn.disabled = true; btn.textContent = '⏳ Generando PDF...';
+    try {
+      document.body.classList.add('pdf-mode');
+      await new Promise(function(r){requestAnimationFrame(function(){setTimeout(r,80);});});
+      var SCALE = 1.5;
+      var docEl = document.querySelector('.doc');
+      var canvas = await html2canvas(docEl, {scale:SCALE,useCORS:true,allowTaint:true,backgroundColor:'#ffffff',logging:false});
+      var PDF = window.jspdf.jsPDF;
+      var pdfDoc = new PDF({unit:'mm',format:'letter',orientation:'portrait'});
+      var pW = pdfDoc.internal.pageSize.getWidth();
+      var imgH = pW * (canvas.height / canvas.width);
+      pdfDoc.addImage(canvas.toDataURL('image/jpeg',0.92),'JPEG',0,0,pW,imgH,'','FAST');
+      window.opener.postMessage({type:'MUNAY_SAVE_SURGERY_DOC',docType:'epicrisis',surgeryId:SURGERY_ID,patientId:PATIENT_ID,savedAt:new Date().toISOString(),pdfBase64:pdfDoc.output('datauristring')},'*');
+      btn.textContent = '\\u2713 Guardado'; btn.style.background = '#1a5c34';
+    } catch(err) {
+      btn.disabled = false; btn.textContent = '\\ud83d\\udcbe Guardar en sistema';
+      alert('Error al generar el PDF: ' + (err.message || String(err)));
+    } finally {
+      document.body.classList.remove('pdf-mode');
+    }
+  }
 </script>
 </body></html>`;
 
@@ -905,10 +1042,37 @@ async function printEpicrisis(surgery, patient) {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
+const DOC_REGISTRY = [
+  { key: 'ficha_social',             label: 'Ficha Social',               printKey: null         },
+  { key: 'consentimiento_cirugia',   label: 'Consentimiento Quirúrgico',  printKey: 'cirugia'    },
+  { key: 'consentimiento_anestesia', label: 'Consent. Anestesiología',    printKey: 'anestesia'  },
+  { key: 'consentimiento_fotos',     label: 'Autorización Fotografías',   printKey: null         },
+  { key: 'epicrisis',                label: 'Epicrisis',                  printKey: 'epicrisis'  },
+  { key: 'control_postoperatorio',   label: 'Control Postoperatorio',     printKey: 'postop'     },
+  { key: 'historia_quirurgica',      label: 'Hist. Clínica Quirúrgica',   printKey: 'histqx'     },
+];
+
+const CONSENT_TYPE_OPTS = [
+  { value: 'cirugia',   label: 'Consentimiento Quirúrgico' },
+  { value: 'anestesia', label: 'Consentimiento de Anestesia' },
+  { value: 'fotos',     label: 'Autorización de Fotografías' },
+  { value: 'otro',      label: 'Otro' },
+];
+
+const DOC_TYPE_LABELS = {
+  historia_clinica:    'Historia Clínica',
+  epicrisis:           'Epicrisis',
+  historia_quirurgica: 'Historia Quirúrgica',
+  ficha_social:        'Ficha Social',
+  evolucion:           'Evolución',
+  consentimiento:      'Consentimiento',
+};
+
 const ALL_TABS = [
-  { id: 'info',       label: 'Información', icon: User,        adminOnly: false },
-  { id: 'financiero', label: 'Financiero',  icon: DollarSign,  adminOnly: true  },
-  { id: 'historial',  label: 'Historial',   icon: History,     adminOnly: false },
+  { id: 'info',        label: 'Información', icon: User,       adminOnly: false },
+  { id: 'financiero',  label: 'Financiero',  icon: DollarSign, adminOnly: true  },
+  { id: 'historial',   label: 'Historial',   icon: History,    adminOnly: false },
+  { id: 'documentos',  label: 'Documentos',  icon: FileText,   adminOnly: false },
 ];
 
 export default function SurgeryDetail({
@@ -928,13 +1092,124 @@ export default function SurgeryDetail({
   const [newDate,          setNewDate]          = useState(surgery?.date ?? '');
   const [newTime,          setNewTime]          = useState(surgery?.startTime ?? '');
   const [suspendBusy,      setSuspendBusy]      = useState(false);
+  const [newDocOpen,         setNewDocOpen]         = useState(false);
+  const [savingType,         setSavingType]         = useState(null);
+  const [attachUploading,    setAttachUploading]    = useState(false);
+  const [attachError,        setAttachError]        = useState(null);
+  const [attachRemoving,     setAttachRemoving]     = useState(null);
+  const attachFileRef = useRef(null);
+  const [consentType,      setConsentType]      = useState('cirugia');
+  const [consentUploading, setConsentUploading] = useState(false);
+  const [consentError,     setConsentError]     = useState(null);
+  const consentFileRef = useRef(null);
   const { patients, surgeries: allSurgeries, therapies } = useStore();
   const { user: authUser } = useAuth();
+  const { documents: surgeryDocs, loading: docsLoading } = useSurgeryDocuments(surgery?.patientId, surgery?.id);
+  const { generateAndSave } = usePDFGeneration();
+
+  const saveCtxRef = useRef(null);
+
+  useEffect(() => {
+    async function handleSurgeryDocMessage(e) {
+      if (e.data?.type !== 'MUNAY_SAVE_SURGERY_DOC') return;
+      const ctx = saveCtxRef.current;
+      if (!ctx?.surgery) return;
+      const { docType, surgeryId, patientId, pdfBase64 } = e.data;
+      if (surgeryId !== ctx.surgery.id || patientId !== ctx.surgery.patientId) return;
+
+      const isConsent = docType.startsWith('consentimiento_');
+      const documentType = isConsent ? 'consentimiento' : docType;
+      const consentSubType = isConsent ? docType.replace('consentimiento_', '') : null;
+
+      const existing = ctx.surgeryDocs.find((d) => {
+        if (d.documentType !== documentType) return false;
+        if (isConsent) return d.clinicalData?.consentType === consentSubType;
+        return true;
+      });
+
+      if (pdfBase64) {
+        try {
+          const auditUser = ctx.authUser
+            ? { uid: ctx.authUser.uid, name: ctx.authUser.displayName ?? ctx.authUser.email ?? 'Sistema' }
+            : { uid: '', name: 'Sistema' };
+
+          const base64Data = pdfBase64.includes(',') ? pdfBase64.split(',')[1] : pdfBase64;
+          const bytes = atob(base64Data);
+          const arr = new Uint8Array(bytes.length);
+          for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+          const pdfBlob = new Blob([arr], { type: 'application/pdf' });
+          const pdfFile = new File(
+            [pdfBlob],
+            `${docType}_${(ctx.surgery.patientName || 'paciente').replace(/\s+/g, '_')}_${Date.now()}.pdf`,
+            { type: 'application/pdf' },
+          );
+
+          const uploaded = await uploadFile(patientId, 'documents', pdfFile);
+          const pdfMeta = {
+            url:         uploaded.url,
+            storagePath: uploaded.path,
+            sizeBytes:   uploaded.size,
+            version:     1,
+            generatedAt: new Date().toISOString(),
+            generatedBy: auditUser,
+          };
+
+          if (existing?.id) {
+            await updateDocument(patientId, existing.id, {
+              pdf: pdfMeta, updatedBy: auditUser, status: 'completed',
+            });
+          } else {
+            await createDocument(patientId, {
+              documentType,
+              specialty:   'Cirugía',
+              status:      'completed',
+              clinicalData: ctx.buildDocData(docType),
+              pdf:         pdfMeta,
+              surgeryId,
+              eventDate:   ctx.surgery.date ?? null,
+              createdBy:   auditUser,
+              updatedBy:   auditUser,
+              metadata:    { printable: true, signed: false, locked: false },
+            });
+          }
+        } catch (_) {}
+        return;
+      }
+
+      try {
+        await ctx.generateAndSave({
+          patient:      ctx.patient,
+          clinicalData: ctx.buildDocData(docType),
+          documentType,
+          documentId:   existing?.id ?? null,
+          patientId,
+          surgeryId,
+          eventDate:    ctx.surgery.date ?? null,
+        });
+      } catch (_) {}
+    }
+    window.addEventListener('message', handleSurgeryDocMessage);
+    return () => window.removeEventListener('message', handleSurgeryDocMessage);
+  }, []);
 
   if (!surgery) return null;
 
   const TABS    = ALL_TABS.filter((t) => !t.adminOnly || isAdmin);
   const patient = patients.find((p) => p.id === surgery.patientId);
+
+  // Set of saved document keys for this surgery (used by the registry checklist)
+  const savedDocTypes = useMemo(() => {
+    const s = new Set();
+    for (const doc of surgeryDocs) {
+      if (doc.documentType === 'consentimiento') {
+        const ct = doc.clinicalData?.consentType;
+        s.add(ct ? `consentimiento_${ct}` : 'consentimiento');
+      } else {
+        s.add(doc.documentType);
+      }
+    }
+    return s;
+  }, [surgeryDocs]);
   const age         = calcAge(patient?.birthDate);
   const fichaFields = buildFichaFields(surgery, patient);
   const dateStr  = surgery.date
@@ -943,6 +1218,162 @@ export default function SurgeryDetail({
 
   const pending    = Math.max(0, Number(surgery.quotation || 0) - Number(surgery.amountPaid || 0));
   const isCancelled = surgery.status === 'cancelado';
+
+  // ── Document registry helpers ─────────────────────────────────────────────
+
+  function buildDocData(key) {
+    const base = {
+      paciente:    surgery.patientName,
+      cirugia:     surgery.surgeryType,
+      fecha:       surgery.date,
+      cirujano:    surgery.surgeon,
+      diagnostico: patient?.diagnosis,
+      alergias:    patient?.allergies,
+      status:      surgery.status,
+    };
+    switch (key) {
+      case 'ficha_social':
+        return {
+          paciente:    surgery.patientName,
+          responsable: patient?.guardian,
+          ci:          patient?.guardianIdNumber || patient?.idNumber,
+          telefono:    patient?.guardianPhone,
+          direccion:   patient?.address,
+        };
+      case 'consentimiento_cirugia':
+        return { ...base, consentType: 'cirugia', procedimiento: surgery.surgeryType };
+      case 'consentimiento_anestesia':
+        return { ...base, consentType: 'anestesia', anestesiologo: surgery.anesthesiologist };
+      case 'consentimiento_fotos':
+        return { ...base, consentType: 'fotos' };
+      case 'epicrisis':
+        return { ...base, anestesia: surgery.anesthesia, duracion: surgery.duration, hallazgos: surgery.findings, procedimiento: surgery.procedure, complicaciones: surgery.complications, indicaciones: surgery.postOpInstructions };
+      case 'control_postoperatorio':
+        return { ...base, indicaciones: surgery.postOpInstructions, complicaciones: surgery.complications };
+      case 'historia_quirurgica':
+        return { ...base, fechaNac: patient?.birthDate, ci: patient?.idNumber, anestesia: surgery.anesthesia, duracion: surgery.duration, hallazgos: surgery.findings, procedimiento: surgery.procedure, complicaciones: surgery.complications };
+      default:
+        return base;
+    }
+  }
+
+  saveCtxRef.current = { surgery, patient, surgeryDocs, generateAndSave, buildDocData, authUser };
+
+  const SPECIALTY_BY_TYPE = {
+    ficha_social: 'Trabajo Social', epicrisis: 'Cirugía',
+    control_postoperatorio: 'Cirugía', historia_quirurgica: 'Cirugía',
+    consentimiento: 'Cirugía',
+  };
+
+  const PDF_SAVE_KEYS = new Set([
+    'consentimiento_cirugia',
+    'consentimiento_anestesia',
+    'control_postoperatorio',
+    'epicrisis',
+    'historia_quirurgica',
+  ]);
+
+  async function saveDocument(key) {
+    if (savingType) return;
+    setSavingType(key);
+    const isConsent = key.startsWith('consentimiento_');
+    const docType   = isConsent ? 'consentimiento' : key;
+
+    if (PDF_SAVE_KEYS.has(key)) {
+      // Find existing document to update instead of creating a duplicate
+      const existingDoc = surgeryDocs.find((d) => {
+        if (d.documentType !== docType) return false;
+        if (isConsent) {
+          const ct = key.replace('consentimiento_', '');
+          return d.clinicalData?.consentType === ct;
+        }
+        return true;
+      });
+      try {
+        await generateAndSave({
+          patient,
+          clinicalData: buildDocData(key),
+          documentType: docType,
+          documentId:   existingDoc?.id ?? null,
+          patientId:    surgery.patientId,
+          surgeryId:    surgery.id,
+          eventDate:    surgery.date,
+        });
+      } catch (_) {
+        // toast already shown by generateAndSave
+      }
+    } else {
+      await saveDocumentSnapshot({
+        patientId:    surgery.patientId,
+        documentType: docType,
+        specialty:    SPECIALTY_BY_TYPE[docType] ?? 'Cirugía',
+        clinicalData: buildDocData(key),
+        surgeryId:    surgery.id,
+        eventDate:    surgery.date,
+        user:         authUser,
+      });
+    }
+    setSavingType(null);
+  }
+
+  async function handleConsentUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setConsentUploading(true);
+    setConsentError(null);
+    try {
+      await uploadSignedConsent({
+        file,
+        patientId: surgery.patientId,
+        surgeryId: surgery.id,
+        type: consentType,
+        uploadedBy: { uid: authUser?.uid ?? '', name: authUser?.displayName ?? authUser?.email ?? '' },
+      });
+    } catch (err) {
+      setConsentError(err.message);
+    } finally {
+      setConsentUploading(false);
+      if (consentFileRef.current) consentFileRef.current.value = '';
+    }
+  }
+
+  async function handleAttachUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setAttachUploading(true);
+    setAttachError(null);
+    try {
+      await uploadAndLinkAttachment({
+        file,
+        patientId: surgery.patientId,
+        eventId:   surgery.id,
+        eventType: 'surgery',
+        label:     file.name,
+        uploadedBy: { uid: authUser?.uid ?? '', name: authUser?.displayName ?? authUser?.email ?? '' },
+      });
+    } catch (err) {
+      setAttachError(err.message);
+    } finally {
+      setAttachUploading(false);
+      if (attachFileRef.current) attachFileRef.current.value = '';
+    }
+  }
+
+  async function handleAttachRemove(record) {
+    setAttachRemoving(record.storagePath);
+    try {
+      await removeAttachment({
+        record,
+        eventId:           surgery.id,
+        eventType:         'surgery',
+        currentAttachments: surgery.attachments ?? [],
+      });
+    } catch (err) {
+      setAttachError(err.message);
+    } finally {
+      setAttachRemoving(null);
+    }
+  }
 
   // Patient history
   const prevSurgeries = allSurgeries
@@ -953,6 +1384,7 @@ export default function SurgeryDetail({
     .sort((a, b) => b.date.localeCompare(a.date));
 
   return (
+    <>
     <div className="flex flex-col relative" style={{ maxHeight: '85vh' }}>
       {/* ── Modal header ── */}
       <div className="px-6 pt-5 pb-4 border-b border-gray-100">
@@ -1150,6 +1582,267 @@ export default function SurgeryDetail({
             </section>
           </div>
         )}
+
+        {/* ── Documentos tab ── */}
+        {activeTab === 'documentos' && (
+          <div className="space-y-6">
+
+            {/* ── Document registry / checklist ── */}
+            <section>
+              <p className="text-xs font-bold text-hm-primary uppercase mb-3 flex items-center gap-1.5">
+                <CheckCircle className="w-3.5 h-3.5" />
+                Registro de documentos
+              </p>
+              <div className="space-y-2">
+                {DOC_REGISTRY.map(({ key, label, printKey }) => {
+                  const saved  = savedDocTypes.has(key);
+                  const saving = savingType === key;
+
+                  const PRINT_FNS = {
+                    cirugia:   () => printConsentForm(surgery, patient),
+                    anestesia: () => printAnesthesiaConsentForm(surgery, patient),
+                    epicrisis: () => printEpicrisis(surgery, patient),
+                    postop:    () => printPostOpControl(surgery, patient),
+                    histqx:    () => printHistoriaClinicaQx(surgery, patient),
+                  };
+                  const doPrint = printKey ? PRINT_FNS[printKey] : null;
+
+                  return (
+                    <div key={key}
+                      className={`flex items-center justify-between px-3 py-2.5 rounded-xl border transition-colors ${
+                        saved ? 'bg-green-50 border-green-200' : 'bg-white border-gray-100'
+                      }`}>
+                      <div className="flex items-center gap-3 min-w-0">
+                        {saved
+                          ? <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
+                          : <Circle className="w-4 h-4 text-gray-300 shrink-0" />}
+                        <div className="min-w-0">
+                          <p className={`text-sm font-semibold leading-tight ${saved ? 'text-gray-800' : 'text-gray-500'}`}>
+                            {label}
+                          </p>
+                          {saved && (
+                            <p className="text-[10px] text-green-600 font-medium leading-none mt-0.5">
+                              Guardado en sistema
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                        {doPrint && (
+                          <button onClick={doPrint}
+                            className="p-1.5 rounded-lg text-gray-500 hover:text-hm-primary hover:bg-gray-100 border border-gray-200 transition"
+                            title="Abrir previsualización">
+                            <Printer className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        {!PDF_SAVE_KEYS.has(key) && (
+                          <button
+                            onClick={() => saveDocument(key)}
+                            disabled={saving || saved}
+                            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition ${
+                              saved
+                                ? 'bg-green-100 text-green-700 border-green-200 cursor-default'
+                                : saving
+                                  ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-wait'
+                                  : 'bg-hm-primary text-white border-hm-primary hover:opacity-90'
+                            }`}
+                          >
+                            {saving
+                              ? <Loader2 className="w-3 h-3 animate-spin" />
+                              : saved
+                                ? '✓ Guardado'
+                                : 'Guardar'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+
+            {/* Clinical documents linked to this surgery */}
+            <section>
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs font-bold text-hm-primary uppercase flex items-center gap-1.5">
+                  <FileText className="w-3.5 h-3.5" />
+                  Documentos clínicos ({surgeryDocs.length})
+                </p>
+                <button
+                  onClick={() => setNewDocOpen(true)}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-hm-primary text-white hover:opacity-90 transition"
+                >
+                  + Nuevo
+                </button>
+              </div>
+              {docsLoading ? (
+                <div className="flex items-center gap-2 text-sm text-gray-400">
+                  <Loader2 className="w-4 h-4 animate-spin" /> Cargando…
+                </div>
+              ) : surgeryDocs.length === 0 ? (
+                <p className="text-sm text-gray-400 italic">
+                  No hay documentos clínicos vinculados a esta cirugía.
+                </p>
+              ) : (
+                <ul className="space-y-2">
+                  {surgeryDocs.map((doc) => (
+                    <li key={doc.id}
+                      className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100 text-sm">
+                      <div>
+                        <p className="font-semibold text-hm-primary">
+                          {DOC_TYPE_LABELS[doc.documentType] ?? doc.documentType}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {doc.specialty} · {doc.status}
+                          {doc.createdAt?.seconds
+                            ? ` · ${format(new Date(doc.createdAt.seconds * 1000), "d MMM yyyy", { locale: es })}`
+                            : ''}
+                        </p>
+                      </div>
+                      {doc.pdf?.url ? (
+                        <a href={doc.pdf.url} target="_blank" rel="noopener noreferrer"
+                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 transition">
+                          <ExternalLink className="w-3.5 h-3.5" /> Ver PDF
+                        </a>
+                      ) : (
+                        <span className="text-xs text-gray-400 italic">Sin PDF</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            {/* Signed consent upload */}
+            <section>
+              <p className="text-xs font-bold text-hm-primary uppercase mb-3 flex items-center gap-1.5">
+                <Paperclip className="w-3.5 h-3.5" />
+                Consentimientos firmados físicos
+              </p>
+
+              <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 space-y-3">
+                <div className="flex flex-wrap gap-2 items-center">
+                  <select
+                    value={consentType}
+                    onChange={(e) => setConsentType(e.target.value)}
+                    className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-hm-tertiary"
+                    disabled={consentUploading}
+                  >
+                    {CONSENT_TYPE_OPTS.map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                  <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold border cursor-pointer transition
+                    ${consentUploading
+                      ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                      : 'bg-teal-50 text-teal-700 border-teal-200 hover:bg-teal-100'}`}>
+                    {consentUploading
+                      ? <><Loader2 className="w-4 h-4 animate-spin" /> Subiendo…</>
+                      : <><Upload className="w-4 h-4" /> Subir archivo</>}
+                    <input
+                      ref={consentFileRef}
+                      type="file"
+                      accept=".pdf,image/*"
+                      className="hidden"
+                      disabled={consentUploading}
+                      onChange={handleConsentUpload}
+                    />
+                  </label>
+                </div>
+                {consentError && (
+                  <p className="text-xs text-red-600">{consentError}</p>
+                )}
+                <p className="text-xs text-gray-400">Acepta PDF e imágenes (máx. 20 MB).</p>
+              </div>
+
+              {/* Existing signed consents list */}
+              {(surgery.signedConsents?.length ?? 0) > 0 && (
+                <ul className="mt-3 space-y-2">
+                  {surgery.signedConsents.map((c) => (
+                    <li key={c.id}
+                      className="flex items-center justify-between p-3 bg-white rounded-xl border border-gray-100 text-sm">
+                      <div>
+                        <p className="font-semibold text-hm-primary">{c.label}</p>
+                        <p className="text-xs text-gray-500">
+                          {c.filename} · {(c.sizeBytes / 1024).toFixed(0)} KB
+                          {c.uploadedAt ? ` · ${format(new Date(c.uploadedAt), "d MMM yyyy", { locale: es })}` : ''}
+                          {c.uploadedBy?.name ? ` · ${c.uploadedBy.name}` : ''}
+                        </p>
+                      </div>
+                      <a href={c.url} target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200 transition">
+                        <ExternalLink className="w-3.5 h-3.5" /> Ver
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            {/* General file attachments */}
+            <section>
+              <p className="text-xs font-bold text-hm-primary uppercase mb-3 flex items-center gap-1.5">
+                <Paperclip className="w-3.5 h-3.5" />
+                Archivos adjuntos ({surgery.attachments?.length ?? 0})
+              </p>
+
+              <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 space-y-3">
+                <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold border cursor-pointer transition w-fit
+                  ${attachUploading
+                    ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                    : 'bg-white text-gray-700 border-gray-200 hover:border-gray-400'}`}>
+                  {attachUploading
+                    ? <><Loader2 className="w-4 h-4 animate-spin" /> Subiendo…</>
+                    : <><Upload className="w-4 h-4" /> Adjuntar archivo</>}
+                  <input
+                    ref={attachFileRef}
+                    type="file"
+                    accept=".pdf,image/*"
+                    className="hidden"
+                    disabled={attachUploading}
+                    onChange={handleAttachUpload}
+                  />
+                </label>
+                {attachError && <p className="text-xs text-red-600">{attachError}</p>}
+                <p className="text-xs text-gray-400">PDF e imágenes · máx. 20 MB</p>
+              </div>
+
+              {(surgery.attachments?.length ?? 0) > 0 && (
+                <ul className="mt-3 space-y-2">
+                  {surgery.attachments.map((a) => (
+                    <li key={a.id ?? a.storagePath}
+                      className="flex items-center justify-between p-3 bg-white rounded-xl border border-gray-100 text-sm">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-gray-800 truncate">{a.label}</p>
+                        <p className="text-xs text-gray-400">
+                          {(a.sizeBytes / 1024).toFixed(0)} KB
+                          {a.uploadedAt ? ` · ${format(new Date(a.uploadedAt), "d MMM yyyy", { locale: es })}` : ''}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0 ml-2">
+                        <a href={a.url} target="_blank" rel="noopener noreferrer"
+                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200 transition">
+                          <ExternalLink className="w-3.5 h-3.5" /> Ver
+                        </a>
+                        <button
+                          onClick={() => handleAttachRemove(a)}
+                          disabled={attachRemoving === a.storagePath}
+                          className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 border border-transparent hover:border-red-200 transition"
+                          title="Eliminar archivo"
+                        >
+                          {attachRemoving === a.storagePath
+                            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            : <Trash2 className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+          </div>
+        )}
       </div>
 
       {/* ── Footer actions ── */}
@@ -1184,14 +1877,14 @@ export default function SurgeryDetail({
             Post-Op
           </button>
           <button
-            onClick={() => { printEpicrisis(surgery, patient); saveDocumentSnapshot({ patientId: surgery.patientId, documentType: 'epicrisis', specialty: 'Cirugía', clinicalData: { paciente: patient?.name, cirugia: surgery.surgeryType, fecha: surgery.date, cirujano: surgery.surgeon, diagnostico: patient?.diagnosis, alergias: patient?.allergies, anestesia: surgery.anesthesia, duracion: surgery.duration, hallazgos: surgery.findings, procedimiento: surgery.procedure, complicaciones: surgery.complications, indicaciones: surgery.postOpInstructions, status: surgery.status }, user: authUser }); }}
+            onClick={() => printEpicrisis(surgery, patient)}
             className="btn btn-sm border border-emerald-200 text-emerald-700 hover:bg-emerald-50 gap-1.5"
           >
             <FileText className="w-4 h-4" />
             Epicrisis
           </button>
           <button
-            onClick={() => { printHistoriaClinicaQx(surgery, patient); saveDocumentSnapshot({ patientId: surgery.patientId, documentType: 'historia_quirurgica', specialty: 'Cirugía', clinicalData: { paciente: patient?.name, fechaNac: patient?.birthDate, ci: patient?.idNumber, diagnostico: patient?.diagnosis, alergias: patient?.allergies, cirugia: surgery.surgeryType, fecha: surgery.date, cirujano: surgery.surgeon, anestesia: surgery.anesthesia, duracion: surgery.duration, hallazgos: surgery.findings, procedimiento: surgery.procedure, complicaciones: surgery.complications, status: surgery.status }, user: authUser }); }}
+            onClick={() => printHistoriaClinicaQx(surgery, patient)}
             className="btn btn-sm border border-indigo-200 text-indigo-700 hover:bg-indigo-50 gap-1.5"
           >
             <Stethoscope className="w-4 h-4" />
@@ -1503,6 +2196,17 @@ export default function SurgeryDetail({
         </div>
       )}
     </div>
+
+    {/* Document form modal — pre-linked to this surgery */}
+    <DocumentFormModal
+      open={newDocOpen}
+      onClose={() => setNewDocOpen(false)}
+      patientId={surgery.patientId}
+      patient={patient}
+      surgeryId={surgery.id}
+      eventDate={surgery.date}
+    />
+    </>
   );
 }
 
