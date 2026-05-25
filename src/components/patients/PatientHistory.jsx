@@ -215,8 +215,9 @@ function HistorialTab({ patient }) {
             <ul className="space-y-1.5">
               {standaloneDocs.map((doc) => {
                 const label = DOC_PATIENT_LABELS[doc.documentType] ?? doc.documentType;
-                const dateStr = doc.createdAt?.seconds
-                  ? format(new Date(doc.createdAt.seconds * 1000), 'dd/MM/yyyy · HH:mm', { locale: es })
+                const docTs = doc.updatedAt ?? doc.createdAt;
+                const dateStr = docTs?.seconds
+                  ? format(new Date(docTs.seconds * 1000), 'dd/MM/yyyy · HH:mm', { locale: es })
                   : null;
                 return (
                   <li key={doc.id} className="flex items-center justify-between px-3 py-2 bg-gray-50 rounded-lg text-sm">
@@ -291,8 +292,9 @@ function HistorialTab({ patient }) {
                       else if (doc.clinicalData?.consentType === 'anestesia') label = 'Consentimiento de Anestesia';
                       else if (doc.clinicalData?.consentType === 'fotos')     label = 'Autorización de Fotografías';
                     }
-                    const docDateStr = doc.createdAt?.seconds
-                      ? format(new Date(doc.createdAt.seconds * 1000), 'dd/MM/yyyy · HH:mm', { locale: es })
+                    const docTs = doc.updatedAt ?? doc.createdAt;
+                    const docDateStr = docTs?.seconds
+                      ? format(new Date(docTs.seconds * 1000), 'dd/MM/yyyy · HH:mm', { locale: es })
                       : null;
                     return (
                       <li key={doc.id} className="flex items-center justify-between px-3 py-2 bg-gray-50 rounded-lg text-sm">

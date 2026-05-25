@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, Search, Bell, Plus } from 'lucide-react';
+import { Menu, Bell, Plus } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import useStore from '../store/useStore';
@@ -29,7 +29,7 @@ function getDisplayName(user) {
 export default function Header() {
   const { toggleSidebar } = useStore();
   const { pathname } = useLocation();
-  const { user, isAdmin } = useAuth();
+  const { user } = useAuth();
   const [now, setNow] = useState(() => new Date());
   const isDashboard = pathname === '/dashboard';
 
@@ -38,11 +38,11 @@ export default function Header() {
     return () => clearInterval(t);
   }, []);
 
-  const greeting   = getGreeting();
-  const name       = getDisplayName(user);
-  const pageTitle  = TITLES[pathname];
-  const dateStr    = format(now, "EEEE d 'de' MMMM", { locale: es });
-  const timeStr    = format(now, 'HH:mm');
+  const greeting  = getGreeting();
+  const name      = getDisplayName(user);
+  const pageTitle = TITLES[pathname];
+  const dateStr   = format(now, "EEEE d 'de' MMMM", { locale: es });
+  const timeStr   = format(now, 'HH:mm');
 
   return (
     <header
@@ -76,20 +76,6 @@ export default function Header() {
               {pageTitle ?? 'Hospital Munay'}
             </h1>
           )}
-        </div>
-
-        {/* Search — desktop */}
-        <div
-          className="hidden md:flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl
-                     px-3 py-2 w-48 lg:w-60 transition-all
-                     focus-within:border-hm-secondary focus-within:bg-white"
-        >
-          <Search className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-          <input
-            type="text"
-            placeholder="Buscar paciente, cirugía..."
-            className="bg-transparent text-xs placeholder-gray-400 outline-none w-full text-gray-700"
-          />
         </div>
 
         {/* Quick actions — desktop */}

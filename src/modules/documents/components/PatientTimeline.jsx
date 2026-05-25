@@ -6,14 +6,15 @@ import { DOCUMENT_STATUS_CONFIG } from '../types/documentStatus';
 
 /* ── Event builders ─────────────────────────────────── */
 function fromDocument(doc) {
-  const cfg  = getDocumentTypeConfig(doc.documentType);
-  const ts   = doc.createdAt?.toDate ? doc.createdAt.toDate() : new Date();
-  const time = format(ts, 'HH:mm', { locale: es });
+  const cfg   = getDocumentTypeConfig(doc.documentType);
+  const rawTs = doc.updatedAt ?? doc.createdAt;
+  const ts    = rawTs?.toDate ? rawTs.toDate() : new Date();
+  const time  = format(ts, 'HH:mm', { locale: es });
   const subtitle = [time, cfg.specialty].filter(Boolean).join(' · ');
   return {
     id:              `doc_${doc.id}`,
     date:            ts,
-    dateIso:         ts.toISOString().slice(0, 10),
+    dateIso:         format(ts, 'yyyy-MM-dd'),
     type:            'document',
     icon:            cfg.icon,
     title:           cfg.label,
@@ -41,7 +42,7 @@ function fromSurgery(s, linkedDocCount = 0) {
   return {
     id:              `surg_${s.id}`,
     date:            ts,
-    dateIso:         ts.toISOString().slice(0, 10),
+    dateIso:         format(ts, 'yyyy-MM-dd'),
     type:            'surgery',
     icon:            '🔬',
     title:           s.surgeryType,
@@ -69,7 +70,7 @@ function fromTherapy(t, linkedDocCount = 0) {
   return {
     id:              `ther_${t.id}`,
     date:            ts,
-    dateIso:         ts.toISOString().slice(0, 10),
+    dateIso:         format(ts, 'yyyy-MM-dd'),
     type:            'therapy',
     icon:            '🩺',
     title:           t.therapyType,
