@@ -1069,10 +1069,9 @@ const DOC_TYPE_LABELS = {
 };
 
 const ALL_TABS = [
-  { id: 'info',        label: 'Información', icon: User,       adminOnly: false },
-  { id: 'financiero',  label: 'Financiero',  icon: DollarSign, adminOnly: true  },
-  { id: 'historial',   label: 'Historial',   icon: History,    adminOnly: false },
-  { id: 'documentos',  label: 'Documentos',  icon: FileText,   adminOnly: false },
+  { id: 'info',       label: 'Información', icon: User,       adminOnly: false },
+  { id: 'financiero', label: 'Financiero',  icon: DollarSign, adminOnly: true  },
+  { id: 'historial',  label: 'Historial',   icon: History,    adminOnly: false },
 ];
 
 export default function SurgeryDetail({

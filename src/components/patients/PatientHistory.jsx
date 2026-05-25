@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { format, differenceInYears, differenceInMonths, differenceInDays, parseISO, isValid } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Calendar, HeartPulse, FileText, Clock, FolderOpen, ExternalLink } from 'lucide-react';
+import { Calendar, HeartPulse, FileText, Clock, FolderOpen, ExternalLink, CheckCircle, Circle } from 'lucide-react';
 import Badge from '../ui/Badge';
 import useStore from '../../store/useStore';
 import { getTypeInfo } from '../../utils/patientTypes';
@@ -151,13 +151,36 @@ function DatosTab({ patient, surgeries, therapies }) {
   );
 }
 
+const DOC_REGISTRY = [
+  { key: 'ficha_social',             label: 'Ficha Social'              },
+  { key: 'consentimiento_cirugia',   label: 'Consentimiento Quirúrgico' },
+  { key: 'consentimiento_anestesia', label: 'Consent. Anestesiología'   },
+  { key: 'consentimiento_fotos',     label: 'Autorización Fotografías'  },
+  { key: 'epicrisis',                label: 'Epicrisis'                 },
+  { key: 'control_postoperatorio',   label: 'Control Postoperatorio'    },
+  { key: 'historia_quirurgica',      label: 'Hist. Clínica Quirúrgica'  },
+];
+
+function getSavedDocTypes(docs) {
+  const s = new Set();
+  for (const doc of docs) {
+    if (doc.documentType === 'consentimiento') {
+      const ct = doc.clinicalData?.consentType;
+      s.add(ct ? `consentimiento_${ct}` : 'consentimiento');
+    } else {
+      s.add(doc.documentType);
+    }
+  }
+  return s;
+}
+
 /* ── Historial tab ───────────────────────────────────── */
 function HistorialTab({ patient }) {
   const { documents, loading } = usePatientDocuments(patient.id);
   const { surgeries } = useStore();
 
-  const completedSurgeries = surgeries
-    .filter((s) => s.patientId === patient.id && s.status === 'realizado')
+  const patientSurgeries = surgeries
+    .filter((s) => s.patientId === patient.id)
     .sort((a, b) => b.date.localeCompare(a.date));
 
   const standaloneDocs = documents
@@ -175,7 +198,7 @@ function HistorialTab({ patient }) {
     return <p className="text-sm text-gray-400">Cargando historial…</p>;
   }
 
-  if (completedSurgeries.length === 0 && standaloneDocs.length === 0) {
+  if (patientSurgeries.length === 0 && standaloneDocs.length === 0) {
     return <p className="text-sm text-gray-400 italic">Sin historial registrado.</p>;
   }
 
@@ -224,31 +247,47 @@ function HistorialTab({ patient }) {
         </div>
       )}
 
-      {completedSurgeries.map((surgery) => {
+      {patientSurgeries.map((surgery) => {
         const surgDocs = docsBySurgery[surgery.id] ?? [];
+        const savedTypes = getSavedDocTypes(surgDocs);
         const dateStr = format(new Date(surgery.date + 'T12:00'), "dd/MM/yyyy", { locale: es });
 
         return (
           <div key={surgery.id} className="border border-blue-100 rounded-xl overflow-hidden">
             <div className="flex items-center gap-2 px-4 py-3 bg-blue-50 border-b border-blue-100">
               <FolderOpen className="w-4 h-4 text-blue-600 shrink-0" />
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <p className="text-sm font-bold text-blue-800 uppercase truncate">
                   CIRUGÍA: {surgery.surgeryType}
                 </p>
                 <p className="text-xs text-blue-500">{dateStr} · {surgery.surgeon || '—'}</p>
               </div>
+              <Badge variant={surgery.status} />
             </div>
-            <div className="px-4 py-3">
-              {surgDocs.length === 0 ? (
-                <p className="text-xs text-gray-400 italic">Sin documentos guardados para esta cirugía.</p>
-              ) : (
-                <ul className="space-y-1.5">
+            <div className="px-4 py-3 space-y-3">
+              {/* Checklist de documentos */}
+              <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+                {DOC_REGISTRY.map(({ key, label }) => {
+                  const saved = savedTypes.has(key);
+                  return (
+                    <div key={key} className="flex items-center gap-1.5">
+                      {saved
+                        ? <CheckCircle className="w-3 h-3 text-green-500 shrink-0" />
+                        : <Circle className="w-3 h-3 text-gray-300 shrink-0" />}
+                      <span className={`text-xs truncate ${saved ? 'text-gray-700' : 'text-gray-400'}`}>{label}</span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Documentos guardados con PDF */}
+              {surgDocs.length > 0 && (
+                <ul className="space-y-1.5 border-t border-gray-100 pt-2">
                   {surgDocs.map((doc) => {
                     const baseLabel = DOC_SURGERY_LABELS[doc.documentType] ?? doc.documentType;
                     let label = baseLabel;
                     if (doc.documentType === 'consentimiento') {
-                      if (doc.clinicalData?.consentType === 'cirugia')    label = 'Consentimiento de Cirugía';
+                      if (doc.clinicalData?.consentType === 'cirugia')        label = 'Consentimiento de Cirugía';
                       else if (doc.clinicalData?.consentType === 'anestesia') label = 'Consentimiento de Anestesia';
                       else if (doc.clinicalData?.consentType === 'fotos')     label = 'Autorización de Fotografías';
                     }

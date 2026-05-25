@@ -35,14 +35,17 @@ function fromSurgery(s, linkedDocCount = 0) {
     realizado:  '#16a34a', cancelado:  '#dc2626',
     suspendido: '#d97706',
   };
+  const ts = s.createdAt?.toDate ? s.createdAt.toDate() : new Date(s.date + 'T' + (s.startTime ?? '08:00'));
+  const scheduledDate = s.date ? format(new Date(s.date + 'T12:00'), 'dd/MM/yyyy', { locale: es }) : '';
+  const scheduledTime = s.startTime ?? '';
   return {
     id:              `surg_${s.id}`,
-    date:            new Date(s.date + 'T' + (s.startTime ?? '08:00')),
-    dateIso:         s.date,
+    date:            ts,
+    dateIso:         ts.toISOString().slice(0, 10),
     type:            'surgery',
     icon:            '🔬',
     title:           s.surgeryType,
-    subtitle:        'Cirugía · ' + (s.startTime ?? ''),
+    subtitle:        ['Cirugía', scheduledDate, scheduledTime].filter(Boolean).join(' · '),
     by:              s.surgeon ?? '',
     statusTw:        '',
     statusLabel:     s.status,
@@ -60,14 +63,17 @@ function fromTherapy(t, linkedDocCount = 0) {
     Psicología:      '#db2777', Psicomotricidad: '#16a34a',
     Psicopedagogía:  '#0f766e', default: '#64748b',
   };
+  const ts = t.createdAt?.toDate ? t.createdAt.toDate() : new Date(t.date + 'T' + (t.startTime ?? '08:00'));
+  const scheduledDate = t.date ? format(new Date(t.date + 'T12:00'), 'dd/MM/yyyy', { locale: es }) : '';
+  const scheduledTime = t.startTime ?? '';
   return {
     id:              `ther_${t.id}`,
-    date:            new Date(t.date + 'T' + (t.startTime ?? '08:00')),
-    dateIso:         t.date,
+    date:            ts,
+    dateIso:         ts.toISOString().slice(0, 10),
     type:            'therapy',
     icon:            '🩺',
     title:           t.therapyType,
-    subtitle:        t.startTime ? `${t.startTime}${t.therapist ? ' · ' + t.therapist : ''}` : (t.therapist ?? ''),
+    subtitle:        [scheduledDate, scheduledTime, t.therapist].filter(Boolean).join(' · '),
     by:              t.therapist ?? '',
     statusTw:        '',
     statusLabel:     t.status,
