@@ -9,7 +9,6 @@ import PatientsPage   from './pages/PatientsPage';
 import CalendarPage   from './pages/CalendarPage';
 import TherapiesPage  from './pages/TherapiesPage';
 import FinancesPage   from './pages/FinancesPage';
-import CleanupPage    from './pages/CleanupPage';
 
 export default function App() {
   const { loading } = useAuth();
@@ -41,8 +40,6 @@ export default function App() {
           <Route element={<AdminRoute />}>
             <Route path="/finanzas" element={<FinancesPage />} />
           </Route>
-
-          <Route path="/cleanup" element={<CleanupPage />} />
         </Route>
       </Route>
 

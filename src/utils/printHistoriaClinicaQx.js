@@ -730,7 +730,7 @@ body.pdf-mode .kernahan-container { padding: 2px !important; }
       <div class="firma-section" style="grid-template-columns:1fr;max-width:260px">
         <div class="firma-box">
           <div class="firma-line"></div>
-          <div class="firma-label" contenteditable="true">${surgeon}</div>
+          <div class="firma-label" contenteditable="true"></div>
           <div style="font-size:6.5pt;color:var(--ink-3);margin-top:2px">Firma y Sello del Médico &nbsp;·&nbsp; Matrícula:&nbsp;<span contenteditable="true" style="display:inline-block;min-width:26mm;border-bottom:1px solid var(--rule)"></span></div>
         </div>
       </div>

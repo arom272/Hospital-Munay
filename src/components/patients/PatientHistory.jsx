@@ -1,10 +1,16 @@
 import { useState } from 'react';
 import { format, differenceInYears, differenceInMonths, differenceInDays, parseISO, isValid } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Calendar, HeartPulse, FileText, Clock, FolderOpen, ExternalLink, CheckCircle, Circle } from 'lucide-react';
+import { Calendar, HeartPulse, FileText, Clock, FolderOpen, ExternalLink, CheckCircle, Circle, Upload, Trash2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import Badge from '../ui/Badge';
+import Modal from '../ui/Modal';
+import ConfirmDialog from '../ui/ConfirmDialog';
 import useStore from '../../store/useStore';
+import { useAuth } from '../../contexts/AuthContext';
 import { getTypeInfo } from '../../utils/patientTypes';
+import { deleteDocument, updateDocument } from '../../modules/documents/services/documentService';
+import { uploadFile, deleteFile } from '../../services/uploadService';
 import {
   usePatientDocuments,
   PatientTimeline,
@@ -152,13 +158,9 @@ function DatosTab({ patient, surgeries, therapies }) {
 }
 
 const DOC_REGISTRY = [
-  { key: 'ficha_social',             label: 'Ficha Social'              },
-  { key: 'consentimiento_cirugia',   label: 'Consentimiento Quirúrgico' },
-  { key: 'consentimiento_anestesia', label: 'Consent. Anestesiología'   },
-  { key: 'consentimiento_fotos',     label: 'Autorización Fotografías'  },
-  { key: 'epicrisis',                label: 'Epicrisis'                 },
-  { key: 'control_postoperatorio',   label: 'Control Postoperatorio'    },
-  { key: 'historia_quirurgica',      label: 'Hist. Clínica Quirúrgica'  },
+  { key: 'historia_quirurgica',   label: 'Hist. Clínica Quirúrgica' },
+  { key: 'epicrisis',             label: 'Epicrisis'                },
+  { key: 'control_postoperatorio',label: 'Control Postoperatorio'   },
 ];
 
 function getSavedDocTypes(docs) {
@@ -175,9 +177,60 @@ function getSavedDocTypes(docs) {
 }
 
 /* ── Historial tab ───────────────────────────────────── */
-function HistorialTab({ patient }) {
+function HistorialTab({ patient, isAdmin, canEdit }) {
   const { documents, loading } = usePatientDocuments(patient.id);
   const { surgeries } = useStore();
+
+  const [uploadModal,  setUploadModal]  = useState({ open: false, docId: '', docLabel: '' });
+  const [selectedPdf,  setSelectedPdf]  = useState(null);
+  const [uploading,    setUploading]    = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+
+  const openUpload = (doc, label) =>
+    setUploadModal({ open: true, docId: doc.id, docLabel: label });
+
+  const closeUpload = () => { setUploadModal({ open: false, docId: '', docLabel: '' }); setSelectedPdf(null); };
+
+  const handleUploadPdf = async () => {
+    if (!selectedPdf || !uploadModal.docId) return;
+    setUploading(true);
+    try {
+      const result = await uploadFile(patient.id, 'consents', selectedPdf);
+      await updateDocument(patient.id, uploadModal.docId, {
+        pdf: {
+          url:         result.url,
+          storagePath: result.path,
+          sizeBytes:   result.size,
+          version:     1,
+          generatedAt: new Date().toISOString(),
+          generatedBy: { uid: '', name: 'Sistema' },
+        },
+        'metadata.signed': true,
+      });
+      toast.success('PDF firmado guardado');
+      closeUpload();
+    } catch (err) {
+      toast.error(err.message || 'Error al subir el PDF');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDeleteDoc = async () => {
+    if (!deleteTarget) return;
+    try {
+      if (deleteTarget.doc.pdf?.storagePath) await deleteFile(deleteTarget.doc.pdf.storagePath);
+      for (const att of deleteTarget.doc.attachments ?? []) {
+        if (att.storagePath) await deleteFile(att.storagePath);
+      }
+      await deleteDocument(patient.id, deleteTarget.doc.id);
+      toast.success('Documento eliminado');
+    } catch (err) {
+      toast.error('Error al eliminar: ' + err.message);
+    } finally {
+      setDeleteTarget(null);
+    }
+  };
 
   const patientSurgeries = surgeries
     .filter((s) => s.patientId === patient.id)
@@ -219,27 +272,39 @@ function HistorialTab({ patient }) {
                 const dateStr = docTs?.seconds
                   ? format(new Date(docTs.seconds * 1000), 'dd/MM/yyyy · HH:mm', { locale: es })
                   : null;
+                const isPrintBased = doc.documentType === 'ficha_social'
+                  || (doc.documentType === 'consentimiento' && doc.clinicalData?.consentType === 'fotos');
                 return (
-                  <li key={doc.id} className="flex items-center justify-between px-3 py-2 bg-gray-50 rounded-lg text-sm">
-                    <div className="flex items-center gap-2 min-w-0">
+                  <li key={doc.id} className="flex items-center justify-between px-3 py-2 bg-gray-50 rounded-lg text-sm gap-2">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
                       <FileText className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                       <div className="min-w-0">
                         <p className="text-gray-700 font-medium truncate">{label}</p>
                         {dateStr && <p className="text-[11px] text-gray-400">{dateStr}</p>}
                       </div>
                     </div>
-                    {doc.pdf?.url ? (
-                      <a
-                        href={doc.pdf.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 transition shrink-0 ml-2"
-                      >
-                        <ExternalLink className="w-3 h-3" /> Ver PDF
-                      </a>
-                    ) : (
-                      <span className="text-xs text-gray-400 italic shrink-0 ml-2">Sin PDF</span>
-                    )}
+                    <div className="flex items-center gap-1 shrink-0">
+                      {doc.pdf?.url && (
+                        <a href={doc.pdf.url} target="_blank" rel="noopener noreferrer"
+                          className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 transition">
+                          <ExternalLink className="w-3 h-3" /> Ver PDF
+                        </a>
+                      )}
+                      {(isPrintBased && canEdit) && (
+                        <button onClick={() => openUpload(doc, label)}
+                          className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold bg-teal-50 text-teal-700 hover:bg-teal-100 border border-teal-200 transition"
+                          title="Subir PDF firmado">
+                          <Upload className="w-3 h-3" />{doc.pdf?.url ? 'Reemplazar' : 'Subir firmado'}
+                        </button>
+                      )}
+                      {isAdmin && (
+                        <button onClick={() => setDeleteTarget({ doc, docLabel: label })}
+                          className="p-1 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 transition"
+                          title="Eliminar documento">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
                   </li>
                 );
               })}
@@ -296,27 +361,39 @@ function HistorialTab({ patient }) {
                     const docDateStr = docTs?.seconds
                       ? format(new Date(docTs.seconds * 1000), 'dd/MM/yyyy · HH:mm', { locale: es })
                       : null;
+                    const isPrintBased = doc.documentType === 'ficha_social'
+                      || (doc.documentType === 'consentimiento' && doc.clinicalData?.consentType === 'fotos');
                     return (
-                      <li key={doc.id} className="flex items-center justify-between px-3 py-2 bg-gray-50 rounded-lg text-sm">
-                        <div className="flex items-center gap-2 min-w-0">
+                      <li key={doc.id} className="flex items-center justify-between px-3 py-2 bg-gray-50 rounded-lg text-sm gap-2">
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
                           <FileText className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                           <div className="min-w-0">
                             <p className="text-gray-700 font-medium truncate">{label}</p>
                             {docDateStr && <p className="text-[11px] text-gray-400">{docDateStr}</p>}
                           </div>
                         </div>
-                        {doc.pdf?.url ? (
-                          <a
-                            href={doc.pdf.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 transition shrink-0 ml-2"
-                          >
-                            <ExternalLink className="w-3 h-3" /> Ver PDF
-                          </a>
-                        ) : (
-                          <span className="text-xs text-gray-400 italic shrink-0 ml-2">Sin PDF</span>
-                        )}
+                        <div className="flex items-center gap-1 shrink-0">
+                          {doc.pdf?.url && (
+                            <a href={doc.pdf.url} target="_blank" rel="noopener noreferrer"
+                              className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 transition">
+                              <ExternalLink className="w-3 h-3" /> Ver PDF
+                            </a>
+                          )}
+                          {(isPrintBased && canEdit) && (
+                            <button onClick={() => openUpload(doc, label)}
+                              className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold bg-teal-50 text-teal-700 hover:bg-teal-100 border border-teal-200 transition"
+                              title="Subir PDF firmado">
+                              <Upload className="w-3 h-3" />{doc.pdf?.url ? 'Reemplazar' : 'Subir firmado'}
+                            </button>
+                          )}
+                          {isAdmin && (
+                            <button onClick={() => setDeleteTarget({ doc, docLabel: label })}
+                              className="p-1 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 transition"
+                              title="Eliminar documento">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
                       </li>
                     );
                   })}
@@ -326,6 +403,39 @@ function HistorialTab({ patient }) {
           </div>
         );
       })}
+      {/* Upload signed PDF modal */}
+      <Modal open={uploadModal.open} onClose={closeUpload} title={`Subir PDF firmado — ${uploadModal.docLabel}`} size="sm">
+        <div className="p-5 space-y-4">
+          <p className="text-sm text-gray-500">Adjunte el documento impreso y firmado. Este paso es opcional.</p>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5">Archivo PDF firmado</label>
+            <input
+              type="file" accept="application/pdf"
+              onChange={e => setSelectedPdf(e.target.files[0] ?? null)}
+              className="block w-full text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-gray-100 file:text-gray-600 hover:file:bg-gray-200"
+            />
+          </div>
+          <div className="flex gap-2 pt-1">
+            <button onClick={closeUpload} disabled={uploading}
+              className="flex-1 px-3 py-2 rounded-lg text-sm font-semibold border border-gray-200 text-gray-600 hover:bg-gray-50 transition disabled:opacity-50">
+              Cancelar
+            </button>
+            <button onClick={handleUploadPdf} disabled={!selectedPdf || uploading}
+              className="flex-1 px-3 py-2 rounded-lg text-sm font-semibold bg-hm-primary text-white hover:bg-hm-primary-800 transition disabled:opacity-40">
+              {uploading ? 'Subiendo…' : 'Subir PDF firmado'}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Delete document confirm */}
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Eliminar documento"
+        message={`¿Eliminar "${deleteTarget?.docLabel}"? Esta acción no se puede deshacer.`}
+        onConfirm={handleDeleteDoc}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }
@@ -351,6 +461,7 @@ function TimelineTab({ patient }) {
 /* ── Main component ──────────────────────────────────── */
 export default function PatientHistory({ patient }) {
   const { surgeries, therapies } = useStore();
+  const { isAdmin, canEdit } = useAuth();
   const [activeTab, setActiveTab] = useState('datos');
 
   return (
@@ -372,7 +483,7 @@ export default function PatientHistory({ patient }) {
       </div>
 
       {activeTab === 'datos'     && <DatosTab patient={patient} surgeries={surgeries} therapies={therapies} />}
-      {activeTab === 'historial' && <HistorialTab patient={patient} />}
+      {activeTab === 'historial' && <HistorialTab patient={patient} isAdmin={isAdmin} canEdit={canEdit} />}
       {activeTab === 'timeline'  && <TimelineTab patient={patient} />}
     </div>
   );

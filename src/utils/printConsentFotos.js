@@ -23,6 +23,9 @@ export async function printConsentFotos(patient) {
   const address     = patient?.address           || '';
   const diagnosis   = patient?.diagnosis         || '';
 
+  const patientId    = patient?.id ?? '';
+  const clinicalJson = JSON.stringify({ consentType: 'fotos', nombre: patient?.fullName ?? '', ci: patient?.idNumber ?? '', responsable: patient?.guardian ?? '', diagnostico: patient?.diagnosis ?? '' });
+
   const now = new Date();
   const todayFormatted = String(now.getDate()).padStart(2,'0') + '/' +
     String(now.getMonth()+1).padStart(2,'0') + '/' + now.getFullYear();
@@ -97,7 +100,7 @@ html,body{margin:0;padding:0;background:#eef2f2;font-family:'Inter',Arial,sans-s
 <div class="toolbar">
   <span class="title">Consentimiento Informado — Toma de Imágenes y Video</span>
   <button class="btn" onclick="limpiar()">Limpiar</button>
-  <button class="btn primary" onclick="window.print()">Imprimir / PDF</button>
+  <button class="btn primary" onclick="imprimirYGuardar()">Imprimir / PDF</button>
 </div>
 
 <div class="sheet">
@@ -170,6 +173,13 @@ html,body{margin:0;padding:0;background:#eef2f2;font-family:'Inter',Arial,sans-s
 </div>
 
 <script>
+var __PID = '${patientId}';
+var __CD  = ${clinicalJson};
+function imprimirYGuardar(){
+  var w = window.opener;
+  if (w && !w.closed) { w.postMessage({ type: 'MUNAY_PRINT_CONSENT_FOTOS', patientId: __PID, clinicalData: __CD }, '*'); }
+  window.print();
+}
 function limpiar(){
   if(!confirm('¿Limpiar todos los campos editables?')) return;
   document.querySelectorAll('.editable').forEach(el => el.textContent = '');

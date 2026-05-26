@@ -59,7 +59,7 @@ export async function printFichaSocial(patient) {
   const guardianPhone = patient?.guardianPhone  || '';
   const today         = new Date().toISOString().slice(0, 10);
 
-  const pd       = JSON.stringify({ nroHC:hcCode, nombrePaciente:patientName, fechaNacimiento:birthDateISO, edad:ageStr, sexo, diagnostico, domicilio, nombreMadre:guardian, celMadre:guardianPhone, fechaEvaluacion:today });
+  const pd       = JSON.stringify({ patientId: patient?.id ?? '', nroHC:hcCode, nombrePaciente:patientName, fechaNacimiento:birthDateISO, edad:ageStr, sexo, diagnostico, domicilio, nombreMadre:guardian, celMadre:guardianPhone, fechaEvaluacion:today });
   const logoJson = JSON.stringify(logo2 || '');
 
   const html = `<!DOCTYPE html><html lang="es"><head>
@@ -498,7 +498,7 @@ function FichaSocial() {
     e('div',{className:'print-bar'},
       e('button',{className:'clr',onClick:()=>{if(confirm('Limpiar el formulario?'))setData(BASE);}},'Limpiar'),
       e('button',{className:'compact',onClick:()=>compactPrint()},'Imprimir compacto'),
-      e('button',{onClick:()=>window.print()},'Imprimir completo')),
+      e('button',{onClick:()=>{if(window.opener&&!window.opener.closed){window.opener.postMessage({type:'MUNAY_PRINT_FICHA_SOCIAL',patientId:data.patientId||'',clinicalData:data},'*');}window.print();}},'Imprimir completo')),
 
     e('nav',{className:'tabs'},
       TABS.map(([id,lbl])=>e('button',{key:id,className:'tab'+(tab===id?' active':''),onClick:()=>setTab(id)},lbl))),

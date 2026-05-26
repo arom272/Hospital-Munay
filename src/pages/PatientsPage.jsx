@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import {
   UserPlus, Pencil, Trash2, Eye, FileDown, FileText,
   ClipboardList, Camera, Stethoscope, MoreHorizontal,
@@ -28,9 +28,8 @@ import { printFichaSocial }     from '../utils/printFichaSocial';
 import { printConsentFotos }    from '../utils/printConsentFotos';
 import { printHistoriaClinica } from '../utils/printHistoriaClinica';
 import jsPDF                    from 'jspdf';
-import { saveDocumentSnapshot } from '../modules/documents/services/documentSave';
-import { uploadFile }           from '../services/uploadService';
-import { createDocument }       from '../modules/documents/services/documentService';
+import { uploadFile, buildAttachmentRecord }              from '../services/uploadService';
+import { createDocument, updateDocument, attachFileToDocument } from '../modules/documents/services/documentService';
 
 /* ── Age helpers (unchanged) ─────────────────────────────── */
 function calcAge(birthDate) {
@@ -77,8 +76,13 @@ export default function PatientsPage() {
   const [selected,  setSelected]  = useState(null);
   const [delTarget, setDelTarget] = useState(null);
   const [busy,      setBusy]      = useState(false);
-  const [preview,   setPreview]   = useState(null);   // preview panel
-  const [menuOpen,  setMenuOpen]  = useState(null);   // dropdown per-row id
+  const [preview,      setPreview]      = useState(null);
+  const [menuOpen,     setMenuOpen]     = useState(null);
+  const [uploadDialog, setUploadDialog] = useState({ open: false, patientId: '', documentId: '', docLabel: '' });
+  const [selectedPdf,  setSelectedPdf]  = useState(null);
+  const [uploadBusy,   setUploadBusy]   = useState(false);
+  const userRef = useRef(user);
+  useEffect(() => { userRef.current = user; }, [user]);
 
   /* ── Subscriptions ───────────────────────────────────── */
   useEffect(() => {
@@ -147,6 +151,36 @@ export default function PatientsPage() {
     return () => window.removeEventListener('message', handleMessage);
   }, [user]);
 
+  /* ── Ficha Social / Consentimiento Fotos: registrar al imprimir ── */
+  useEffect(() => {
+    const handlePrintDoc = async (e) => {
+      const type = e.data?.type;
+      if (type !== 'MUNAY_PRINT_FICHA_SOCIAL' && type !== 'MUNAY_PRINT_CONSENT_FOTOS') return;
+      const { patientId, clinicalData } = e.data;
+      if (!patientId) return;
+      const u = userRef.current;
+      const auditUser = u ? { uid: u.uid, name: u.displayName ?? u.email ?? 'Sistema' } : { uid: '', name: 'Sistema' };
+      const docType  = type === 'MUNAY_PRINT_FICHA_SOCIAL' ? 'ficha_social' : 'consentimiento';
+      const specialty = type === 'MUNAY_PRINT_FICHA_SOCIAL' ? 'Social' : 'Medicina';
+      const docLabel  = type === 'MUNAY_PRINT_FICHA_SOCIAL' ? 'Ficha Social' : 'Consentimiento de Fotos';
+      try {
+        const ref = await createDocument(patientId, {
+          documentType: docType, specialty, status: 'completed', clinicalData,
+          createdBy: auditUser, updatedBy: auditUser,
+          metadata: { printable: true, signed: false, locked: false },
+        });
+        toast.success(`${docLabel} registrado`);
+        setUploadDialog({ open: true, patientId, documentId: ref.id, docLabel });
+        setSelectedPdf(null);
+      } catch (err) {
+        console.error('[print doc save]', err);
+        toast.error(`Error al registrar ${docLabel}`);
+      }
+    };
+    window.addEventListener('message', handlePrintDoc);
+    return () => window.removeEventListener('message', handlePrintDoc);
+  }, []);
+
   /* ── Close dropdown on outside click ─────────────────── */
   useEffect(() => {
     if (menuOpen === null) return;
@@ -207,6 +241,37 @@ export default function PatientsPage() {
   const openCreate    = () => { setSelected(null); setFormOpen(true); };
   const openEdit      = (p) => { setSelected(p);   setFormOpen(true); };
   const openHist      = (p) => { setSelected(p);   setHistOpen(true); };
+
+  const closeUploadDialog = () => {
+    setUploadDialog(d => ({ ...d, open: false }));
+    setSelectedPdf(null);
+  };
+
+  const handleUploadSignedPdf = async () => {
+    if (!selectedPdf || !uploadDialog.documentId) return;
+    setUploadBusy(true);
+    try {
+      const result = await uploadFile(uploadDialog.patientId, 'consents', selectedPdf);
+      const u = userRef.current;
+      await updateDocument(uploadDialog.patientId, uploadDialog.documentId, {
+        pdf: {
+          url:         result.url,
+          storagePath: result.path,
+          sizeBytes:   result.size,
+          version:     1,
+          generatedAt: new Date().toISOString(),
+          generatedBy: u ? { uid: u.uid, name: u.displayName ?? u.email ?? 'Sistema' } : { uid: '', name: 'Sistema' },
+        },
+        'metadata.signed': true,
+      });
+      toast.success('PDF firmado guardado');
+      closeUploadDialog();
+    } catch (err) {
+      toast.error(err.message || 'Error al subir el PDF');
+    } finally {
+      setUploadBusy(false);
+    }
+  };
   const togglePreview = (p) => setPreview(prev => prev?.id === p.id ? null : p);
 
   const handleSave = async (data) => {
@@ -446,11 +511,6 @@ export default function PatientsPage() {
                               label="Ficha social"
                               onClick={() => {
                                 printFichaSocial(p);
-                                saveDocumentSnapshot({
-                                  patientId: p.id, documentType: 'ficha_social', specialty: 'Social',
-                                  clinicalData: { nombre: p.name, ci: p.idNumber, responsable: p.guardian, ciResponsable: p.guardianIdNumber, telefono: p.guardianPhone, direccion: p.address, diagnostico: p.diagnosis },
-                                  user,
-                                });
                               }}
                               hoverCls="hover:text-teal-600 hover:bg-teal-50"
                             />
@@ -459,11 +519,6 @@ export default function PatientsPage() {
                               label="Consentimiento fotos"
                               onClick={() => {
                                 printConsentFotos(p);
-                                saveDocumentSnapshot({
-                                  patientId: p.id, documentType: 'consentimiento', specialty: 'Medicina',
-                                  clinicalData: { consentType: 'fotos', nombre: p.fullName, ci: p.idNumber, responsable: p.guardian, diagnostico: p.diagnosis },
-                                  user,
-                                });
                               }}
                               hoverCls="hover:text-amber-600 hover:bg-amber-50"
                             />
@@ -567,7 +622,6 @@ export default function PatientsPage() {
                       <button
                         onClick={() => {
                           printFichaSocial(p);
-                          saveDocumentSnapshot({ patientId: p.id, documentType: 'ficha_social', specialty: 'Social', clinicalData: { nombre: p.name, ci: p.idNumber, responsable: p.guardian, ciResponsable: p.guardianIdNumber, telefono: p.guardianPhone, direccion: p.address, diagnostico: p.diagnosis }, user });
                         }}
                         className="btn btn-sm px-2.5 text-teal-600 border border-teal-200 hover:bg-teal-50"
                         title="Ficha social"
@@ -577,7 +631,6 @@ export default function PatientsPage() {
                       <button
                         onClick={() => {
                           printConsentFotos(p);
-                          saveDocumentSnapshot({ patientId: p.id, documentType: 'consentimiento', specialty: 'Medicina', clinicalData: { consentType: 'fotos', nombre: p.fullName, ci: p.idNumber, responsable: p.guardian, diagnostico: p.diagnosis }, user });
                         }}
                         className="btn btn-sm px-2.5 text-amber-600 border border-amber-200 hover:bg-amber-50"
                         title="Consentimiento fotos"
@@ -658,6 +711,47 @@ export default function PatientsPage() {
         onConfirm={handleDelete}
         onCancel={() => setDelTarget(null)}
       />
+
+      {/* ── Upload signed PDF ─────────────────────────────── */}
+      <Modal
+        open={uploadDialog.open}
+        onClose={closeUploadDialog}
+        title={`Subir PDF firmado — ${uploadDialog.docLabel}`}
+        size="sm"
+      >
+        <div className="p-5 space-y-4">
+          <p className="text-sm text-gray-500">
+            Puede adjuntar el documento impreso y firmado. Este paso es opcional.
+          </p>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1.5">
+              Archivo PDF firmado
+            </label>
+            <input
+              type="file"
+              accept="application/pdf"
+              onChange={e => setSelectedPdf(e.target.files[0] ?? null)}
+              className="block w-full text-sm text-gray-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-gray-100 file:text-gray-600 hover:file:bg-gray-200"
+            />
+          </div>
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={closeUploadDialog}
+              disabled={uploadBusy}
+              className="flex-1 px-3 py-2 rounded-lg text-sm font-semibold border border-gray-200 text-gray-600 hover:bg-gray-50 transition disabled:opacity-50"
+            >
+              Omitir
+            </button>
+            <button
+              onClick={handleUploadSignedPdf}
+              disabled={!selectedPdf || uploadBusy}
+              className="flex-1 px-3 py-2 rounded-lg text-sm font-semibold bg-hm-primary text-white hover:bg-hm-primary-800 transition disabled:opacity-40"
+            >
+              {uploadBusy ? 'Subiendo…' : 'Subir PDF firmado'}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
