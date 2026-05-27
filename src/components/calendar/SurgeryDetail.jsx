@@ -1,4 +1,5 @@
 import { useState, useRef, useMemo, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { differenceInYears, differenceInMonths, differenceInDays, parseISO, isValid } from 'date-fns';
@@ -1127,9 +1128,16 @@ export default function SurgeryDetail({
     async function handleSurgeryDocMessage(e) {
       if (e.data?.type !== 'MUNAY_SAVE_SURGERY_DOC') return;
       const ctx = saveCtxRef.current;
-      if (!ctx?.surgery) return;
+      if (!ctx?.surgery) {
+        console.warn('[SurgeryDoc] mensaje recibido pero ctx.surgery es null');
+        return;
+      }
       const { docType, surgeryId, patientId, pdfBase64 } = e.data;
-      if (surgeryId !== ctx.surgery.id || patientId !== ctx.surgery.patientId) return;
+      console.log('[SurgeryDoc] guardando:', docType, '| surgeryId:', surgeryId, '| patientId:', patientId, '| tienePDF:', !!pdfBase64);
+      if (surgeryId !== ctx.surgery.id || patientId !== ctx.surgery.patientId) {
+        console.warn('[SurgeryDoc] IDs no coinciden — esperado:', ctx.surgery.id, ctx.surgery.patientId, '— recibido:', surgeryId, patientId);
+        return;
+      }
 
       const isConsent = docType.startsWith('consentimiento_');
       const documentType = isConsent ? 'consentimiento' : docType;
@@ -1142,6 +1150,7 @@ export default function SurgeryDetail({
       });
 
       if (pdfBase64) {
+        const tid = toast.loading('Guardando documento…');
         try {
           const auditUser = ctx.authUser
             ? { uid: ctx.authUser.uid, name: ctx.authUser.displayName ?? ctx.authUser.email ?? 'Sistema' }
@@ -1186,7 +1195,11 @@ export default function SurgeryDetail({
               metadata:    { printable: true, signed: false, locked: false },
             });
           }
-        } catch (_) {}
+          toast.success('Documento guardado', { id: tid });
+        } catch (err) {
+          console.error('[SurgeryDoc] error al guardar con PDF:', err);
+          toast.error('Error al guardar: ' + (err?.message ?? String(err)), { id: tid });
+        }
         return;
       }
 
@@ -1200,7 +1213,9 @@ export default function SurgeryDetail({
           surgeryId,
           eventDate:    ctx.surgery.date ?? null,
         });
-      } catch (_) {}
+      } catch (err) {
+        console.error('[SurgeryDoc] error en generateAndSave:', err);
+      }
     }
     window.addEventListener('message', handleSurgeryDocMessage);
     return () => window.removeEventListener('message', handleSurgeryDocMessage);
