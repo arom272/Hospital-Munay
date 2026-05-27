@@ -5,7 +5,7 @@ import { es } from 'date-fns/locale';
 import { differenceInYears, differenceInMonths, differenceInDays, parseISO, isValid } from 'date-fns';
 import {
   User, Users, DollarSign, History,
-  Printer, PauseCircle, XCircle, X, Pencil,
+  Printer, PauseCircle, XCircle, X, Pencil, Zap,
   CheckCircle, AlertCircle, CalendarClock, Loader2, FileText, Stethoscope,
   Upload, ExternalLink, Paperclip, Trash2, Circle
 } from 'lucide-react';
@@ -1452,6 +1452,16 @@ export default function SurgeryDetail({
           })()}
         </div>
 
+        {/* Banner programación rápida */}
+        {surgery.isQuickEntry && (
+          <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded-lg bg-blue-50 border border-blue-200">
+            <Zap className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+            <p className="text-sm font-medium text-blue-700 flex-1">
+              Programación rápida — complete los datos para confirmar la cirugía
+            </p>
+          </div>
+        )}
+
         {/* Tabs */}
         <div className="flex gap-0 mt-4 border-b border-gray-100 -mb-px">
           {TABS.map(({ id, label, icon: Icon }) => (
@@ -1946,7 +1956,10 @@ export default function SurgeryDetail({
           <button onClick={onClose} className="btn-secondary btn btn-sm">Cerrar</button>
           {canEdit && (
             <button onClick={onEdit} className="btn-primary btn btn-sm">
-              <Pencil className="w-4 h-4" /> Editar
+              {surgery.isQuickEntry
+                ? <><Zap className="w-4 h-4" /> Completar programación</>
+                : <><Pencil className="w-4 h-4" /> Editar</>
+              }
             </button>
           )}
         </div>

@@ -786,9 +786,12 @@ function PreviewPanel({ patient, previewData, onClose, onEdit, onHistory, canEdi
   const age      = calcAge(patient.birthDate);
 
   return (
-    <div className="bg-white rounded-xl border border-gray-100 shadow-card overflow-hidden sticky top-20">
-      {/* Panel header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50/60">
+    <div
+      className="bg-white rounded-xl border border-gray-100 shadow-card sticky top-20 flex flex-col overflow-hidden"
+      style={{ maxHeight: 'calc(100vh - 6rem)' }}
+    >
+      {/* Panel header — fixed, does not scroll */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50/60 flex-shrink-0">
         <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
           Vista rápida
         </span>
@@ -800,6 +803,8 @@ function PreviewPanel({ patient, previewData, onClose, onEdit, onHistory, canEdi
         </button>
       </div>
 
+      {/* Scrollable content */}
+      <div className="overflow-y-auto flex-1">
       <div className="p-4">
         {/* Avatar + name */}
         <div className="flex flex-col items-center text-center mb-4">
@@ -909,6 +914,7 @@ function PreviewPanel({ patient, previewData, onClose, onEdit, onHistory, canEdi
           )}
         </div>
       </div>
+      </div>{/* end overflow-y-auto */}
     </div>
   );
 }
