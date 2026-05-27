@@ -89,6 +89,9 @@ async function getLogoBase64(src) {
 }
 
 async function printSurgeryFicha(surgery, patient) {
+  const win = window.open('', '_blank', 'width=816,height=1056');
+  if (!win) { alert('El navegador bloqueó la ventana emergente. Por favor permita ventanas emergentes para este sitio y vuelva a intentarlo.'); return; }
+  win.document.write('<html><body style="background:#f0f4f8;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0"><p style="color:#1F3A5F;font-size:14px;font-weight:600">Cargando…</p></body></html>');
   const logo = await getLogoBase64(logo2Img);
   const { left, right } = buildFichaFields(surgery, patient);
   const now = format(new Date(), "dd/MM/yyyy HH:mm");
@@ -190,7 +193,7 @@ async function printSurgeryFicha(surgery, patient) {
 </body>
 </html>`;
 
-  const win = window.open('', '_blank', 'width=816,height=1056');
+  win.document.open();
   win.document.write(html);
   win.document.close();
   win.focus();
@@ -198,6 +201,9 @@ async function printSurgeryFicha(surgery, patient) {
 }
 
 async function printConsentForm(surgery, patient) {
+  const win = window.open('', '_blank', 'width=816,height=1056');
+  if (!win) { alert('El navegador bloqueó la ventana emergente. Por favor permita ventanas emergentes para este sitio y vuelva a intentarlo.'); return; }
+  win.document.write('<html><body style="background:#f0f4f8;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0"><p style="color:#1F3A5F;font-size:14px;font-weight:600">Cargando…</p></body></html>');
   const logo2       = await getLogoBase64(logo2Img);
   const surgeon     = surgery.surgeon     || '___________';
   const patientName = surgery.patientName || '___________';
@@ -298,13 +304,16 @@ function guardarEnSistema(btn) {
 </script>
 </body></html>`;
 
-  const win = window.open('', '_blank', 'width=816,height=1056');
+  win.document.open();
   win.document.write(html);
   win.document.close();
   win.focus();
 }
 
 async function printAnesthesiaConsentForm(surgery, patient) {
+  const win = window.open('', '_blank', 'width=816,height=1056');
+  if (!win) { alert('El navegador bloqueó la ventana emergente. Por favor permita ventanas emergentes para este sitio y vuelva a intentarlo.'); return; }
+  win.document.write('<html><body style="background:#f0f4f8;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0"><p style="color:#1F3A5F;font-size:14px;font-weight:600">Cargando…</p></body></html>');
   const logo2          = await getLogoBase64(logo2Img);
   const anesthesiologist = surgery.anesthesiologist || '___________';
   const patientName    = surgery.patientName        || '___________';
@@ -423,13 +432,16 @@ function guardarEnSistema(btn) {
 </script>
 </body></html>`;
 
-  const win = window.open('', '_blank', 'width=816,height=1056');
+  win.document.open();
   win.document.write(html);
   win.document.close();
   win.focus();
 }
 
 async function printPostOpControl(surgery, patient) {
+  const win = window.open('', '_blank', 'width=820,height=1060');
+  if (!win) { alert('El navegador bloqueó la ventana emergente. Por favor permita ventanas emergentes para este sitio y vuelva a intentarlo.'); return; }
+  win.document.write('<html><body style="background:#f0f4f8;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0"><p style="color:#1F3A5F;font-size:14px;font-weight:600">Cargando…</p></body></html>');
   const logo2       = await getLogoBase64(logo2Img);
   const age         = calcAge(patient?.birthDate);
   const typeInfo    = getTypeInfo(patient?.patientType);
@@ -728,7 +740,7 @@ async function guardarEnSistema(btn) {
 </script>
 </body></html>`;
 
-  const win = window.open('', '_blank', 'width=820,height=1060');
+  win.document.open();
   win.document.write(html);
   win.document.close();
   win.focus();
@@ -736,6 +748,9 @@ async function guardarEnSistema(btn) {
 
 
 async function printEpicrisis(surgery, patient) {
+  const win = window.open('', '_blank', 'width=980,height=900');
+  if (!win) { alert('El navegador bloqueó la ventana emergente. Por favor permita ventanas emergentes para este sitio y vuelva a intentarlo.'); return; }
+  win.document.write('<html><body style="background:#f0f4f8;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0"><p style="color:#1F3A5F;font-size:14px;font-weight:600">Cargando…</p></body></html>');
   const logo2        = await getLogoBase64(logo2Img);
   const age          = calcAge(patient?.birthDate);
   const typeInfo     = getTypeInfo(patient?.patientType);
@@ -1034,7 +1049,7 @@ body.pdf-mode .footer{margin-top:3px!important;padding-top:2px!important;font-si
 </script>
 </body></html>`;
 
-  const win = window.open('', '_blank', 'width=980,height=900');
+  win.document.open();
   win.document.write(html);
   win.document.close();
   win.focus();
