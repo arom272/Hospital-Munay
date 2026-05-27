@@ -15,6 +15,16 @@ async function getLogoBase64(src) {
 }
 
 export async function printHistoriaClinicaQx(surgery, patient) {
+  // Abrir la ventana SINCRÓNICAMENTE dentro del evento de clic
+  // (antes de cualquier await) para evitar que el bloqueador de popups
+  // de producción corte la referencia window.opener.
+  const win = window.open('', '_blank', 'width=960,height=920');
+  if (!win) {
+    alert('El navegador bloqueó la ventana emergente. Por favor permita ventanas emergentes para este sitio y vuelva a intentarlo.');
+    return;
+  }
+  win.document.write('<html><body style="background:#f0f4f8;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0"><p style="color:#1F3A5F;font-size:14px;font-weight:600">Cargando…</p></body></html>');
+
   const logo2    = await getLogoBase64(logo2Img);
   const typeInfo = getTypeInfo(patient?.patientType);
   const hcCode   = patient?.patientCode ? `${typeInfo.label}-${patient.patientCode}` : '';
@@ -1027,7 +1037,7 @@ function compactPrint() {
 </script>
 </body></html>`;
 
-  const win = window.open('', '_blank', 'width=960,height=920');
+  win.document.open();
   win.document.write(html);
   win.document.close();
   win.focus();

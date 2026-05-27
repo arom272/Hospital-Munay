@@ -38,6 +38,13 @@ function fmtDate(iso) {
 }
 
 export async function printHistoriaClinica(patient) {
+  const win = window.open('', '_blank', 'width=1060,height=900');
+  if (!win) {
+    alert('El navegador bloqueó la ventana emergente. Por favor permita ventanas emergentes para este sitio y vuelva a intentarlo.');
+    return;
+  }
+  win.document.write('<html><body style="background:#f0f4f8;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0"><p style="color:#1F3A5F;font-size:14px;font-weight:600">Cargando…</p></body></html>');
+
   const logo2         = await getLogoBase64(logo2Img);
   const typeInfo      = getTypeInfo(patient?.patientType);
   const hcCode        = patient?.patientCode ? `${typeInfo.label}-${patient.patientCode}` : '';
@@ -1024,7 +1031,7 @@ body.pdf-mode table.clinical td, body.pdf-mode table.clinical th { padding: 2px 
 </script>
 </body></html>`;
 
-  const win = window.open('', '_blank', 'width=1060,height=900');
+  win.document.open();
   win.document.write(html);
   win.document.close();
   win.focus();
