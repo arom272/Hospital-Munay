@@ -28,7 +28,7 @@ const NAV_GROUPS = [
 
 export default function Sidebar() {
   const { sidebarOpen, closeSidebar, surgeries, therapies } = useStore();
-  const { logout, user, isAdmin, isSecretary } = useAuth();
+  const { logout, user, isAdmin, isSecretary, isDoctor } = useAuth();
 
   const today = new Date().toISOString().slice(0, 10);
   const surgeriesCount = surgeries.filter(s => s.date === today && s.status !== 'cancelado').length;
@@ -46,7 +46,7 @@ export default function Sidebar() {
   };
 
   const userInitial = (user?.displayName || user?.email || 'U')[0].toUpperCase();
-  const roleName    = isAdmin ? 'Administrador' : isSecretary ? 'Secretaria' : 'Visualizador';
+  const roleName    = isAdmin ? 'Administrador' : isSecretary ? 'Secretaria' : isDoctor ? 'Médico' : 'Visualizador';
 
   return (
     <aside

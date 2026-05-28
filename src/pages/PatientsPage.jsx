@@ -14,6 +14,7 @@ import useStore from '../store/useStore';
 import { subscribePatients, addPatient, updatePatient, deletePatient } from '../services/patientService';
 import { subscribeSurgeries } from '../services/surgeryService';
 import { subscribeTherapies } from '../services/therapyService';
+import { subscribePackages } from '../services/therapyPackageService';
 import { useAuth }        from '../contexts/AuthContext';
 import { getTypeInfo }    from '../utils/patientTypes';
 import Modal              from '../components/ui/Modal';
@@ -66,6 +67,7 @@ export default function PatientsPage() {
     patients, setPatients,
     surgeries, setSurgeries,
     therapies, setTherapies,
+    setPackages,
   } = useStore();
   const { isAdmin, canEdit, user } = useAuth();
 
@@ -89,7 +91,8 @@ export default function PatientsPage() {
     const u1 = subscribePatients(setPatients);
     const u2 = subscribeSurgeries(setSurgeries);
     const u3 = subscribeTherapies(setTherapies);
-    return () => { u1(); u2(); u3(); };
+    const u4 = subscribePackages(setPackages);
+    return () => { u1(); u2(); u3(); u4(); };
   }, []);
 
   /* ── Historia Clínica: PDF save from popup (unchanged) ── */

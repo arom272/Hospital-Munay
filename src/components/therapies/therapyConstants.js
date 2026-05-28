@@ -8,8 +8,7 @@ export const SPECIALTY_CONFIG = [
   { key: 'Psicomotricidad',       color: '#16a34a', light: '#dcfce7' },
   { key: 'Psicopedagogía',        color: '#0f766e', light: '#ccfbf1' },
   { key: 'Odontopediatría',       color: '#0d9488', light: '#ccfbf1' },
-  { key: 'Ortodoncia',            color: '#6d28d9', light: '#ede9fe' },
-  { key: 'Ortopedia',             color: '#7c2d12', light: '#ffedd5' },
+  { key: 'Ortopedia y Ortodoncia',color: '#6d28d9', light: '#ede9fe' },
   { key: 'Enfermería',            color: '#be185d', light: '#fce7f3' },
   { key: 'Pediatría',             color: '#1d4ed8', light: '#dbeafe' },
   { key: 'Terapia Ocupacional',   color: '#15803d', light: '#dcfce7' },
@@ -133,14 +132,54 @@ export function getTherapistsBySpecialty(specialty) {
 // ── Daily specialty schedule ──────────────────────────────
 // day: 0=Dom, 1=Lun, 2=Mar, 3=Mié, 4=Jue, 5=Vie, 6=Sáb
 // Each day lists the specialties available per shift (in display order)
+// ── Tabla de aranceles ────────────────────────────────────
+// mny = Paciente MUNAY / JWI
+// ext = Paciente externo sin factura
+// extF = Paciente externo con factura
+export const ARANCELES = {
+  sesion: {
+    'Fonoaudiología':  { mny: 55,  ext: 60,  extF: 70  },
+    'Kinesiología':    { mny: 55,  ext: 60,  extF: 70  },
+    'Psicopedagogía':  { mny: 55,  ext: 60,  extF: 70  },
+    'Psicología':      { mny: 55,  ext: 60,  extF: 70  },
+    'Electroterapia':  { mny: 60,  ext: 65,  extF: 80  },
+    'Psicomotricidad': { mny: 55,  ext: 60,  extF: 70  },
+  },
+  paquete: {
+    'Fonoaudiología':        { mny: 360, ext: 440, extF: 510 },
+    'Kinesiología':          { mny: 360, ext: 440, extF: 510 },
+    'Psicopedagogía':        { mny: 360, ext: 440, extF: 510 },
+    'Psicología':            { mny: 360, ext: 440, extF: 510 },
+    'Electroterapia':        { mny: 480, ext: 500, extF: 580 },
+    'Psicomotricidad':       { mny: 360, ext: 440, extF: 510 },
+    'Estimulación temprana': { mny: 360, ext: 440, extF: 510 },
+  },
+  evaluacion: {
+    'Fonoaudiología':  { mny: 60,  ext: 85,  extF: 110 },
+    'Kinesiología':    { mny: 60,  ext: 85,  extF: 110 },
+    'Psicopedagogía':  { mny: 60,  ext: 85,  extF: 110 },
+    'Psicología':      { mny: 60,  ext: 85,  extF: 110 },
+    'Electroterapia':  { mny: 66,  ext: 96,  extF: 120 },
+    'Psicomotricidad': { mny: 60,  ext: 85,  extF: 110 },
+  },
+};
+
+export function getArancel(tipoServicio, specialty, patientType, conFactura = false) {
+  const row = ARANCELES[tipoServicio]?.[specialty];
+  if (!row) return null;
+  const isMunay = ['mny', 'jwi', 'flap'].includes(patientType ?? '');
+  if (isMunay) return row.mny;
+  return conFactura ? row.extF : row.ext;
+}
+
 export const DAY_SCHEDULE_CONFIG = {
   1: { // Lunes — Arroyo: mañana
     mañana: ['Fonoaudiología', 'Kinesiología', 'Electroterapia', 'Psicología', 'Psicomotricidad'],
-    tarde:  ['Cirugía Pediátrica', 'Psicomotricidad', 'Kinesiología', 'Psicopedagogía', 'Ortopedia', 'Psicología'],
+    tarde:  ['Cirugía Pediátrica', 'Psicomotricidad', 'Kinesiología', 'Psicopedagogía', 'Ortopedia y Ortodoncia', 'Psicología'],
   },
   2: { // Martes — Arroyo: mañana + tarde
     mañana: ['Psicomotricidad', 'Psicopedagogía', 'Fonoaudiología', 'Kinesiología', 'Psicología', 'Pediatría', 'Odontopediatría'],
-    tarde:  ['Psicomotricidad', 'Fonoaudiología', 'Electroterapia', 'Ortopedia', 'Ortodoncia', 'Kinesiología'],
+    tarde:  ['Psicomotricidad', 'Fonoaudiología', 'Electroterapia', 'Ortopedia y Ortodoncia', 'Kinesiología'],
   },
   3: { // Miércoles
     mañana: ['Psicomotricidad', 'Psicología', 'Kinesiología', 'Electroterapia', 'Psicopedagogía', 'Fonoaudiología'],
@@ -148,11 +187,11 @@ export const DAY_SCHEDULE_CONFIG = {
   },
   4: { // Jueves — Arroyo: tarde
     mañana: ['Fonoaudiología'],
-    tarde:  ['Fonoaudiología', 'Psicomotricidad', 'Psicopedagogía', 'Ortopedia', 'Ortodoncia', 'Kinesiología'],
+    tarde:  ['Fonoaudiología', 'Psicomotricidad', 'Psicopedagogía', 'Ortopedia y Ortodoncia', 'Kinesiología'],
   },
   5: { // Viernes — Arroyo: mañana
     mañana: ['Psicopedagogía', 'Psicomotricidad', 'Fonoaudiología', 'Kinesiología', 'Electroterapia', 'Psicología'],
-    tarde:  ['Ortopedia', 'Ortodoncia', 'Psicopedagogía', 'Fonoaudiología', 'Odontopediatría'],
+    tarde:  ['Ortopedia y Ortodoncia', 'Psicopedagogía', 'Fonoaudiología', 'Odontopediatría'],
   },
   6: { // Sábado
     mañana: [],

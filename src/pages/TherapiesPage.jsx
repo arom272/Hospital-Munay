@@ -19,13 +19,15 @@ const esLocale = {
 import {
   Plus, Search, ChevronLeft, ChevronRight,
   LayoutGrid, Calendar, Table2,
-  CheckCircle, XCircle, Clock, RefreshCw, AlertCircle, Filter, Users,
+  CheckCircle, XCircle, Clock, RefreshCw, AlertCircle, Filter, Users, Package,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import useStore from '../store/useStore';
 import { useAuth } from '../contexts/AuthContext';
 import { subscribePatients } from '../services/patientService';
 import { subscribeTherapies, addTherapy, updateTherapy, deleteTherapy, deleteTherapies } from '../services/therapyService';
+import { subscribePackages, addPackage, updatePackage, deletePackage, buildDefaultSessions } from '../services/therapyPackageService';
+import { getArancel } from '../components/therapies/therapyConstants';
 import { subscribeTherapists } from '../services/therapistService';
 import Modal          from '../components/ui/Modal';
 import ConfirmDialog  from '../components/ui/ConfirmDialog';
@@ -37,11 +39,15 @@ import PatientDayModal        from '../components/therapies/PatientDayModal';
 import QuickModal             from '../components/therapies/QuickModal';
 import AttendanceModal        from '../components/therapies/AttendanceModal';
 import SpecialtyScheduleBar   from '../components/therapies/SpecialtyScheduleBar';
+import PackagesView           from '../components/therapies/PackagesView';
+import PackageForm            from '../components/therapies/PackageForm';
+import PackageSessionModal    from '../components/therapies/PackageSessionModal';
 import {
   SPECIALTY_CONFIG, STATUS_CONFIG, ALL_STATUSES,
   ATTENDED_STATUSES, ABSENT_STATUSES, RESCHEDULED_STATUSES, PENDING_STATUSES,
-  getWeekDates, isoAddDays, TODAY_ISO,
+  getWeekDates, isoAddDays, TODAY_ISO, getSpecialtyStyle, getStatusConfig,
 } from '../components/therapies/therapyConstants';
+import { format } from 'date-fns';
 
 /* ── helpers ── */
 function fmtDay(iso) {
@@ -66,11 +72,12 @@ const VIEWS = [
   { k: 'week',        l: 'Semanal',    I: Table2    , tip: 'Vista semanal por paciente' },
   { k: 'matrix',      l: 'Día',        I: LayoutGrid, tip: 'Vista diaria por paciente' },
   { k: 'therapists',  l: 'Terapistas', I: Users     , tip: 'Equipo terapéutico' },
+  { k: 'packages',    l: 'Paquetes',   I: Package   , tip: 'Paquetes de terapia (8 sesiones)' },
 ];
 
 export default function TherapiesPage() {
-  const { patients, setPatients, therapies, setTherapies, therapists, setTherapists } = useStore();
-  const { isAdmin } = useAuth();
+  const { patients, setPatients, therapies, setTherapies, therapists, setTherapists, packages, setPackages } = useStore();
+  const { isAdmin, isDoctor } = useAuth();
   const calRef = useRef(null);
 
   /* ── navigation ───────────────────────────────────────── */
@@ -94,12 +101,24 @@ export default function TherapiesPage() {
   const [busy,            setBusy]            = useState(false);
   const [patientDayPreview, setPatientDayPreview] = useState(null); // { patientName, date, therapies[] }
 
+  /* ── package modals ───────────────────────────────────── */
+  const [pkgFormOpen,    setPkgFormOpen]    = useState(false);
+  const [pkgSelected,    setPkgSelected]    = useState(null);
+  const [pkgSessionData, setPkgSessionData] = useState(null); // { pkg, session }
+  const [pkgBusy,        setPkgBusy]        = useState(false);
+
+  /* ── tooltip del calendario ───────────────────────────── */
+  const [calTooltip, setCalTooltip] = useState(null); // { therapies, patientName, x, y }
+  const tooltipTimer  = useRef(null);
+  const isOverTooltip = useRef(false);
+
   /* ── subscriptions ────────────────────────────────────── */
   useEffect(() => {
     const u1 = subscribePatients(setPatients);
     const u2 = subscribeTherapies(setTherapies);
     const u3 = subscribeTherapists(setTherapists);
-    return () => { u1(); u2(); u3(); };
+    const u4 = subscribePackages(setPackages);
+    return () => { u1(); u2(); u3(); u4(); };
   }, []);
 
   /* ── therapist name list (for filter dropdown) ───────── */
@@ -232,11 +251,108 @@ export default function TherapiesPage() {
     setFormOpen(true);
   }, [selectedDate]);
 
+  /* ── helper: vincular terapia a próxima sesión pendiente del paquete ── */
+  async function linkTherapyToPackageSession({ pkg, therapyId, therapyData }) {
+    const sessions = (pkg.sessions ?? buildDefaultSessions()).slice();
+    const specialty = therapyData.therapyType;
+
+    // 1) Si la terapia ya está vinculada a una sesión, la reusamos
+    let idx = sessions.findIndex(s => s.therapyId === therapyId);
+
+    // 2) Preferir sesión pendiente con especialidad coincidente
+    if (idx === -1 && specialty) {
+      idx = sessions.findIndex(s =>
+        s.status === 'pendiente' && !s.therapyId && s.specialty === specialty
+      );
+    }
+
+    // 3) Fallback: cualquier sesión sin especialidad asignada (legacy)
+    if (idx === -1) {
+      idx = sessions.findIndex(s => s.status === 'pendiente' && !s.therapyId && !s.specialty);
+    }
+
+    if (idx === -1) return null; // paquete lleno o sin sesiones de esa especialidad
+
+    sessions[idx] = {
+      ...sessions[idx],
+      therapyId,
+      date:      therapyData.date      ?? sessions[idx].date,
+      therapist: therapyData.therapist ?? sessions[idx].therapist,
+    };
+    await updatePackage(pkg.id, { sessions });
+    return sessions[idx].sessionNumber;
+  }
+
   const handleSave = async (data) => {
     setBusy(true);
     try {
-      if (selected?.id) { await updateTherapy(selected.id, data); toast.success('Terapia actualizada'); }
-      else              { await addTherapy(data);                 toast.success('Terapia agendada');    }
+      const { createNewPackage, packageId: incomingPkgId, ...therapyData } = data;
+      let finalPkgId      = incomingPkgId ?? selected?.packageId ?? null;
+      let finalSessionNum = selected?.packageSessionNumber ?? null;
+
+      /* 1) Si toca crear un nuevo paquete, lo creamos antes */
+      if (!selected?.id && createNewPackage && data.tipoServicio === 'paquete' && data.patientId) {
+        const pkgPrecio = getArancel('paquete', data.therapyType, data.patientType, data.conFactura) ?? 0;
+        const sessions  = buildDefaultSessions();
+        const pkgRef = await addPackage({
+          patientId:   data.patientId,
+          patientName: data.patientName,
+          patientType: data.patientType,
+          therapist:   data.therapist  ?? '',
+          startDate:   data.date,
+          services:    [data.therapyType].filter(Boolean),
+          precio:      pkgPrecio,
+          montoPagado: Number(data.montoPagado) || 0,
+          fechaPago:   data.fechaPago ?? '',
+          conFactura:  !!data.conFactura,
+          notes:       data.notes ?? '',
+          sessions,
+          status:      'activo',
+        });
+        finalPkgId      = pkgRef.id;
+        finalSessionNum = 1;
+      }
+
+      /* 2) Guardar (o actualizar) la terapia */
+      let therapyId;
+      if (selected?.id) {
+        await updateTherapy(selected.id, {
+          ...therapyData,
+          packageId:            finalPkgId,
+          packageSessionNumber: finalSessionNum,
+        });
+        therapyId = selected.id;
+        toast.success('Terapia actualizada');
+      } else {
+        const ref = await addTherapy({
+          ...therapyData,
+          packageId:            finalPkgId,
+          packageSessionNumber: finalSessionNum,
+        });
+        therapyId = ref.id;
+        toast.success('Terapia agendada');
+      }
+
+      /* 3) Vincular sesión del paquete (cuando aún no fue asignada) */
+      if (finalPkgId && !finalSessionNum) {
+        const pkg = packages.find(p => p.id === finalPkgId);
+        if (pkg) {
+          const num = await linkTherapyToPackageSession({ pkg, therapyId, therapyData: data });
+          if (num) await updateTherapy(therapyId, { packageSessionNumber: num });
+        }
+      } else if (finalPkgId && finalSessionNum) {
+        // Si ya tenía sesión, actualizar fecha/terapeuta de la sesión
+        const pkg = packages.find(p => p.id === finalPkgId);
+        if (pkg) {
+          const sessions = (pkg.sessions ?? buildDefaultSessions()).map(s =>
+            s.sessionNumber === finalSessionNum
+              ? { ...s, therapyId, date: data.date ?? s.date, therapist: data.therapist ?? s.therapist }
+              : s
+          );
+          await updatePackage(finalPkgId, { sessions });
+        }
+      }
+
       setFormOpen(false); setSelected(null);
     } catch (e) { toast.error(e.message); }
     finally { setBusy(false); }
@@ -245,10 +361,45 @@ export default function TherapiesPage() {
   const handleAttendSave = async ({ status, notes }) => {
     try {
       if (status === 'cancelado') {
+        // Si estaba ligada a un paquete, liberar la sesión
+        if (selected.packageId && selected.packageSessionNumber) {
+          const pkg = packages.find(p => p.id === selected.packageId);
+          if (pkg) {
+            const sessions = (pkg.sessions ?? buildDefaultSessions()).map(s =>
+              s.sessionNumber === selected.packageSessionNumber
+                ? { ...s, therapyId: null, status: 'pendiente', date: null, therapist: null, notes: '' }
+                : s
+            );
+            await updatePackage(selected.packageId, { sessions });
+          }
+        }
         await deleteTherapy(selected.id);
         toast.success('Terapia cancelada y eliminada');
       } else {
         await updateTherapy(selected.id, { status, attendanceNote: notes, attendanceAt: new Date().toISOString() });
+
+        /* ── Sincronizar sesión del paquete si la terapia fue atendida ── */
+        if (selected.packageId && selected.packageSessionNumber && ATTENDED_STATUSES.includes(status)) {
+          const pkg = packages.find(p => p.id === selected.packageId);
+          if (pkg) {
+            const sessions = (pkg.sessions ?? buildDefaultSessions()).map(s =>
+              s.sessionNumber === selected.packageSessionNumber
+                ? {
+                    ...s,
+                    therapyId: selected.id,
+                    date:      selected.date,
+                    therapist: selected.therapist ?? s.therapist,
+                    status:    'completada',
+                    notes:     notes ?? s.notes,
+                  }
+                : s
+            );
+            const allDone = sessions.every(s => s.status === 'completada');
+            await updatePackage(pkg.id, { sessions, status: allDone ? 'completado' : 'activo' });
+            if (allDone) toast.success('¡Paquete completado!');
+          }
+        }
+
         toast.success('Asistencia registrada');
       }
       setAttendOpen(false);
@@ -261,6 +412,84 @@ export default function TherapiesPage() {
     catch (e) { toast.error(e.message); }
   };
 
+  /* ── Drag-and-drop: reagendar terapia a otra fecha ── */
+  const handleEventDrop = async ({ event, oldEvent, revert }) => {
+    if (!isAdmin) { revert(); return; }
+    const props = event.extendedProps;
+    const newDate = format(event.start, 'yyyy-MM-dd');
+    const oldDate = format(oldEvent.start, 'yyyy-MM-dd');
+    if (newDate === oldDate) return;
+
+    try {
+      if (props.isGrouped) {
+        // Mes: mover TODAS las terapias del grupo a la nueva fecha
+        await Promise.all((props.therapies ?? []).map(t => updateTherapy(t.id, { date: newDate })));
+        // Actualizar fecha en las sesiones de paquete vinculadas
+        const pkgUpdates = {};
+        for (const t of props.therapies ?? []) {
+          if (t.packageId && t.packageSessionNumber) {
+            if (!pkgUpdates[t.packageId]) pkgUpdates[t.packageId] = [];
+            pkgUpdates[t.packageId].push(t.packageSessionNumber);
+          }
+        }
+        for (const [pkgId, sessNums] of Object.entries(pkgUpdates)) {
+          const pkg = packages.find(p => p.id === pkgId);
+          if (!pkg) continue;
+          const sessions = (pkg.sessions ?? []).map(s =>
+            sessNums.includes(s.sessionNumber) ? { ...s, date: newDate } : s
+          );
+          await updatePackage(pkgId, { sessions });
+        }
+        toast.success(`${(props.therapies ?? []).length} terapias reprogramadas`);
+      } else {
+        // Vista semanal/diaria: mover una sola
+        const newTime = format(event.start, 'HH:mm');
+        await updateTherapy(props.id, {
+          date: newDate,
+          startTime: newTime !== '00:00' ? newTime : props.startTime,
+        });
+        // Actualizar fecha en la sesión vinculada
+        if (props.packageId && props.packageSessionNumber) {
+          const pkg = packages.find(p => p.id === props.packageId);
+          if (pkg) {
+            const sessions = (pkg.sessions ?? []).map(s =>
+              s.sessionNumber === props.packageSessionNumber ? { ...s, date: newDate } : s
+            );
+            await updatePackage(pkg.id, { sessions });
+          }
+        }
+        toast.success('Terapia reprogramada');
+      }
+    } catch (e) {
+      toast.error('Error al reprogramar');
+      revert();
+    }
+  };
+
+  /* ── Hover tooltip del calendario ── */
+  const handleCalEventMouseEnter = ({ event, jsEvent }) => {
+    clearTimeout(tooltipTimer.current);
+    const props = event.extendedProps;
+    const therapyList = props.isGrouped
+      ? (props.therapies ?? [])
+      : [props];
+    const patientName = props.isGrouped ? props.patientName : props.patientName;
+    const patientId   = props.isGrouped ? props.patientId   : props.patientId;
+    setCalTooltip({
+      therapies: therapyList,
+      patientName,
+      patientId,
+      date: props.date ?? props.isGrouped ? props.date : props.date,
+      x: jsEvent.clientX,
+      y: jsEvent.clientY,
+    });
+  };
+  const handleCalEventMouseLeave = () => {
+    tooltipTimer.current = setTimeout(() => {
+      if (!isOverTooltip.current) setCalTooltip(null);
+    }, 120);
+  };
+
   const handleClean = async () => {
     const ids = therapies.filter(t => t.status === 'programado').map(t => t.id);
     try {
@@ -268,6 +497,58 @@ export default function TherapiesPage() {
       toast.success(`${ids.length} terapias programadas eliminadas`);
     } catch (e) { toast.error(e.message); }
     finally { setCleanConfirm(false); }
+  };
+
+  /* ── package handlers ────────────────────────────────────── */
+  const handlePkgSave = async (data) => {
+    setPkgBusy(true);
+    try {
+      if (pkgSelected?.id) {
+        await updatePackage(pkgSelected.id, data);
+        toast.success('Paquete actualizado');
+      } else {
+        const sessions = buildDefaultSessions(data.serviceDistribution);
+        await addPackage({ ...data, sessions });
+        toast.success('Paquete creado');
+      }
+      setPkgFormOpen(false); setPkgSelected(null);
+    } catch (e) { toast.error(e.message); }
+    finally { setPkgBusy(false); }
+  };
+
+  const handleTickSession = async (pkg, session, sessionData) => {
+    const sessions = (pkg.sessions ?? buildDefaultSessions()).map((s) =>
+      s.sessionNumber === session.sessionNumber ? { ...s, ...sessionData } : s
+    );
+    const allDone = sessions.every((s) => s.status === 'completada');
+    try {
+      await updatePackage(pkg.id, { sessions, status: allDone ? 'completado' : 'activo' });
+
+      /* ── Sincronizar terapia vinculada (si existe) ── */
+      const targetTherapyId = sessionData.therapyId ?? session.therapyId;
+      if (targetTherapyId) {
+        if (sessionData.status === 'completada') {
+          await updateTherapy(targetTherapyId, {
+            status: 'asistio',
+            attendanceNote: sessionData.notes ?? '',
+            attendanceAt: new Date().toISOString(),
+          });
+        } else if (sessionData.status === 'pendiente') {
+          // Desmarcar: volver a programado
+          await updateTherapy(targetTherapyId, { status: 'programado' });
+        }
+      }
+
+      if (allDone) toast.success('¡Paquete completado!');
+      setPkgSessionData(null);
+    } catch (e) { toast.error(e.message); }
+  };
+
+  const handlePkgDelete = async (pkg) => {
+    try {
+      await deletePackage(pkg.id);
+      toast.success('Paquete eliminado');
+    } catch (e) { toast.error(e.message); }
   };
 
   const hasFilter = filterSpecialty !== 'all' || filterTherapist !== 'all' || filterStatus !== 'all' || !!search;
@@ -303,7 +584,7 @@ export default function TherapiesPage() {
 
           {/* View switcher */}
           <div className="flex rounded-lg border border-gray-200 overflow-hidden text-[11px] font-medium">
-            {VIEWS.map(({ k, l, I }) => (
+            {VIEWS.filter(({ k }) => k !== 'packages' || !isDoctor).map(({ k, l, I }) => (
               <button key={k} onClick={() => setView(k)}
                       title={l}
                       className={`px-2.5 py-1.5 flex items-center gap-1 border-r border-gray-200 last:border-r-0 transition-colors
@@ -469,6 +750,16 @@ export default function TherapiesPage() {
           <TherapistsView therapists={therapists} isAdmin={isAdmin} />
         )}
 
+        {view === 'packages' && !isDoctor && (
+          <PackagesView
+            packages={packages}
+            onNewPackage={() => { setPkgSelected(null); setPkgFormOpen(true); }}
+            onEditPackage={(pkg) => { setPkgSelected(pkg); setPkgFormOpen(true); }}
+            onDeletePackage={handlePkgDelete}
+            onTickSession={(pkg, session) => setPkgSessionData({ pkg, session })}
+          />
+        )}
+
         {/* ── FULLCALENDAR ── */}
         {view === 'calendar' && (
           <FullCalendar
@@ -479,13 +770,19 @@ export default function TherapiesPage() {
             height="auto"
             headerToolbar={{ left: 'prev,next today', center: 'title', right: '' }}
             events={monthlyCalEvents}
-            editable={false}
+            editable={isAdmin}
+            droppable={isAdmin}
             selectable={false}
+            eventDrop={handleEventDrop}
+            eventMouseEnter={handleCalEventMouseEnter}
+            eventMouseLeave={handleCalEventMouseLeave}
             dateClick={({ dateStr }) => {
               setSelectedDate(dateStr.slice(0, 10));
               setView('matrix');
             }}
             eventClick={({ event }) => {
+              clearTimeout(tooltipTimer.current);
+              setCalTooltip(null);
               const props = event.extendedProps;
               if (props.isGrouped) {
                 setPatientDayPreview({ patientName: props.patientName, date: props.date, therapies: props.therapies });
@@ -539,6 +836,32 @@ export default function TherapiesPage() {
         onConfirm={handleClean} onCancel={() => setCleanConfirm(false)} />
 
       {/* ── Patient day modal (calendar monthly click) ───── */}
+      {/* ── Package form modal ───────────────────────────── */}
+      <Modal
+        open={pkgFormOpen}
+        onClose={() => { setPkgFormOpen(false); setPkgSelected(null); }}
+        title={pkgSelected?.id ? 'Editar paquete' : 'Nuevo paquete'}
+        size="lg"
+      >
+        <PackageForm
+          initial={pkgSelected}
+          onSubmit={handlePkgSave}
+          onCancel={() => { setPkgFormOpen(false); setPkgSelected(null); }}
+          busy={pkgBusy}
+        />
+      </Modal>
+
+      {/* ── Package session tick modal ────────────────────── */}
+      {pkgSessionData && (
+        <PackageSessionModal
+          pkg={pkgSessionData.pkg}
+          session={pkgSessionData.session}
+          busy={pkgBusy}
+          onSave={(sessionData) => handleTickSession(pkgSessionData.pkg, pkgSessionData.session, sessionData)}
+          onClose={() => setPkgSessionData(null)}
+        />
+      )}
+
       {patientDayPreview && (
         <PatientDayModal
           patientId={patientDayPreview.patientId}
@@ -556,6 +879,97 @@ export default function TherapiesPage() {
           }}
         />
       )}
+
+      {/* ── Tooltip de calendario ── */}
+      {calTooltip && calTooltip.therapies?.length > 0 && (() => {
+        const ts = calTooltip.therapies;
+        // Deuda agregada del grupo
+        const totalDebt = ts.reduce((acc, t) => {
+          const precio = Number(t.precio) || 0;
+          const pagado = Number(t.montoPagado) || 0;
+          return acc + Math.max(0, precio - pagado);
+        }, 0);
+        // Primera terapia con paquete (para progreso)
+        const therapyWithPkg = ts.find(t => t.packageId);
+        const linkedPkg = therapyWithPkg
+          ? packages.find(p => p.id === therapyWithPkg.packageId)
+          : null;
+        const pkgDone   = linkedPkg ? (linkedPkg.sessions ?? []).filter(s => s.status === 'completada').length : 0;
+        const pkgTotal  = linkedPkg ? (linkedPkg.sessions ?? []).length || 8 : 8;
+        const pkgRemaining = pkgTotal - pkgDone;
+
+        return (
+          <div
+            className="fixed z-[200] animate-fade-in"
+            style={{
+              left: Math.min(calTooltip.x + 16, window.innerWidth - 320),
+              top:  Math.min(calTooltip.y - 8,  window.innerHeight - 380),
+            }}
+            onMouseEnter={() => { clearTimeout(tooltipTimer.current); isOverTooltip.current = true; }}
+            onMouseLeave={() => { isOverTooltip.current = false; setCalTooltip(null); }}
+          >
+            <div className="w-[300px] bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden">
+              {/* Header */}
+              <div className="px-4 py-2.5 bg-blue-600 text-white">
+                <p className="font-extrabold text-sm truncate">{calTooltip.patientName}</p>
+                <p className="text-[10px] text-blue-100 mt-0.5">
+                  {ts[0].date} · {ts.length} terapia{ts.length > 1 ? 's' : ''}
+                </p>
+              </div>
+
+              {/* Lista de terapias */}
+              <div className="px-4 py-2 space-y-1.5 max-h-[160px] overflow-y-auto">
+                {ts.map(t => {
+                  const style = getSpecialtyStyle(t.therapyType);
+                  const stCfg = getStatusConfig(t.status);
+                  return (
+                    <div key={t.id} className="flex items-center gap-2 text-xs">
+                      <span className="font-mono text-gray-400 w-10 shrink-0">{t.startTime}</span>
+                      <span className="w-2 h-2 rounded-full shrink-0" style={{ background: style.color }} />
+                      <span className="flex-1 truncate font-medium text-gray-700">{t.therapyType}</span>
+                      <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${stCfg.tw}`}>{stCfg.short}</span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Paquete vinculado */}
+              {linkedPkg && (
+                <div className="px-4 py-2 bg-purple-50 border-t border-purple-100 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-purple-700 uppercase tracking-wide">
+                      Paquete
+                    </span>
+                    <span className="text-[10px] font-bold text-purple-700">
+                      {pkgRemaining} de {pkgTotal} restantes
+                    </span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-purple-100 overflow-hidden">
+                    <div className="h-full transition-all"
+                      style={{ width: `${(pkgDone / pkgTotal) * 100}%`, backgroundColor: '#9333ea' }} />
+                  </div>
+                </div>
+              )}
+
+              {/* Deuda */}
+              <div className={`px-4 py-2 border-t flex items-center justify-between text-xs font-semibold
+                ${totalDebt > 0
+                  ? 'bg-red-50 border-red-100 text-red-700'
+                  : 'bg-green-50 border-green-100 text-green-700'}`}>
+                <span>{totalDebt > 0 ? '⚠ Deuda pendiente' : '✓ Sin deuda'}</span>
+                {totalDebt > 0 && <span>Bs. {totalDebt.toFixed(2)}</span>}
+              </div>
+
+              {/* Hint drag */}
+              {isAdmin && (
+                <p className="px-4 py-1.5 text-[10px] text-gray-400 text-center border-t border-gray-50">
+                  Arrastrá para reagendar · Click para ver detalle
+                </p>
+              )}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

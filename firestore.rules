@@ -14,6 +14,13 @@ service cloud.firestore {
       return isAuthenticated() && getUserRole() in ['admin', 'secretaria'];
     }
 
+    // Roles allowed to create/update clinical documents (admin, secretaria, medico).
+    // Medico can author clinical documents but cannot edit patient records,
+    // therapies or surgeries, nor delete anything.
+    function canDocument() {
+      return isAuthenticated() && getUserRole() in ['admin', 'secretaria', 'medico'];
+    }
+
     function isAdmin() {
       return isAuthenticated() && getUserRole() == 'admin';
     }
@@ -27,7 +34,7 @@ service cloud.firestore {
     // Clinical documents (subcollection of each patient)
     match /patients/{patientId}/documents/{documentId} {
       allow read:             if isAuthenticated();
-      allow create, update:   if canEdit();
+      allow create, update:   if canDocument();
       allow delete:           if isAdmin();
     }
 

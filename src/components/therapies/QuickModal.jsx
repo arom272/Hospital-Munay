@@ -1,6 +1,7 @@
 import { useMemo, useState, useRef } from 'react';
-import { X, Phone, User, Activity, MapPin, CheckCircle, AlertCircle, FileText, ExternalLink, Loader2, Upload, Paperclip, Trash2 } from 'lucide-react';
+import { X, Phone, User, Activity, MapPin, CheckCircle, AlertCircle, FileText, ExternalLink, Loader2, Upload, Paperclip, Trash2, Package } from 'lucide-react';
 import { getSpecialtyStyle, getStatusConfig, calcAge } from './therapyConstants';
+import { useAuth } from '../../contexts/AuthContext';
 import useStore from '../../store/useStore';
 import { useTherapyDocuments } from '../../modules/documents/hooks/useTherapyDocuments';
 import { DocumentFormModal }   from '../../modules/documents/index';
@@ -24,7 +25,8 @@ const DOC_TYPE_LABELS = {
 };
 
 export default function QuickModal({ therapy, isAdmin, onClose, onAttend, onEdit }) {
-  const { patients, therapies } = useStore();
+  const { canEdit } = useAuth();
+  const { patients, therapies, packages } = useStore();
   const [docOpen,          setDocOpen]          = useState(false);
   const [attachUploading,  setAttachUploading]  = useState(false);
   const [attachError,      setAttachError]      = useState(null);
@@ -130,8 +132,63 @@ export default function QuickModal({ therapy, isAdmin, onClose, onAttend, onEdit
             </div>
           </div>
 
-          {/* Cobro */}
-          {Number(therapy.precio) > 0 && (
+          {/* Paquete vinculado */}
+          {therapy.packageId && (() => {
+            const pkg = packages.find(p => p.id === therapy.packageId);
+            if (!pkg) return null;
+            const done    = (pkg.sessions ?? []).filter(s => s.status === 'completada').length;
+            const pending = 8 - done;
+            const progress = Math.round((done / 8) * 100);
+            return (
+              <div>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5 flex items-center gap-1">
+                  <Package className="w-3 h-3" /> Paquete vinculado
+                </p>
+                <div className="bg-purple-50 rounded-lg p-3 border border-purple-100 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-bold text-purple-800">
+                      Sesión {therapy.packageSessionNumber ?? '?'} de 8
+                    </span>
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">
+                      {pending > 0 ? `Restan ${pending}` : '✓ Completo'}
+                    </span>
+                  </div>
+                  {(pkg.services?.length > 0) && (
+                    <p className="text-[11px] text-gray-600">{pkg.services.join(' + ')}</p>
+                  )}
+                  <div className="h-1.5 rounded-full bg-purple-100 overflow-hidden">
+                    <div
+                      className="h-full transition-all duration-500"
+                      style={{ width: `${progress}%`, backgroundColor: progress === 100 ? '#16a34a' : '#9333ea' }}
+                    />
+                  </div>
+                  {/* Mini-tracker de las 8 sesiones */}
+                  <div className="flex gap-1">
+                    {(pkg.sessions ?? []).map(s => {
+                      const isCurrent = s.sessionNumber === therapy.packageSessionNumber;
+                      const isDone    = s.status === 'completada';
+                      return (
+                        <span
+                          key={s.sessionNumber}
+                          title={`Sesión ${s.sessionNumber}${s.date ? ' · ' + s.date : ''}`}
+                          className={`flex-1 h-5 rounded text-[9px] font-bold flex items-center justify-center border
+                            ${isDone
+                              ? 'bg-green-100 border-green-300 text-green-700'
+                              : 'bg-white border-gray-200 text-gray-400'}
+                            ${isCurrent ? 'ring-2 ring-purple-400' : ''}`}
+                        >
+                          {s.sessionNumber}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Cobro — solo personal administrativo (no médico) */}
+          {canEdit && Number(therapy.precio) > 0 && (
             <div>
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Cobro</p>
               <div className={`rounded-lg px-3 py-2.5 space-y-1.5 border text-xs
@@ -257,6 +314,7 @@ export default function QuickModal({ therapy, isAdmin, onClose, onAttend, onEdit
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
                 <Paperclip className="w-3 h-3" /> Archivos ({therapy?.attachments?.length ?? 0})
               </p>
+              {canEdit && (
               <label className={`text-[10px] font-semibold px-2 py-0.5 rounded border cursor-pointer transition
                 ${attachUploading
                   ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
@@ -273,6 +331,7 @@ export default function QuickModal({ therapy, isAdmin, onClose, onAttend, onEdit
                   onChange={handleAttachUpload}
                 />
               </label>
+              )}
             </div>
             {attachError && <p className="text-[9px] text-red-500 mb-1">{attachError}</p>}
             {(therapy?.attachments?.length ?? 0) > 0 && (
@@ -284,15 +343,17 @@ export default function QuickModal({ therapy, isAdmin, onClose, onAttend, onEdit
                       className="shrink-0 text-[9px] font-semibold px-1.5 py-0.5 rounded bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100 transition">
                       <ExternalLink className="w-2.5 h-2.5 inline" />
                     </a>
-                    <button
-                      onClick={() => handleAttachRemove(a)}
-                      disabled={attachRemoving === a.storagePath}
-                      className="shrink-0 p-0.5 rounded text-gray-400 hover:text-red-500 transition"
-                    >
-                      {attachRemoving === a.storagePath
-                        ? <Loader2 className="w-3 h-3 animate-spin" />
-                        : <Trash2 className="w-3 h-3" />}
-                    </button>
+                    {canEdit && (
+                      <button
+                        onClick={() => handleAttachRemove(a)}
+                        disabled={attachRemoving === a.storagePath}
+                        className="shrink-0 p-0.5 rounded text-gray-400 hover:text-red-500 transition"
+                      >
+                        {attachRemoving === a.storagePath
+                          ? <Loader2 className="w-3 h-3 animate-spin" />
+                          : <Trash2 className="w-3 h-3" />}
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -305,12 +366,14 @@ export default function QuickModal({ therapy, isAdmin, onClose, onAttend, onEdit
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
                 <FileText className="w-3 h-3" /> Documentos ({therapyDocs.length})
               </p>
-              <button
-                onClick={() => setDocOpen(true)}
-                className="text-[10px] font-semibold px-2 py-0.5 rounded bg-hm-primary text-white hover:opacity-90 transition"
-              >
-                + Nuevo
-              </button>
+              {canEdit && (
+                <button
+                  onClick={() => setDocOpen(true)}
+                  className="text-[10px] font-semibold px-2 py-0.5 rounded bg-hm-primary text-white hover:opacity-90 transition"
+                >
+                  + Nuevo
+                </button>
+              )}
             </div>
             {docsLoading ? (
               <div className="flex items-center gap-1 text-[10px] text-gray-400">
@@ -342,9 +405,15 @@ export default function QuickModal({ therapy, isAdmin, onClose, onAttend, onEdit
 
         {/* Acciones */}
         <div className="p-3 border-t border-gray-100 flex gap-2 shrink-0">
-          <button onClick={() => onAttend(therapy)} className="flex-1 btn btn-sm btn-primary text-xs">
-            Registrar asistencia
-          </button>
+          {canEdit ? (
+            <button onClick={() => onAttend(therapy)} className="flex-1 btn btn-sm btn-primary text-xs">
+              Registrar asistencia
+            </button>
+          ) : (
+            <button onClick={onClose} className="flex-1 btn btn-sm btn-secondary text-xs">
+              Cerrar
+            </button>
+          )}
           {isAdmin && (
             <button onClick={() => onEdit(therapy)} className="btn btn-sm btn-secondary text-xs">
               Editar

@@ -43,11 +43,14 @@ export function AuthProvider({ children }) {
 
   const isAdmin     = role === 'admin';
   const isSecretary = role === 'secretaria';
+  const isDoctor    = role === 'medico';
   const isViewer    = role === 'viewer';
   const canEdit     = isAdmin || isSecretary;
+  // Create / generate clinical documents (historia clínica, epicrisis, consentimientos…)
+  const canDocument = isAdmin || isSecretary || isDoctor;
 
   return (
-    <AuthContext.Provider value={{ user, role, isAdmin, isSecretary, isViewer, canEdit, loading, login, logout, resetPassword }}>
+    <AuthContext.Provider value={{ user, role, isAdmin, isSecretary, isDoctor, isViewer, canEdit, canDocument, loading, login, logout, resetPassword }}>
       {children}
     </AuthContext.Provider>
   );

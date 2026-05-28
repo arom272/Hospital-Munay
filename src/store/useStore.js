@@ -17,6 +17,10 @@ const useStore = create((set) => ({
   therapists:     [],
   setTherapists:  (therapists) => set({ therapists }),
 
+  // ── Therapy Packages ──────────────────────────────────────
+  packages:       [],
+  setPackages:    (packages) => set({ packages }),
+
   // ── UI state ──────────────────────────────────────────────
   sidebarOpen:    false,
   toggleSidebar:  () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),

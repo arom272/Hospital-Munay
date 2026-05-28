@@ -1118,7 +1118,7 @@ export default function SurgeryDetail({
   const [consentError,     setConsentError]     = useState(null);
   const consentFileRef = useRef(null);
   const { patients, surgeries: allSurgeries, therapies } = useStore();
-  const { user: authUser } = useAuth();
+  const { user: authUser, canDocument } = useAuth();
   const { documents: surgeryDocs, loading: docsLoading } = useSurgeryDocuments(surgery?.patientId, surgery?.id);
   const { generateAndSave } = usePDFGeneration();
 
@@ -1674,7 +1674,7 @@ export default function SurgeryDetail({
                             <Printer className="w-3.5 h-3.5" />
                           </button>
                         )}
-                        {!PDF_SAVE_KEYS.has(key) && (
+                        {!PDF_SAVE_KEYS.has(key) && canDocument && (
                           <button
                             onClick={() => saveDocument(key)}
                             disabled={saving || saved}
@@ -1707,12 +1707,14 @@ export default function SurgeryDetail({
                   <FileText className="w-3.5 h-3.5" />
                   Documentos clínicos ({surgeryDocs.length})
                 </p>
-                <button
-                  onClick={() => setNewDocOpen(true)}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-hm-primary text-white hover:opacity-90 transition"
-                >
-                  + Nuevo
-                </button>
+                {canDocument && (
+                  <button
+                    onClick={() => setNewDocOpen(true)}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-hm-primary text-white hover:opacity-90 transition"
+                  >
+                    + Nuevo
+                  </button>
+                )}
               </div>
               {docsLoading ? (
                 <div className="flex items-center gap-2 text-sm text-gray-400">
@@ -1759,6 +1761,7 @@ export default function SurgeryDetail({
                 Consentimientos firmados físicos
               </p>
 
+              {canEdit && (
               <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 space-y-3">
                 <div className="flex flex-wrap gap-2 items-center">
                   <select
@@ -1793,6 +1796,7 @@ export default function SurgeryDetail({
                 )}
                 <p className="text-xs text-gray-400">Acepta PDF e imágenes (máx. 20 MB).</p>
               </div>
+              )}
 
               {/* Existing signed consents list */}
               {(surgery.signedConsents?.length ?? 0) > 0 && (
@@ -1825,6 +1829,7 @@ export default function SurgeryDetail({
                 Archivos adjuntos ({surgery.attachments?.length ?? 0})
               </p>
 
+              {canEdit && (
               <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 space-y-3">
                 <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-semibold border cursor-pointer transition w-fit
                   ${attachUploading
@@ -1845,6 +1850,7 @@ export default function SurgeryDetail({
                 {attachError && <p className="text-xs text-red-600">{attachError}</p>}
                 <p className="text-xs text-gray-400">PDF e imágenes · máx. 20 MB</p>
               </div>
+              )}
 
               {(surgery.attachments?.length ?? 0) > 0 && (
                 <ul className="mt-3 space-y-2">
@@ -1863,16 +1869,18 @@ export default function SurgeryDetail({
                           className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200 transition">
                           <ExternalLink className="w-3.5 h-3.5" /> Ver
                         </a>
-                        <button
-                          onClick={() => handleAttachRemove(a)}
-                          disabled={attachRemoving === a.storagePath}
-                          className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 border border-transparent hover:border-red-200 transition"
-                          title="Eliminar archivo"
-                        >
-                          {attachRemoving === a.storagePath
-                            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            : <Trash2 className="w-3.5 h-3.5" />}
-                        </button>
+                        {canEdit && (
+                          <button
+                            onClick={() => handleAttachRemove(a)}
+                            disabled={attachRemoving === a.storagePath}
+                            className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 border border-transparent hover:border-red-200 transition"
+                            title="Eliminar archivo"
+                          >
+                            {attachRemoving === a.storagePath
+                              ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              : <Trash2 className="w-3.5 h-3.5" />}
+                          </button>
+                        )}
                       </div>
                     </li>
                   ))}

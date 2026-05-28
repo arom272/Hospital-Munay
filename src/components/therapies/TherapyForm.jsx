@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
-import { Loader2, Search, X, ChevronDown, UserPlus, DollarSign } from 'lucide-react';
+import { Loader2, Search, X, ChevronDown, UserPlus, DollarSign, Package } from 'lucide-react';
 import toast from 'react-hot-toast';
 import useStore from '../../store/useStore';
 import Modal from '../ui/Modal';
 import PatientForm from '../patients/PatientForm';
 import { addPatient } from '../../services/patientService';
 import {
-  ALL_SPECIALTY_KEYS, ALL_STATUSES, STATUS_CONFIG, calcAge,
+  ALL_SPECIALTY_KEYS, ALL_STATUSES, STATUS_CONFIG, calcAge, getArancel,
 } from './therapyConstants';
 
 /* ── Patient search combobox ─────────────────────────── */
@@ -231,7 +231,7 @@ function TherapistSelector({ specialty, value, onChange, therapistsList = [], da
 
 /* ── Main form ──────────────────────────────────────── */
 export default function TherapyForm({ initial, onSubmit, onCancel, busy }) {
-  const { patients, therapists } = useStore();
+  const { patients, therapists, packages } = useStore();
   const allPats = useMemo(
     () => [...patients].sort((a, b) => (a.fullName ?? '').localeCompare(b.fullName ?? '', 'es')),
     [patients]
@@ -241,7 +241,7 @@ export default function TherapyForm({ initial, onSubmit, onCancel, busy }) {
     defaultValues: initial ?? {
       patientId: '', therapyType: '', date: '', startTime: '',
       therapist: '', status: 'programado', notes: '',
-      tipoServicio: '', precio: '', montoPagado: '', fechaPago: '',
+      tipoServicio: '', precio: '', montoPagado: '', fechaPago: '', conFactura: false,
     },
   });
 
@@ -249,12 +249,14 @@ export default function TherapyForm({ initial, onSubmit, onCancel, busy }) {
     if (initial) reset(initial);
   }, [initial]);
 
-  const patientId      = watch('patientId');
-  const therapyType    = watch('therapyType');
-  const therapist      = watch('therapist');
-  const watchDate      = watch('date');
-  const watchPrecio    = watch('precio');
-  const watchMontoPago = watch('montoPagado');
+  const patientId       = watch('patientId');
+  const therapyType     = watch('therapyType');
+  const therapist       = watch('therapist');
+  const watchDate       = watch('date');
+  const watchPrecio     = watch('precio');
+  const watchMontoPago  = watch('montoPagado');
+  const tipoServicio    = watch('tipoServicio');
+  const watchConFactura = watch('conFactura');
 
   /* day of week (1=Mon … 5=Fri) from selected date */
   const dayOfWeek = useMemo(() => {
@@ -262,9 +264,51 @@ export default function TherapyForm({ initial, onSubmit, onCancel, busy }) {
     return new Date(watchDate + 'T12:00').getDay();
   }, [watchDate]);
 
+  /* paciente seleccionado y tipo */
+  const selectedPat = patients.find(p => p.id === patientId);
+  const isExt       = ['ext', 'external'].includes(selectedPat?.patientType);
+
+  /* precio sugerido según aranceles */
+  const suggestedPrice = useMemo(() => {
+    if (!tipoServicio || !therapyType || !patientId) return null;
+    return getArancel(tipoServicio, therapyType, selectedPat?.patientType, watchConFactura);
+  }, [tipoServicio, therapyType, patientId, watchConFactura, selectedPat]);
+
+  /* auto-llenar precio cuando cambia la combinación servicio/especialidad/paciente */
+  useEffect(() => {
+    if (suggestedPrice !== null) setValue('precio', suggestedPrice);
+  }, [suggestedPrice]);
+
   /* ── nuevo paciente ────────────────────────────────── */
   const [newPatOpen, setNewPatOpen] = useState(false);
   const [savingPat,  setSavingPat]  = useState(false);
+
+  /* ── paquetes activos del paciente filtrados por la especialidad ─────── */
+  const patientActivePackages = useMemo(() => {
+    if (!patientId) return [];
+    const active = packages.filter(p => p.patientId === patientId && p.status === 'activo');
+    if (!therapyType) return active;
+    // Solo paquetes con sesiones pendientes de esta especialidad
+    // (o legacy: sesiones sin specialty asignada)
+    return active.filter(p => {
+      const sessions = p.sessions ?? [];
+      return sessions.some(s =>
+        s.status === 'pendiente' && !s.therapyId &&
+        (s.specialty === therapyType || !s.specialty)
+      );
+    });
+  }, [packages, patientId, therapyType]);
+
+  const [packageMode,     setPackageMode]     = useState(initial?.packageId ? 'link' : 'new'); // 'link' | 'new'
+  const [linkedPackageId, setLinkedPackageId] = useState(initial?.packageId ?? '');
+
+  /* Si cambia paciente/especialidad, resetear vinculación y proponer auto-vínculo */
+  useEffect(() => {
+    if (!initial?.packageId) {
+      setLinkedPackageId(patientActivePackages.length > 0 ? patientActivePackages[0].id : '');
+      setPackageMode(patientActivePackages.length > 0 ? 'link' : 'new');
+    }
+  }, [patientId, therapyType, patientActivePackages.length]);
 
   const handleNewPatient = async (data) => {
     setSavingPat(true);
@@ -284,6 +328,20 @@ export default function TherapyForm({ initial, onSubmit, onCancel, busy }) {
     const patient    = patients.find(p => p.id === data.patientId);
     const precio     = Number(data.precio)     || 0;
     const montoPagado = Number(data.montoPagado) || 0;
+
+    /* ── Vinculación a paquete ── */
+    let packageMeta = {};
+    if (data.tipoServicio === 'paquete') {
+      if (packageMode === 'link' && linkedPackageId) {
+        packageMeta = { packageId: linkedPackageId };
+      } else if (packageMode === 'new') {
+        packageMeta = { createNewPackage: true };
+      }
+    } else {
+      // Servicio no es paquete → no vincular
+      packageMeta = { packageId: null, packageSessionNumber: null };
+    }
+
     onSubmit({
       ...data,
       patientName:  patient?.fullName   ?? '',
@@ -291,6 +349,7 @@ export default function TherapyForm({ initial, onSubmit, onCancel, busy }) {
       precio,
       montoPagado,
       pagado: precio > 0 && montoPagado >= precio,
+      ...packageMeta,
     });
   };
 
@@ -397,6 +456,7 @@ export default function TherapyForm({ initial, onSubmit, onCancel, busy }) {
         <p className="flex items-center gap-1.5 text-[11px] font-bold text-gray-400 uppercase tracking-widest">
           <DollarSign className="w-3.5 h-3.5" /> Cobro
         </p>
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="form-group mb-0">
             <label className="label">Tipo de servicio</label>
@@ -409,11 +469,137 @@ export default function TherapyForm({ initial, onSubmit, onCancel, busy }) {
             </select>
           </div>
           <div className="form-group mb-0">
-            <label className="label">Precio (Bs.)</label>
+            <label className="label flex items-center justify-between">
+              <span>Precio (Bs.)</span>
+              {suggestedPrice !== null && (
+                <span className="text-[10px] font-semibold text-teal-600 bg-teal-50 border border-teal-100 px-1.5 py-0.5 rounded normal-case tracking-normal">
+                  Según aranceles
+                </span>
+              )}
+            </label>
             <input type="number" min="0" step="0.5" className="input"
               placeholder="0.00" {...register('precio')} />
           </div>
         </div>
+
+        {/* Toggle con factura — solo para pacientes externos */}
+        {isExt && tipoServicio && tipoServicio !== 'otro' && (
+          <label className="flex items-center gap-2 cursor-pointer select-none w-fit">
+            <input
+              type="checkbox"
+              className="w-4 h-4 rounded accent-teal-600"
+              {...register('conFactura')}
+            />
+            <span className="text-sm text-gray-600 font-medium">Con factura</span>
+            {watchConFactura && (
+              <span className="text-xs text-gray-400">(precio externo c/f)</span>
+            )}
+          </label>
+        )}
+
+        {/* ── Vinculación a paquete (solo cuando tipoServicio = 'paquete') ── */}
+        {tipoServicio === 'paquete' && patientId && (() => {
+          const linkedPkg = patientActivePackages.find(p => p.id === linkedPackageId);
+          /* Próxima sesión pendiente que coincide con la especialidad seleccionada */
+          const nextSession = linkedPkg
+            ? (linkedPkg.sessions ?? []).find(s =>
+                s.status === 'pendiente' && !s.therapyId &&
+                (s.specialty === therapyType || !s.specialty)
+              )
+            : null;
+          const pkgDone = linkedPkg ? (linkedPkg.sessions ?? []).filter(s => s.status === 'completada').length : 0;
+          const pkgTotal = linkedPkg ? (linkedPkg.sessions ?? []).length || 8 : 8;
+          return (
+            <div className="bg-purple-50 border border-purple-100 rounded-lg p-3 space-y-2">
+              <p className="flex items-center gap-1.5 text-[11px] font-bold text-purple-700 uppercase tracking-wide">
+                <Package className="w-3.5 h-3.5" /> Paquete asociado
+              </p>
+
+              {patientActivePackages.length > 0 ? (
+                <>
+                  <div className="flex flex-wrap gap-3 text-xs">
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="radio"
+                        checked={packageMode === 'link'}
+                        onChange={() => setPackageMode('link')}
+                        className="accent-purple-600"
+                      />
+                      <span className="font-medium text-gray-700">Descontar de paquete existente</span>
+                    </label>
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="radio"
+                        checked={packageMode === 'new'}
+                        onChange={() => setPackageMode('new')}
+                        className="accent-purple-600"
+                      />
+                      <span className="font-medium text-gray-700">Crear nuevo paquete</span>
+                    </label>
+                  </div>
+
+                  {packageMode === 'link' && (
+                    <>
+                      <select
+                        value={linkedPackageId}
+                        onChange={(e) => setLinkedPackageId(e.target.value)}
+                        className="input text-xs"
+                      >
+                        <option value="">— Elegir paquete —</option>
+                        {patientActivePackages.map(p => {
+                          const done = (p.sessions ?? []).filter(s => s.status === 'completada').length;
+                          const total = (p.sessions ?? []).length || 8;
+                          const pendingForSpec = therapyType
+                            ? (p.sessions ?? []).filter(s =>
+                                s.status === 'pendiente' && !s.therapyId &&
+                                (s.specialty === therapyType || !s.specialty)
+                              ).length
+                            : 0;
+                          return (
+                            <option key={p.id} value={p.id}>
+                              {(p.services ?? []).join(' + ') || 'Paquete'} · {done}/{total}
+                              {therapyType ? ` · ${pendingForSpec} disp. ${therapyType}` : ''}
+                            </option>
+                          );
+                        })}
+                      </select>
+
+                      {/* Confirmación visual del descuento */}
+                      {linkedPkg && nextSession && (
+                        <div className="bg-white/80 border border-purple-200 rounded-lg px-3 py-2 text-xs">
+                          <p className="font-bold text-purple-800">
+                            ✓ Se descontará la sesión #{nextSession.sessionNumber}
+                            {nextSession.specialty ? ` de ${nextSession.specialty}` : ''}
+                          </p>
+                          <p className="text-purple-600 mt-0.5">
+                            Quedarán {pkgTotal - pkgDone - 1} sesiones tras esta terapia.
+                          </p>
+                        </div>
+                      )}
+                      {linkedPkg && !nextSession && (
+                        <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-700">
+                          ⚠ Este paquete no tiene sesiones pendientes para {therapyType || 'esta especialidad'}.
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {packageMode === 'new' && (
+                    <p className="text-[11px] text-purple-700 bg-white/60 rounded px-2 py-1.5">
+                      Se creará un paquete nuevo de 8 sesiones con esta terapia como sesión 1.
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p className="text-[11px] text-purple-700 bg-white/60 rounded px-2 py-1.5">
+                  Sin paquetes activos con sesiones de {therapyType || 'esta especialidad'} disponibles.
+                  Se creará un paquete nuevo de 8 sesiones con esta terapia como sesión 1.
+                </p>
+              )}
+            </div>
+          );
+        })()}
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="form-group mb-0">
             <label className="label">Monto pagado (Bs.)</label>
@@ -425,6 +611,7 @@ export default function TherapyForm({ initial, onSubmit, onCancel, busy }) {
             <input type="date" className="input" {...register('fechaPago')} />
           </div>
         </div>
+
         {Number(watchPrecio) > 0 && (
           <div className={`flex items-center justify-between rounded-lg px-3 py-2 text-xs font-medium border
             ${Number(watchMontoPago) >= Number(watchPrecio)

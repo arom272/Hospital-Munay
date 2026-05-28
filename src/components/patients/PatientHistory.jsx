@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { format, differenceInYears, differenceInMonths, differenceInDays, parseISO, isValid } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { Calendar, HeartPulse, FileText, Clock, FolderOpen, ExternalLink, CheckCircle, Circle, Upload, Trash2 } from 'lucide-react';
+import { Calendar, HeartPulse, FileText, Clock, FolderOpen, ExternalLink, CheckCircle, Circle, Upload, Trash2, Package } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Badge from '../ui/Badge';
 import Modal from '../ui/Modal';
@@ -60,7 +60,7 @@ const DOC_PATIENT_LABELS = {
 };
 
 /* ── Datos tab (original content) ───────────────────── */
-function DatosTab({ patient, surgeries, therapies }) {
+function DatosTab({ patient, surgeries, therapies, packages }) {
   const ptSurgeries = surgeries
     .filter(s => s.patientId === patient.id)
     .sort((a, b) => b.date.localeCompare(a.date));
@@ -68,6 +68,10 @@ function DatosTab({ patient, surgeries, therapies }) {
   const ptTherapies = therapies
     .filter(t => t.patientId === patient.id)
     .sort((a, b) => b.date.localeCompare(a.date));
+
+  const ptPackages = (packages ?? [])
+    .filter(p => p.patientId === patient.id)
+    .sort((a, b) => (b.startDate ?? '').localeCompare(a.startDate ?? ''));
 
   return (
     <div className="space-y-6">
@@ -150,6 +154,61 @@ function DatosTab({ patient, surgeries, therapies }) {
                 <Badge variant={t.status ?? 'programado'} />
               </li>
             ))}
+          </ul>
+        )}
+      </section>
+
+      <section>
+        <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-3">
+          <Package className="w-4 h-4 text-fuchsia-600" />
+          Paquetes ({ptPackages.length})
+        </h3>
+        {ptPackages.length === 0 ? (
+          <p className="text-sm text-gray-400">Sin paquetes registrados.</p>
+        ) : (
+          <ul className="space-y-2">
+            {ptPackages.map(p => {
+              const done    = (p.sessions ?? []).filter(s => s.status === 'completada').length;
+              const total   = (p.sessions ?? []).length || 8;
+              const progress = Math.round((done / total) * 100);
+              const status   = p.status ?? 'activo';
+              const statusBadge = {
+                activo:     { label: 'Activo',     cls: 'bg-blue-100  text-blue-700  border-blue-300'  },
+                completado: { label: 'Completado', cls: 'bg-green-100 text-green-700 border-green-300' },
+                cancelado:  { label: 'Cancelado',  cls: 'bg-red-100   text-red-700   border-red-300'   },
+              }[status] ?? { label: status, cls: 'bg-gray-100 text-gray-700 border-gray-300' };
+              return (
+                <li key={p.id} className="p-3 bg-gray-50 rounded-lg text-sm">
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="min-w-0">
+                      <p className="font-medium text-gray-800 truncate">
+                        {(p.services ?? []).join(' + ') || 'Paquete'}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        Inicio: {p.startDate ? format(new Date(p.startDate + 'T12:00'), 'd MMM yyyy', { locale: es }) : '—'}
+                        {p.therapist ? ` · ${p.therapist}` : ''}
+                      </p>
+                    </div>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border whitespace-nowrap ${statusBadge.cls}`}>
+                      {statusBadge.label}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-gray-700">{done}/{total} sesiones</span>
+                    <div className="flex-1 h-1.5 rounded-full bg-gray-200 overflow-hidden">
+                      <div
+                        className="h-full transition-all duration-500"
+                        style={{
+                          width: `${progress}%`,
+                          backgroundColor: progress === 100 ? '#16a34a' : '#a855f7',
+                        }}
+                      />
+                    </div>
+                    <span className="text-[11px] text-gray-500">{progress}%</span>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>
@@ -460,7 +519,7 @@ function TimelineTab({ patient }) {
 
 /* ── Main component ──────────────────────────────────── */
 export default function PatientHistory({ patient }) {
-  const { surgeries, therapies } = useStore();
+  const { surgeries, therapies, packages } = useStore();
   const { isAdmin, canEdit } = useAuth();
   const [activeTab, setActiveTab] = useState('datos');
 
@@ -482,7 +541,7 @@ export default function PatientHistory({ patient }) {
         ))}
       </div>
 
-      {activeTab === 'datos'     && <DatosTab patient={patient} surgeries={surgeries} therapies={therapies} />}
+      {activeTab === 'datos'     && <DatosTab patient={patient} surgeries={surgeries} therapies={therapies} packages={packages} />}
       {activeTab === 'historial' && <HistorialTab patient={patient} isAdmin={isAdmin} canEdit={canEdit} />}
       {activeTab === 'timeline'  && <TimelineTab patient={patient} />}
     </div>
