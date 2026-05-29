@@ -199,6 +199,17 @@ export default function CalendarPage() {
       };
     });
 
+  // ── List view range: spans every surgery so the "Lista" shows them all ──────
+  const listRange = useMemo(() => {
+    const dates = surgeries.map((s) => s.date).filter(Boolean).sort();
+    if (!dates.length) {
+      const today = format(new Date(), 'yyyy-MM-dd');
+      return { start: today, end: format(addDays(new Date(), 1), 'yyyy-MM-dd') };
+    }
+    const last = parseISO(dates[dates.length - 1]);
+    return { start: dates[0], end: format(addDays(last, 1), 'yyyy-MM-dd') };
+  }, [surgeries]);
+
   // ── Event content — finance indicators only for admin ───────────────────────
   const renderEventContent = useCallback((arg) => {
     const s = arg.event.extendedProps;
@@ -237,7 +248,7 @@ export default function CalendarPage() {
     }
 
     /* ─ List view ─ */
-    if (viewType === 'listWeek') {
+    if (viewType.startsWith('list')) {
       return (
         <div style={{ display:'flex', alignItems:'center', gap:6, padding:'2px 0', width:'100%' }}>
           {s.isQuickEntry && (
@@ -548,10 +559,19 @@ export default function CalendarPage() {
           initialView="dayGridMonth"
           locale={esLocale}
           height="auto"
+          fixedWeekCount={false}
+          showNonCurrentDates={false}
           headerToolbar={{
             left:   'prev,next today',
             center: 'title',
-            right:  'dayGridMonth,timeGridWeek,timeGridDay,listWeek',
+            right:  'dayGridMonth,timeGridWeek,timeGridDay,listAll',
+          }}
+          views={{
+            listAll: {
+              type: 'list',
+              visibleRange: listRange,
+              buttonText: 'Lista',
+            },
           }}
           events={calEvents}
           editable={canEdit}
@@ -576,8 +596,8 @@ export default function CalendarPage() {
           eventDisplay="block"
           dayMaxEvents={4}
           moreLinkText={(n) => `+${n} más`}
-          noEventsText="Sin cirugías en este período"
-          buttonText={{ today: 'Hoy', month: 'Mes', week: 'Semana', day: 'Día', list: 'Lista' }}
+          noEventsText="Sin cirugías registradas"
+          buttonText={{ today: 'Hoy', month: 'Mes', week: 'Semana', day: 'Día', list: 'Lista', listAll: 'Lista' }}
         />
       </div>
 

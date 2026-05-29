@@ -247,6 +247,44 @@ export default function FinancesPage() {
     };
   }, [tFiltered]);
 
+  /* ── balance mensual (cirugías + terapias) ──────────────── */
+  const monthlyBalance = useMemo(() => {
+    const map = {};
+    const ensure = (k) => (map[k] ||= { sQuoted: 0, sCollected: 0, tBilled: 0, tCollected: 0 });
+    for (const s of surgeries) {
+      if (s.status === 'cancelado' || !s.date) continue;
+      const m = ensure(s.date.slice(0, 7));
+      m.sQuoted    += Number(s.quotation  || 0);
+      m.sCollected += Number(s.amountPaid || 0);
+    }
+    for (const t of therapies) {
+      if (!t.date || !(Number(t.precio) > 0)) continue;
+      const m = ensure(t.date.slice(0, 7));
+      m.tBilled    += Number(t.precio      || 0);
+      m.tCollected += Number(t.montoPagado || 0);
+    }
+    return Object.entries(map)
+      .map(([key, v]) => ({
+        key,
+        ...v,
+        sPending: Math.max(0, v.sQuoted - v.sCollected),
+        tPending: Math.max(0, v.tBilled - v.tCollected),
+      }))
+      .sort((a, b) => b.key.localeCompare(a.key));
+  }, [surgeries, therapies]);
+
+  const balanceTotals = useMemo(() =>
+    monthlyBalance.reduce((acc, m) => ({
+      sQuoted:    acc.sQuoted    + m.sQuoted,
+      sCollected: acc.sCollected + m.sCollected,
+      sPending:   acc.sPending   + m.sPending,
+      tBilled:    acc.tBilled    + m.tBilled,
+      tCollected: acc.tCollected + m.tCollected,
+      tPending:   acc.tPending   + m.tPending,
+    }), { sQuoted: 0, sCollected: 0, sPending: 0, tBilled: 0, tCollected: 0, tPending: 0 }),
+    [monthlyBalance]
+  );
+
   const toggleSort = (field) => {
     if (sortField === field) setSortDir((d) => d === 'asc' ? 'desc' : 'asc');
     else { setSortField(field); setSortDir('desc'); }
@@ -265,6 +303,7 @@ export default function FinancesPage() {
         {[
           { k: 'cirugias', l: 'Cirugías' },
           { k: 'terapias', l: 'Terapias' },
+          { k: 'balance',  l: 'Balance mensual' },
         ].map(({ k, l }) => (
           <button key={k} onClick={() => setActiveTab(k)}
             className={`px-5 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors
@@ -275,6 +314,87 @@ export default function FinancesPage() {
           </button>
         ))}
       </div>
+
+      {/* ── Balance mensual tab ── */}
+      {activeTab === 'balance' && (
+        <div className="space-y-5">
+          {/* KPI resumen */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <KpiCard icon={DollarSign} label="Cirugías · cobrado"
+              value={fmt(balanceTotals.sCollected)}
+              sub={`Cotizado ${fmt(balanceTotals.sQuoted)}`} color="teal" />
+            <KpiCard icon={AlertCircle} label="Cirugías · pendiente"
+              value={fmt(balanceTotals.sPending)}
+              sub={balanceTotals.sPending > 0 ? 'Por cobrar' : 'Sin deuda'}
+              color={balanceTotals.sPending > 0 ? 'red' : 'green'} />
+            <KpiCard icon={Stethoscope} label="Terapias · cobrado"
+              value={fmtBs(balanceTotals.tCollected)}
+              sub={`Facturado ${fmtBs(balanceTotals.tBilled)}`} color="green" />
+            <KpiCard icon={AlertCircle} label="Terapias · pendiente"
+              value={fmtBs(balanceTotals.tPending)}
+              sub={balanceTotals.tPending > 0 ? 'Por cobrar' : 'Sin deuda'}
+              color={balanceTotals.tPending > 0 ? 'red' : 'green'} />
+          </div>
+
+          {monthlyBalance.length === 0 ? (
+            <div className="card flex flex-col items-center py-14 text-gray-400">
+              <AlertCircle className="w-10 h-10 mb-2 opacity-40" />
+              <p className="text-sm">Sin movimientos registrados.</p>
+            </div>
+          ) : (
+            <div className="card p-0 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b border-gray-100">
+                    <tr>
+                      <th rowSpan={2} className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide align-bottom">Mes</th>
+                      <th colSpan={3} className="text-center px-4 py-2 text-xs font-semibold text-teal-700 uppercase tracking-wide border-l border-gray-100">Cirugías</th>
+                      <th colSpan={3} className="text-center px-4 py-2 text-xs font-semibold text-green-700 uppercase tracking-wide border-l border-gray-100">Terapias</th>
+                    </tr>
+                    <tr>
+                      <th className="text-right px-4 py-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wide border-l border-gray-100">Cotizado</th>
+                      <th className="text-right px-4 py-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Cobrado</th>
+                      <th className="text-right px-4 py-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Pendiente</th>
+                      <th className="text-right px-4 py-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wide border-l border-gray-100">Facturado</th>
+                      <th className="text-right px-4 py-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Cobrado</th>
+                      <th className="text-right px-4 py-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Pendiente</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {monthlyBalance.map((m) => (
+                      <tr key={m.key} className="hover:bg-gray-50 transition">
+                        <td className="px-4 py-3 font-medium text-gray-800 whitespace-nowrap capitalize">
+                          {format(new Date(m.key + '-01T12:00'), 'MMMM yyyy', { locale: es })}
+                        </td>
+                        <td className="px-4 py-3 text-right text-gray-700 border-l border-gray-50">{m.sQuoted ? fmt(m.sQuoted) : <span className="text-gray-300">—</span>}</td>
+                        <td className="px-4 py-3 text-right text-green-700 font-medium">{m.sCollected ? fmt(m.sCollected) : <span className="text-gray-300">—</span>}</td>
+                        <td className="px-4 py-3 text-right">{m.sPending > 0 ? <span className="text-red-600 font-semibold">{fmt(m.sPending)}</span> : <span className="text-gray-300">—</span>}</td>
+                        <td className="px-4 py-3 text-right text-gray-700 border-l border-gray-50">{m.tBilled ? fmtBs(m.tBilled) : <span className="text-gray-300">—</span>}</td>
+                        <td className="px-4 py-3 text-right text-green-700 font-medium">{m.tCollected ? fmtBs(m.tCollected) : <span className="text-gray-300">—</span>}</td>
+                        <td className="px-4 py-3 text-right">{m.tPending > 0 ? <span className="text-red-600 font-semibold">{fmtBs(m.tPending)}</span> : <span className="text-gray-300">—</span>}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot className="bg-gray-50 border-t-2 border-gray-200">
+                    <tr>
+                      <td className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Totales</td>
+                      <td className="px-4 py-3 text-right font-bold text-gray-800 border-l border-gray-100">{fmt(balanceTotals.sQuoted)}</td>
+                      <td className="px-4 py-3 text-right font-bold text-green-700">{fmt(balanceTotals.sCollected)}</td>
+                      <td className="px-4 py-3 text-right font-bold text-red-600">{balanceTotals.sPending > 0 ? fmt(balanceTotals.sPending) : '—'}</td>
+                      <td className="px-4 py-3 text-right font-bold text-gray-800 border-l border-gray-100">{fmtBs(balanceTotals.tBilled)}</td>
+                      <td className="px-4 py-3 text-right font-bold text-green-700">{fmtBs(balanceTotals.tCollected)}</td>
+                      <td className="px-4 py-3 text-right font-bold text-red-600">{balanceTotals.tPending > 0 ? fmtBs(balanceTotals.tPending) : '—'}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+              <p className="px-4 py-2 text-[11px] text-gray-400 border-t border-gray-50">
+                Cirugías en $ · Terapias en Bs. — no se suman entre sí por ser monedas distintas.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── Terapias tab ── */}
       {activeTab === 'terapias' && (
