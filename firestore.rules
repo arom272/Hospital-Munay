@@ -2,64 +2,102 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // Helpers de autenticación y rol
+    //
+    // El rol se lee PRIMERO del custom claim del token (request.auth.token.role).
+    // Si el usuario todavía no tiene el claim asignado (migración en curso), se
+    // hace fallback al documento users/{uid}.role en Firestore. Esto mantiene la
+    // app funcionando durante el despliegue por fases (ver SECURITY.md):
+    //   - Si NO hay claim → comportamiento idéntico al actual (lee Firestore).
+    //   - Si HAY claim    → no se hace get() a Firestore (más rápido y barato).
+    // ─────────────────────────────────────────────────────────────────────────
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    function getUserRole() {
+    function roleFromDoc() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
     }
 
-    function canEdit() {
-      return isAuthenticated() && getUserRole() in ['admin', 'secretaria'];
+    function userRole() {
+      return ('role' in request.auth.token) ? request.auth.token.role : roleFromDoc();
     }
 
-    // Roles allowed to create/update clinical documents (admin, secretaria, medico).
-    // Medico can author clinical documents but cannot edit patient records,
-    // therapies or surgeries, nor delete anything.
+    function hasRole(roles) {
+      return isAuthenticated() && (userRole() in roles);
+    }
+
+    // Editar registros (pacientes, terapias, cirugías).
+    function canEdit() {
+      return hasRole(['admin', 'secretaria']);
+    }
+
+    // Crear/actualizar documentos clínicos. El médico puede redactar documentos
+    // clínicos pero no editar pacientes/terapias/cirugías ni borrar nada.
     function canDocument() {
-      return isAuthenticated() && getUserRole() in ['admin', 'secretaria', 'medico'];
+      return hasRole(['admin', 'secretaria', 'medico']);
     }
 
     function isAdmin() {
-      return isAuthenticated() && getUserRole() == 'admin';
+      return hasRole(['admin']);
     }
 
-    // Patients
+    // Roles válidos del sistema (evita asignar roles arbitrarios).
+    function isValidRole(role) {
+      return role in ['admin', 'secretaria', 'medico', 'viewer'];
+    }
+
+    // ── Patients ──────────────────────────────────────────────────────────────
     match /patients/{id} {
-      allow read: if isAuthenticated();
+      allow read:   if isAuthenticated();
       allow create, update, delete: if canEdit();
+
+      // Clinical documents (subcollection of each patient)
+      match /documents/{documentId} {
+        allow read:           if isAuthenticated();
+        allow create, update: if canDocument();
+        allow delete:         if isAdmin();
+      }
     }
 
-    // Clinical documents (subcollection of each patient)
-    match /patients/{patientId}/documents/{documentId} {
-      allow read:             if isAuthenticated();
-      allow create, update:   if canDocument();
-      allow delete:           if isAdmin();
-    }
-
-    // Therapies
+    // ── Therapies ───────────────────────────────────────────────────────────--
     match /therapies/{id} {
       allow read: if isAuthenticated();
       allow create, update, delete: if canEdit();
     }
 
-    // Therapists directory
+    // ── Surgeries ──────────────────────────────────────────────────────────--─
+    match /surgeries/{id} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if canEdit();
+    }
+
+    // ── Therapy packages ──────────────────────────────────────────────────────
+    match /therapyPackages/{id} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if canEdit();
+    }
+
+    // ── Therapists directory ────────────────────────────────────────────────--
     match /therapists/{id} {
       allow read: if isAuthenticated();
       allow create, update, delete: if isAdmin();
     }
 
-    // Users (roles)
-    match /users/{id} {
-      allow read: if isAuthenticated();
-      allow write: if isAdmin();
+    // ── Users (roles) ─────────────────────────────────────────────────────────
+    // Cada usuario puede leer SU propio documento (necesario para resolver su rol
+    // si aún no tiene claim); un admin puede leer todos. Solo un admin escribe, y
+    // el rol asignado debe ser uno de los válidos (anti-escalada de privilegios).
+    match /users/{uid} {
+      allow read: if isAuthenticated() && (request.auth.uid == uid || isAdmin());
+      allow create, update: if isAdmin() && isValidRole(request.resource.data.role);
+      allow delete: if isAdmin();
     }
 
-    // Any other collection
+    // ── Denegar todo lo no declarado explícitamente ─────────────────────────--─
     match /{document=**} {
-      allow read: if isAuthenticated();
-      allow write: if canEdit();
+      allow read, write: if false;
     }
   }
 }
