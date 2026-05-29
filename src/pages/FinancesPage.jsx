@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, Fragment } from 'react';
+import { useState, useMemo, Fragment } from 'react';
 import {
   DollarSign, TrendingUp, TrendingDown, AlertCircle,
   FileDown, FileText, CheckCircle, XCircle, HeartHandshake,
@@ -7,8 +7,6 @@ import {
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
 import { es } from 'date-fns/locale';
 import useStore from '../store/useStore';
-import { subscribeSurgeries } from '../services/surgeryService';
-import { subscribeTherapies } from '../services/therapyService';
 import SearchBar from '../components/ui/SearchBar';
 import Badge     from '../components/ui/Badge';
 
@@ -127,7 +125,7 @@ const STATUS_FILTER_OPTIONS = [
 ];
 
 export default function FinancesPage() {
-  const { surgeries, setSurgeries, therapies, setTherapies } = useStore();
+  const { surgeries, therapies } = useStore();
 
   /* ── tab ── */
   const [activeTab,    setActiveTab]    = useState('cirugias');
@@ -147,12 +145,6 @@ export default function FinancesPage() {
   const [tDateTo,      setTDateTo]      = useState('');
   const [tDebtFilter,  setTDebtFilter]  = useState('all');
   const [tSearch,      setTSearch]      = useState('');
-
-  useEffect(() => {
-    const u1 = subscribeSurgeries(setSurgeries);
-    const u2 = subscribeTherapies(setTherapies);
-    return () => { u1(); u2(); };
-  }, []);
 
   // Only surgeries with at least some financial data or any surgery
   const billableSurgeries = useMemo(() =>

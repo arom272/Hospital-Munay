@@ -11,10 +11,7 @@ import {
 import { es } from 'date-fns/locale';
 import toast from 'react-hot-toast';
 import useStore from '../store/useStore';
-import { subscribePatients, addPatient, updatePatient, deletePatient } from '../services/patientService';
-import { subscribeSurgeries } from '../services/surgeryService';
-import { subscribeTherapies } from '../services/therapyService';
-import { subscribePackages } from '../services/therapyPackageService';
+import { addPatient, updatePatient, deletePatient } from '../services/patientService';
 import { useAuth }        from '../contexts/AuthContext';
 import { getTypeInfo }    from '../utils/patientTypes';
 import Modal              from '../components/ui/Modal';
@@ -63,12 +60,7 @@ const FILTER_OPTIONS = [
 
 /* ══════════════════════════════════════════════════════════ */
 export default function PatientsPage() {
-  const {
-    patients, setPatients,
-    surgeries, setSurgeries,
-    therapies, setTherapies,
-    setPackages,
-  } = useStore();
+  const { patients, surgeries, therapies } = useStore();
   const { isAdmin, canEdit, user } = useAuth();
 
   const [search,    setSearch]    = useState('');
@@ -85,15 +77,6 @@ export default function PatientsPage() {
   const [uploadBusy,   setUploadBusy]   = useState(false);
   const userRef = useRef(user);
   useEffect(() => { userRef.current = user; }, [user]);
-
-  /* ── Subscriptions ───────────────────────────────────── */
-  useEffect(() => {
-    const u1 = subscribePatients(setPatients);
-    const u2 = subscribeSurgeries(setSurgeries);
-    const u3 = subscribeTherapies(setTherapies);
-    const u4 = subscribePackages(setPackages);
-    return () => { u1(); u2(); u3(); u4(); };
-  }, []);
 
   /* ── Historia Clínica: PDF save from popup (unchanged) ── */
   useEffect(() => {
