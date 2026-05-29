@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, Fragment } from 'react';
 import {
   DollarSign, TrendingUp, TrendingDown, AlertCircle,
   FileDown, FileText, CheckCircle, XCircle, HeartHandshake,
@@ -273,6 +273,17 @@ export default function FinancesPage() {
       .sort((a, b) => b.key.localeCompare(a.key));
   }, [surgeries, therapies]);
 
+  // Terapias individuales agrupadas por mes (para el detalle expandible del balance)
+  const therapyByMonth = useMemo(() => {
+    const map = {};
+    for (const t of therapies) {
+      if (!t.date || !(Number(t.precio) > 0)) continue;
+      (map[t.date.slice(0, 7)] ||= []).push(t);
+    }
+    for (const k in map) map[k].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    return map;
+  }, [therapies]);
+
   const balanceTotals = useMemo(() =>
     monthlyBalance.reduce((acc, m) => ({
       sQuoted:    acc.sQuoted    + m.sQuoted,
@@ -342,54 +353,37 @@ export default function FinancesPage() {
               <p className="text-sm">Sin movimientos registrados.</p>
             </div>
           ) : (
-            <div className="card p-0 overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50 border-b border-gray-100">
-                    <tr>
-                      <th rowSpan={2} className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide align-bottom">Mes</th>
-                      <th colSpan={3} className="text-center px-4 py-2 text-xs font-semibold text-teal-700 uppercase tracking-wide border-l border-gray-100">Cirugías</th>
-                      <th colSpan={3} className="text-center px-4 py-2 text-xs font-semibold text-green-700 uppercase tracking-wide border-l border-gray-100">Terapias</th>
-                    </tr>
-                    <tr>
-                      <th className="text-right px-4 py-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wide border-l border-gray-100">Cotizado</th>
-                      <th className="text-right px-4 py-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Cobrado</th>
-                      <th className="text-right px-4 py-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Pendiente</th>
-                      <th className="text-right px-4 py-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wide border-l border-gray-100">Facturado</th>
-                      <th className="text-right px-4 py-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Cobrado</th>
-                      <th className="text-right px-4 py-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wide">Pendiente</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {monthlyBalance.map((m) => (
-                      <tr key={m.key} className="hover:bg-gray-50 transition">
-                        <td className="px-4 py-3 font-medium text-gray-800 whitespace-nowrap capitalize">
-                          {format(new Date(m.key + '-01T12:00'), 'MMMM yyyy', { locale: es })}
-                        </td>
-                        <td className="px-4 py-3 text-right text-gray-700 border-l border-gray-50">{m.sQuoted ? fmt(m.sQuoted) : <span className="text-gray-300">—</span>}</td>
-                        <td className="px-4 py-3 text-right text-green-700 font-medium">{m.sCollected ? fmt(m.sCollected) : <span className="text-gray-300">—</span>}</td>
-                        <td className="px-4 py-3 text-right">{m.sPending > 0 ? <span className="text-red-600 font-semibold">{fmt(m.sPending)}</span> : <span className="text-gray-300">—</span>}</td>
-                        <td className="px-4 py-3 text-right text-gray-700 border-l border-gray-50">{m.tBilled ? fmtBs(m.tBilled) : <span className="text-gray-300">—</span>}</td>
-                        <td className="px-4 py-3 text-right text-green-700 font-medium">{m.tCollected ? fmtBs(m.tCollected) : <span className="text-gray-300">—</span>}</td>
-                        <td className="px-4 py-3 text-right">{m.tPending > 0 ? <span className="text-red-600 font-semibold">{fmtBs(m.tPending)}</span> : <span className="text-gray-300">—</span>}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot className="bg-gray-50 border-t-2 border-gray-200">
-                    <tr>
-                      <td className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Totales</td>
-                      <td className="px-4 py-3 text-right font-bold text-gray-800 border-l border-gray-100">{fmt(balanceTotals.sQuoted)}</td>
-                      <td className="px-4 py-3 text-right font-bold text-green-700">{fmt(balanceTotals.sCollected)}</td>
-                      <td className="px-4 py-3 text-right font-bold text-red-600">{balanceTotals.sPending > 0 ? fmt(balanceTotals.sPending) : '—'}</td>
-                      <td className="px-4 py-3 text-right font-bold text-gray-800 border-l border-gray-100">{fmtBs(balanceTotals.tBilled)}</td>
-                      <td className="px-4 py-3 text-right font-bold text-green-700">{fmtBs(balanceTotals.tCollected)}</td>
-                      <td className="px-4 py-3 text-right font-bold text-red-600">{balanceTotals.tPending > 0 ? fmtBs(balanceTotals.tPending) : '—'}</td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-              <p className="px-4 py-2 text-[11px] text-gray-400 border-t border-gray-50">
-                Cirugías en $ · Terapias en Bs. — no se suman entre sí por ser monedas distintas.
+            <div className="space-y-6">
+              <MonthlyBalanceTable
+                title="Cirugías"
+                accent="teal"
+                grossLabel="Cotizado"
+                money={fmt}
+                rows={monthlyBalance
+                  .filter((m) => m.sQuoted || m.sCollected)
+                  .map((m) => ({ key: m.key, gross: m.sQuoted, collected: m.sCollected, pending: m.sPending }))}
+              />
+              <MonthlyBalanceTable
+                title="Terapias"
+                accent="green"
+                grossLabel="Facturado"
+                money={fmtBs}
+                rows={monthlyBalance
+                  .filter((m) => m.tBilled || m.tCollected)
+                  .map((m) => ({ key: m.key, gross: m.tBilled, collected: m.tCollected, pending: m.tPending }))}
+                getDetail={(key) => (therapyByMonth[key] || []).map((t) => ({
+                  id:        t.id,
+                  date:      t.date,
+                  generated: t.createdAt,
+                  name:      t.patientName,
+                  service:   t.therapyType || TIPO_LABELS[t.tipoServicio] || '—',
+                  gross:     Number(t.precio || 0),
+                  collected: Number(t.montoPagado || 0),
+                  pending:   Math.max(0, Number(t.precio || 0) - Number(t.montoPagado || 0)),
+                }))}
+              />
+              <p className="text-[11px] text-gray-400">
+                Cirugías en $ · Terapias en Bs. — son monedas distintas y no se suman entre sí.
               </p>
             </div>
           )}
@@ -860,6 +854,117 @@ export default function FinancesPage() {
 }
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
+
+function fmtTs(ts) {
+  if (!ts) return '—';
+  const ms = ts.seconds ? ts.seconds * 1000 : (typeof ts === 'number' ? ts : Date.parse(ts));
+  if (!ms || Number.isNaN(ms)) return '—';
+  return format(new Date(ms), 'dd/MM/yyyy');
+}
+
+function MonthlyBalanceTable({ title, accent = 'teal', grossLabel, money, rows, getDetail }) {
+  const accentText = accent === 'green' ? 'text-green-700' : 'text-teal-700';
+  const [expanded, setExpanded] = useState({});
+  const toggle = (key) => setExpanded((e) => ({ ...e, [key]: !e[key] }));
+  const totals = rows.reduce(
+    (a, r) => ({ gross: a.gross + r.gross, collected: a.collected + r.collected, pending: a.pending + r.pending }),
+    { gross: 0, collected: 0, pending: 0 }
+  );
+  return (
+    <div className="space-y-2">
+      <h3 className={`text-sm font-bold uppercase tracking-wide ${accentText}`}>{title}</h3>
+      {rows.length === 0 ? (
+        <div className="card flex flex-col items-center py-10 text-gray-400">
+          <AlertCircle className="w-8 h-8 mb-2 opacity-40" />
+          <p className="text-sm">Sin movimientos registrados.</p>
+        </div>
+      ) : (
+        <div className="card p-0 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b border-gray-100">
+                <tr>
+                  <th className="text-left  px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Mes</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">{grossLabel}</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Cobrado</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Pendiente</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {rows.map((r) => {
+                  const detail = getDetail ? getDetail(r.key) : null;
+                  const canExpand = detail && detail.length > 0;
+                  const isOpen = !!expanded[r.key];
+                  return (
+                    <Fragment key={r.key}>
+                      <tr
+                        className={`hover:bg-gray-50 transition ${canExpand ? 'cursor-pointer' : ''}`}
+                        onClick={canExpand ? () => toggle(r.key) : undefined}
+                      >
+                        <td className="px-4 py-3 font-medium text-gray-800 whitespace-nowrap capitalize">
+                          <span className="inline-flex items-center gap-1.5">
+                            {canExpand && (isOpen
+                              ? <ChevronUp className="w-3.5 h-3.5 text-gray-400" />
+                              : <ChevronDown className="w-3.5 h-3.5 text-gray-400" />)}
+                            {format(new Date(r.key + '-01T12:00'), 'MMMM yyyy', { locale: es })}
+                            {canExpand && <span className="text-[11px] text-gray-400 font-normal">({detail.length})</span>}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right text-gray-700">{r.gross ? money(r.gross) : <span className="text-gray-300">—</span>}</td>
+                        <td className="px-4 py-3 text-right text-green-700 font-medium">{r.collected ? money(r.collected) : <span className="text-gray-300">—</span>}</td>
+                        <td className="px-4 py-3 text-right">{r.pending > 0 ? <span className="text-red-600 font-semibold">{money(r.pending)}</span> : <span className="text-gray-300">—</span>}</td>
+                      </tr>
+                      {canExpand && isOpen && (
+                        <tr>
+                          <td colSpan={4} className="px-4 py-3 bg-gray-50/60">
+                            <table className="w-full text-xs">
+                              <thead>
+                                <tr className="text-gray-400">
+                                  <th className="text-left  font-semibold uppercase tracking-wide py-1.5 px-2">Fecha terapia</th>
+                                  <th className="text-left  font-semibold uppercase tracking-wide py-1.5 px-2">Generada</th>
+                                  <th className="text-left  font-semibold uppercase tracking-wide py-1.5 px-2">Paciente</th>
+                                  <th className="text-left  font-semibold uppercase tracking-wide py-1.5 px-2">Servicio</th>
+                                  <th className="text-right font-semibold uppercase tracking-wide py-1.5 px-2">{grossLabel}</th>
+                                  <th className="text-right font-semibold uppercase tracking-wide py-1.5 px-2">Cobrado</th>
+                                  <th className="text-right font-semibold uppercase tracking-wide py-1.5 px-2">Saldo</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-100">
+                                {detail.map((d) => (
+                                  <tr key={d.id} className="text-gray-700">
+                                    <td className="py-1.5 px-2 whitespace-nowrap">{d.date ? format(new Date(d.date + 'T12:00'), 'dd/MM/yyyy') : '—'}</td>
+                                    <td className="py-1.5 px-2 whitespace-nowrap text-gray-500">{fmtTs(d.generated)}</td>
+                                    <td className="py-1.5 px-2 font-medium text-gray-800">{d.name || '—'}</td>
+                                    <td className="py-1.5 px-2">{d.service || '—'}</td>
+                                    <td className="py-1.5 px-2 text-right">{d.gross ? money(d.gross) : <span className="text-gray-300">—</span>}</td>
+                                    <td className="py-1.5 px-2 text-right text-green-700">{d.collected ? money(d.collected) : <span className="text-gray-300">—</span>}</td>
+                                    <td className="py-1.5 px-2 text-right">{d.pending > 0 ? <span className="text-red-600 font-semibold">{money(d.pending)}</span> : <span className="text-gray-300">—</span>}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
+              </tbody>
+              <tfoot className="bg-gray-50 border-t-2 border-gray-200">
+                <tr>
+                  <td className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Totales</td>
+                  <td className="px-4 py-3 text-right font-bold text-gray-800">{money(totals.gross)}</td>
+                  <td className="px-4 py-3 text-right font-bold text-green-700">{money(totals.collected)}</td>
+                  <td className="px-4 py-3 text-right font-bold text-red-600">{totals.pending > 0 ? money(totals.pending) : '—'}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function KpiCard({ icon: Icon, label, value, sub, color }) {
   const colors = {

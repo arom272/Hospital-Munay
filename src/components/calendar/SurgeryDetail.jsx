@@ -777,7 +777,7 @@ async function printEpicrisis(surgery, patient) {
 <title>Epicrisis — ${patientName}</title>
 <style>
 :root{--navy:#163A5F;--navy-mid:#2F5D8A;--navy-soft:#EBF2FA;--rule:#CBD5E0;--rule-light:#E2E8F0;--ink:#1A202C;--ink-2:#4A5568;--ink-3:#718096;--white:#FFFFFF}
-@page{size:letter portrait;margin:8mm 9mm 7mm}
+@page{size:letter portrait;margin:0}
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{font-family:'Inter','Segoe UI',Arial,sans-serif;color:var(--ink);font-size:8.5pt;line-height:1.35;background:#EDF2F7}
 .doc{width:215.9mm;min-height:279.4mm;margin:12px auto;padding:0 9mm 7mm;background:var(--white);box-shadow:0 2px 16px rgba(0,0,0,.10)}
@@ -833,9 +833,22 @@ table.med input:focus{background:#EBF8FF}
 @media print{
   html,body{background:#fff!important}
   .toolbar{display:none!important}
-  .doc{box-shadow:none!important;margin:0!important;padding:5mm 7mm!important;width:100%!important;min-height:0!important}
-  .page-hdr{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+  /* Mismas medidas que el PDF guardado (pdf-mode) → 1 plana carta */
+  .doc{box-shadow:none!important;margin:0 auto!important;padding:5mm 7mm!important;width:100%!important;min-height:0!important}
+  .section-card{margin:2px 0!important}
+  .section-body{padding:3px 8px!important}
+  h3.section{padding:3px 10px 3px 12px!important;font-size:7pt!important}
+  .page-hdr{padding:5px 10px!important;margin-bottom:4px!important;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+  .g2,.g3,.g4{gap:2px 8px!important}
+  .f{padding:1px 0!important}
+  .fv{gap:1px!important;padding:1px 0!important}
+  textarea{min-height:16px!important;padding:2px 4px!important}
+  table.med{font-size:7pt!important}
+  table.med td,table.med th{padding:2px 4px!important}
   table.med thead tr{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+  .firmas{margin-top:5px!important;gap:12px!important}
+  .firma .esp{height:22px!important}
+  .footer{margin-top:3px!important;padding-top:2px!important;font-size:6pt!important}
   input,select,textarea{background:transparent!important}
 }
 body.pdf-mode .toolbar{display:none!important}
