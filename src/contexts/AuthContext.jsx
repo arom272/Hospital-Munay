@@ -20,8 +20,17 @@ export function AuthProvider({ children }) {
       if (firebaseUser) {
         setUser(firebaseUser);
         try {
-          const snap = await getDoc(doc(db, 'users', firebaseUser.uid));
-          setRole(snap.exists() ? snap.data().role : 'viewer');
+          // 1) El rol se resuelve PRIMERO desde el custom claim del token.
+          //    Es la fuente que también usan las reglas de Firestore/Storage.
+          const token = await firebaseUser.getIdTokenResult();
+          const claimRole = token.claims.role;
+          if (claimRole) {
+            setRole(claimRole);
+          } else {
+            // 2) Fallback (migración en curso): leer users/{uid}.role en Firestore.
+            const snap = await getDoc(doc(db, 'users', firebaseUser.uid));
+            setRole(snap.exists() ? snap.data().role : 'viewer');
+          }
         } catch {
           setRole('viewer');
         }

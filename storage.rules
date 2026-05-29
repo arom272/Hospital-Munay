@@ -8,6 +8,23 @@ service firebase.storage {
       return request.auth != null;
     }
 
+    // Las reglas de Storage NO pueden leer Firestore, por lo que el rol solo puede
+    // comprobarse mediante custom claims en el token (request.auth.token.role).
+    //
+    // Enforcement PROGRESIVO para no romper producción durante la migración:
+    //   - Si el usuario aún NO tiene el claim `role` → se permite (igual que hoy).
+    //   - Si YA tiene el claim → se exige un rol con permiso de edición.
+    // Una vez asignados los claims a todos los usuarios (ver SECURITY.md), debe
+    // eliminarse la rama `lacksRoleClaim()` para enforcement estricto.
+    function lacksRoleClaim() {
+      return !('role' in request.auth.token);
+    }
+
+    function canWriteFiles() {
+      return isAuthenticated() &&
+             (lacksRoleClaim() || request.auth.token.role in ['admin', 'secretaria', 'medico']);
+    }
+
     function isValidFileType() {
       return request.resource.contentType.matches('application/pdf') ||
              request.resource.contentType.matches('image/jpeg')      ||
@@ -21,26 +38,21 @@ service firebase.storage {
     }
 
     // ── Patient clinical files ────────────────────────────────────────────────
-    // Structure: patients/{patientId}/{category}/{filename}
+    // Estructura: patients/{patientId}/{category}/{filename}
     match /patients/{patientId}/{category}/{filename} {
-      // Any authenticated user can read (download) clinical files
+      // Cualquier usuario autenticado puede leer (descargar) archivos clínicos.
       allow read: if isAuthenticated();
 
-      // Upload: authenticated + valid type + within size limit
-      allow create: if isAuthenticated()
-                    && isValidFileType()
-                    && isUnderSizeLimit();
+      // Subir / reemplazar: rol con permiso + tipo válido + dentro del límite.
+      allow create, update: if canWriteFiles()
+                            && isValidFileType()
+                            && isUnderSizeLimit();
 
-      // Replace existing file: same constraints as create
-      allow update: if isAuthenticated()
-                    && isValidFileType()
-                    && isUnderSizeLimit();
-
-      // Delete: authenticated users only (role enforcement handled in the app layer)
-      allow delete: if isAuthenticated();
+      // Borrar: rol con permiso de edición.
+      allow delete: if canWriteFiles();
     }
 
-    // ── Deny everything else ─────────────────────────────────────────────────
+    // ── Denegar todo lo demás ────────────────────────────────────────────────
     match /{allPaths=**} {
       allow read, write: if false;
     }
