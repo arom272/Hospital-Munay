@@ -1,1 +1,25 @@
+# Dependencias
+node_modules/
+
+# Build / artefactos
+dist/
+dist-ssr/
+*.local
+
+# Firebase
+.firebase/
+firebase-debug.log
+firestore-debug.log
+
+# Variables de entorno (no versionar secretos)
 .env
+.env.*
+!.env.example
+
+# Editores / SO
+.DS_Store
+Thumbs.db
+*.suo
+*.ntvs*
+*.njsproj
+*.sln

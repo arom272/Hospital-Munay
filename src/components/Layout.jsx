@@ -1,10 +1,19 @@
+import { useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header  from './Header';
 import useStore from '../store/useStore';
 
 export default function Layout() {
-  const { sidebarOpen, closeSidebar } = useStore();
+  const { sidebarOpen, closeSidebar, startData, stopData } = useStore();
+
+  // Suscripciones Firestore activas durante toda la sesión autenticada.
+  // Se montan una vez aquí (no en cada página), evitando re-descargar
+  // las colecciones completas en cada navegación.
+  useEffect(() => {
+    startData();
+    return stopData;
+  }, [startData, stopData]);
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">

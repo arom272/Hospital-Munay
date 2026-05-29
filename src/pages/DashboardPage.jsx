@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Users, Calendar, CheckCircle, Clock, AlertCircle,
@@ -9,9 +9,6 @@ import { getTypeInfo } from '../utils/patientTypes';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import useStore from '../store/useStore';
-import { subscribePatients }  from '../services/patientService';
-import { subscribeSurgeries } from '../services/surgeryService';
-import { subscribeTherapies } from '../services/therapyService';
 import Badge from '../components/ui/Badge';
 import {
   SPECIALTY_CONFIG,
@@ -23,15 +20,8 @@ import {
 const SPECIALTY_MAP = Object.fromEntries(SPECIALTY_CONFIG.map(s => [s.key, s]));
 
 export default function DashboardPage() {
-  const { patients, setPatients, surgeries, setSurgeries, therapies, setTherapies } = useStore();
+  const { patients, surgeries, therapies } = useStore();
   const today = format(new Date(), 'yyyy-MM-dd');
-
-  useEffect(() => {
-    const u1 = subscribePatients(setPatients);
-    const u2 = subscribeSurgeries(setSurgeries);
-    const u3 = subscribeTherapies(setTherapies);
-    return () => { u1(); u2(); u3(); };
-  }, []);
 
   /* ── Surgery stats ─────────────────────────────────── */
   const todaySurgeries = surgeries.filter(s => s.date === today && s.status !== 'cancelado');

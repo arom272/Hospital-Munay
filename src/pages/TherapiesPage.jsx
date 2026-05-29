@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import { useState, useMemo, useCallback, useRef } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin     from '@fullcalendar/daygrid';
 import timeGridPlugin    from '@fullcalendar/timegrid';
@@ -24,11 +24,9 @@ import {
 import toast from 'react-hot-toast';
 import useStore from '../store/useStore';
 import { useAuth } from '../contexts/AuthContext';
-import { subscribePatients } from '../services/patientService';
-import { subscribeTherapies, addTherapy, updateTherapy, deleteTherapy, deleteTherapies } from '../services/therapyService';
-import { subscribePackages, addPackage, updatePackage, deletePackage, buildDefaultSessions } from '../services/therapyPackageService';
+import { addTherapy, updateTherapy, deleteTherapy, deleteTherapies } from '../services/therapyService';
+import { addPackage, updatePackage, deletePackage, buildDefaultSessions } from '../services/therapyPackageService';
 import { getArancel } from '../components/therapies/therapyConstants';
-import { subscribeTherapists } from '../services/therapistService';
 import Modal          from '../components/ui/Modal';
 import ConfirmDialog  from '../components/ui/ConfirmDialog';
 import TherapyForm     from '../components/therapies/TherapyForm';
@@ -76,7 +74,7 @@ const VIEWS = [
 ];
 
 export default function TherapiesPage() {
-  const { patients, setPatients, therapies, setTherapies, therapists, setTherapists, packages, setPackages } = useStore();
+  const { patients, therapies, therapists, packages } = useStore();
   const { isAdmin, isDoctor } = useAuth();
   const calRef = useRef(null);
 
@@ -111,15 +109,6 @@ export default function TherapiesPage() {
   const [calTooltip, setCalTooltip] = useState(null); // { therapies, patientName, x, y }
   const tooltipTimer  = useRef(null);
   const isOverTooltip = useRef(false);
-
-  /* ── subscriptions ────────────────────────────────────── */
-  useEffect(() => {
-    const u1 = subscribePatients(setPatients);
-    const u2 = subscribeTherapies(setTherapies);
-    const u3 = subscribeTherapists(setTherapists);
-    const u4 = subscribePackages(setPackages);
-    return () => { u1(); u2(); u3(); u4(); };
-  }, []);
 
   /* ── therapist name list (for filter dropdown) ───────── */
   const therapistNames = useMemo(() => {

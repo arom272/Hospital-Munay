@@ -28,9 +28,7 @@ import toast from 'react-hot-toast';
 import useStore from '../store/useStore';
 import { useAuth } from '../contexts/AuthContext';
 import { CAL_COLORS, getTypeInfo } from '../utils/patientTypes';
-import { subscribePatients }  from '../services/patientService';
-import { subscribeTherapies } from '../services/therapyService';
-import { subscribeSurgeries, addSurgery, updateSurgery } from '../services/surgeryService';
+import { addSurgery, updateSurgery } from '../services/surgeryService';
 import Modal         from '../components/ui/Modal';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import SurgeryForm      from '../components/calendar/SurgeryForm';
@@ -116,7 +114,7 @@ const STATUS_META = {
 
 // ─────────────────────────────────────────────────────────────────────────────
 export default function CalendarPage() {
-  const { patients, setPatients, surgeries, setSurgeries, setTherapies } = useStore();
+  const { patients, surgeries } = useStore();
   const { isAdmin, canEdit } = useAuth();
   const calRef = useRef(null);
 
@@ -134,13 +132,6 @@ export default function CalendarPage() {
   // Tooltip hover tracking (stay open when mouse moves from event → tooltip)
   const tooltipTimer    = useRef(null);
   const isOverTooltip   = useRef(false);
-
-  useEffect(() => {
-    const u1 = subscribePatients(setPatients);
-    const u2 = subscribeSurgeries(setSurgeries);
-    const u3 = subscribeTherapies(setTherapies);
-    return () => { u1(); u2(); u3(); };
-  }, []);
 
   // ── Weekly stats ────────────────────────────────────────────────────────────
   const { weekStart, weekEnd } = useMemo(() => {
